@@ -1,23 +1,45 @@
 import os
 import sys
 import argparse
+from pathlib import Path
 from patchpal.agent import create_agent
+
+
+def _get_patchpal_dir() -> Path:
+    """Get the patchpal directory for this repository.
+
+    Returns the directory ~/.patchpal/<repo-name>/ where repo-specific
+    data like history and logs are stored.
+    """
+    repo_root = Path(".").resolve()
+    home = Path.home()
+    patchpal_root = home / '.patchpal'
+
+    # Use repo name (last part of path) to create unique directory
+    repo_name = repo_root.name
+    repo_dir = patchpal_root / repo_name
+
+    # Create directory if it doesn't exist
+    repo_dir.mkdir(parents=True, exist_ok=True)
+
+    return repo_dir
+
 
 # Enable command history with up/down arrows
 try:
     import readline
-    # Set up history
     import atexit
-    from pathlib import Path
 
-    history_file = Path.home() / '.patchpal_history'
+    # Use repo-specific history file
+    history_file = _get_patchpal_dir() / 'history.txt'
+
     try:
-        readline.read_history_file(history_file)
+        readline.read_history_file(str(history_file))
     except FileNotFoundError:
         pass
 
     # Save history on exit
-    atexit.register(readline.write_history_file, history_file)
+    atexit.register(readline.write_history_file, str(history_file))
 
     # Set history length
     readline.set_history_length(1000)
