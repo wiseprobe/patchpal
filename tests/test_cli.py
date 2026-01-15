@@ -218,8 +218,8 @@ def test_main_runs_agent_with_user_input(monkeypatch):
 
         main()
 
-        # Verify agent.run was called with user input
-        mock_agent.run.assert_called_once_with("What files are here?")
+        # Verify agent.run was called with user input and reset=False for conversation memory
+        mock_agent.run.assert_called_once_with("What files are here?", reset=False)
 
 
 def test_main_skips_empty_input(monkeypatch):

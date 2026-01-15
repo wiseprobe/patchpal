@@ -120,7 +120,7 @@ Supported models: Any LiteLLM-supported model
             # Run the agent (Ctrl-C here will interrupt agent, not exit)
             try:
                 print()  # Add blank line before agent output
-                result = agent.run(user_input)
+                result = agent.run(user_input, reset=False)
 
                 print("\n" + "=" * 80)
                 print("\033[1;32mAgent:\033[0m", result)
