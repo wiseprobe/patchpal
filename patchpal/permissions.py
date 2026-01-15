@@ -141,26 +141,11 @@ class PermissionManager:
 
         while True:
             try:
-                # Use getpass which reads directly from terminal, bypassing stdio
-                import getpass
-                import sys
-
-                # getpass doesn't support custom prompts well, so we write prompt separately
+                # Use regular input() which works cross-platform and shows user input
                 sys.stderr.write("\n\033[1;36mChoice [1-3]:\033[0m ")
                 sys.stderr.flush()
 
-                # getpass.getpass() reads from /dev/tty on Unix, console on Windows
-                # Pass empty string as prompt since we already wrote it
-                try:
-                    choice = getpass.getpass(prompt='').strip()
-                except Exception:
-                    # If getpass fails, fall back to direct /dev/tty access
-                    try:
-                        with open('/dev/tty', 'r') as tty_in:
-                            choice = tty_in.readline().strip()
-                    except:
-                        # Last resort: try stdin
-                        choice = sys.stdin.readline().strip()
+                choice = input().strip()
 
                 if choice == '1':
                     return True
