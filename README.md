@@ -200,6 +200,30 @@ The agent operates within a sandboxed environment with several restrictions:
 - All changes require passing through the apply_patch function
 - Shell commands run with limited permissions
 
+### Enhanced Security Guardrails ✅ ENABLED
+
+PatchPal includes comprehensive security protections enabled by default:
+
+- **Sensitive file protection**: Blocks access to `.env`, credentials, API keys
+- **File size limits**: Prevents OOM with configurable size limits (10MB default)
+- **Binary file detection**: Blocks reading non-text files
+- **Critical file warnings**: Warns when modifying infrastructure files (package.json, Dockerfile, etc.)
+- **Read-only mode**: Optional mode that prevents all modifications
+- **Command timeout**: 30-second timeout on shell commands
+- **Pattern-based blocking**: Blocks dangerous command patterns (`> /dev/`, `--force`, etc.)
+- **Path traversal protection**: Prevents access outside repository root
+
+See `GUARDRAILS.md` for detailed information on all security features.
+
+**Configuration via environment variables:**
+```bash
+export PATCHPAL_MAX_FILE_SIZE=5242880     # 5MB limit
+export PATCHPAL_READ_ONLY=true            # Enable read-only mode
+export PATCHPAL_ALLOW_SENSITIVE=true      # Allow .env access (not recommended)
+```
+
+**Test coverage:** 52 tests including 20 dedicated security tests
+
 ## Development
 
 Install in development mode with dev dependencies:

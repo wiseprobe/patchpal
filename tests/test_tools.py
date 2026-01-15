@@ -140,7 +140,7 @@ def test_run_shell_forbidden_commands(temp_repo):
     forbidden_cmds = ["rm test.txt", "sudo ls", "mv a b", "chmod 777 file", "dd if=/dev/zero"]
 
     for cmd in forbidden_cmds:
-        with pytest.raises(ValueError, match="Blocked command"):
+        with pytest.raises(ValueError, match="Blocked dangerous command|Blocked command"):
             run_shell(cmd)
 
 
