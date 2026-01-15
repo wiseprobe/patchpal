@@ -124,55 +124,12 @@ Supported models: Any LiteLLM-supported model
             # Run the agent (Ctrl-C here will interrupt agent, not exit)
             try:
                 print()  # Add blank line before agent output
-
-                # Use streaming mode to check permissions between steps
-                from patchpal.permissions import PermissionManager
-                permission_manager = PermissionManager(_get_patchpal_dir())
-
-                # Stream the agent execution
-                step_generator = agent.run(user_input, reset=False, stream=True)
-
-                for step in step_generator:
-                    # Check if this is a tool call that needs permission
-                    if hasattr(step, 'tool_calls') and step.tool_calls:
-                        for tool_call in step.tool_calls:
-                            tool_name = tool_call.name
-
-                            # Only check permission for destructive operations
-                            if tool_name in ['apply_patch', 'run_shell']:
-                                # Get tool arguments
-                                args = tool_call.arguments or {}
-
-                                # Format description based on tool
-                                if tool_name == 'apply_patch':
-                                    path = args.get('path', 'unknown')
-                                    content_size = len(args.get('new_content', ''))
-                                    description = f"   Modify file: {path}\n   New content size: {content_size} bytes"
-                                    pattern = path
-                                elif tool_name == 'run_shell':
-                                    cmd = args.get('cmd', 'unknown')
-                                    description = f"   {cmd}"
-                                    pattern = cmd.split()[0] if cmd.split() else None
-                                else:
-                                    description = f"   Execute {tool_name}"
-                                    pattern = None
-
-                                # Ask for permission
-                                if not permission_manager.request_permission(tool_name, description, pattern):
-                                    print("\n\033[1;31mOperation cancelled by user.\033[0m")
-                                    # Break out of agent execution
-                                    raise StopIteration
-
-                # Get the final result (last step should have the output)
-                result = step.output if hasattr(step, 'output') else "Task completed"
+                result = agent.run(user_input, reset=False)
 
                 print("\n" + "=" * 80)
                 print("\033[1;32mAgent:\033[0m", result)
                 print("=" * 80)
 
-            except StopIteration:
-                # User cancelled operation
-                pass
             except KeyboardInterrupt:
                 print("\n\n\033[1;33mAgent interrupted.\033[0m Type your next command or 'exit' to quit.")
                 continue

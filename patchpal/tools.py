@@ -9,6 +9,7 @@ import logging
 import shutil
 from datetime import datetime
 from typing import Optional
+from patchpal.permissions import PermissionManager
 
 REPO_ROOT = Path(".").resolve()
 
@@ -61,6 +62,16 @@ def _get_patchpal_dir() -> Path:
 PATCHPAL_DIR = _get_patchpal_dir()
 BACKUP_DIR = PATCHPAL_DIR / 'backups'
 AUDIT_LOG_FILE = PATCHPAL_DIR / 'audit.log'
+
+# Permission manager
+_permission_manager = None
+
+def _get_permission_manager() -> PermissionManager:
+    """Get or create the global permission manager."""
+    global _permission_manager
+    if _permission_manager is None:
+        _permission_manager = PermissionManager(PATCHPAL_DIR)
+    return _permission_manager
 
 # Audit logging setup
 audit_logger = logging.getLogger('patchpal.audit')
@@ -290,6 +301,12 @@ def apply_patch(path: str, new_content: str) -> str:
     Raises:
         ValueError: If in read-only mode or file is too large
     """
+    # Check permission before proceeding
+    permission_manager = _get_permission_manager()
+    description = f"   Modify file: {path}\n   New content size: {len(new_content)} bytes"
+    if not permission_manager.request_permission('apply_patch', description, pattern=path):
+        return "Operation cancelled by user."
+
     _operation_limiter.check_limit(f"apply_patch({path})")
 
     if READ_ONLY_MODE:
@@ -368,6 +385,13 @@ def run_shell(cmd: str) -> str:
     Raises:
         ValueError: If command contains forbidden operations
     """
+    # Check permission before proceeding
+    permission_manager = _get_permission_manager()
+    description = f"   {cmd}"
+    pattern = cmd.split()[0] if cmd.split() else None
+    if not permission_manager.request_permission('run_shell', description, pattern=pattern):
+        return "Operation cancelled by user."
+
     _operation_limiter.check_limit(f"run_shell({cmd[:50]}...)")
 
     # Basic token-based blocking

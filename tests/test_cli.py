@@ -210,22 +210,16 @@ def test_main_runs_agent_with_user_input(monkeypatch):
     with patch("patchpal.cli.create_agent") as mock_create, \
          patch("builtins.input", side_effect=["What files are here?", "exit"]):
 
-        # Create a mock step with output
-        mock_step = MagicMock()
-        mock_step.output = "Here are the files..."
-        mock_step.tool_calls = []  # No tool calls to avoid permission checks
-
         mock_agent = MagicMock()
-        # Make run() return a generator that yields the mock step
-        mock_agent.run.return_value = iter([mock_step])
+        mock_agent.run.return_value = "Here are the files..."
         mock_create.return_value = mock_agent
 
         from patchpal.cli import main
 
         main()
 
-        # Verify agent.run was called with user input, reset=False, and stream=True for permissions
-        mock_agent.run.assert_called_once_with("What files are here?", reset=False, stream=True)
+        # Verify agent.run was called with user input and reset=False for conversation memory
+        mock_agent.run.assert_called_once_with("What files are here?", reset=False)
 
 
 def test_main_skips_empty_input(monkeypatch):

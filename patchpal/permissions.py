@@ -121,21 +121,23 @@ class PermissionManager:
         if self._check_existing_grant(tool_name, pattern):
             return True
 
-        # Display the request
-        print("\n" + "=" * 80)
-        print(f"\033[1;33m{tool_name.replace('_', ' ').title()}\033[0m")
-        print("-" * 80)
-        print(description)
-        print("-" * 80)
+        # Display the request - use stderr to avoid Rich console capture
+        import sys
+        sys.stderr.write("\n" + "=" * 80 + "\n")
+        sys.stderr.write(f"\033[1;33m{tool_name.replace('_', ' ').title()}\033[0m\n")
+        sys.stderr.write("-" * 80 + "\n")
+        sys.stderr.write(description + "\n")
+        sys.stderr.write("-" * 80 + "\n")
 
         # Get user input
-        print("\nDo you want to proceed?")
-        print("  1. Yes")
+        sys.stderr.write("\nDo you want to proceed?\n")
+        sys.stderr.write("  1. Yes\n")
         if pattern:
-            print(f"  2. Yes, and don't ask again for '{pattern}' in this repository")
+            sys.stderr.write(f"  2. Yes, and don't ask again for '{pattern}' in this repository\n")
         else:
-            print(f"  2. Yes, and don't ask again for {tool_name} in this repository")
-        print("  3. No")
+            sys.stderr.write(f"  2. Yes, and don't ask again for {tool_name} in this repository\n")
+        sys.stderr.write("  3. No\n")
+        sys.stderr.flush()
 
         while True:
             try:
@@ -186,12 +188,15 @@ class PermissionManager:
                     self._grant_permission(tool_name, persistent=True, pattern=pattern)
                     return True
                 elif choice == '3':
-                    print("\n\033[1;31mOperation cancelled.\033[0m")
+                    sys.stderr.write("\n\033[1;31mOperation cancelled.\033[0m\n")
+                    sys.stderr.flush()
                     return False
                 else:
-                    print("Invalid choice. Please enter 1, 2, or 3.")
+                    sys.stderr.write("Invalid choice. Please enter 1, 2, or 3.\n")
+                    sys.stderr.flush()
             except (EOFError, KeyboardInterrupt):
-                print("\n\033[1;31mOperation cancelled.\033[0m")
+                sys.stderr.write("\n\033[1;31mOperation cancelled.\033[0m\n")
+                sys.stderr.flush()
                 return False
 
 
