@@ -47,10 +47,10 @@ def test_create_agent_ollama_model():
 
         from patchpal.agent import create_agent
 
-        agent = create_agent(model_id="ollama/llama3.1")
+        agent = create_agent(model_id="ollama_chat/llama3.1")
 
         # Verify LiteLLMModel was called with Ollama model
-        mock_model.assert_called_once_with(model_id="ollama/llama3.1")
+        mock_model.assert_called_once_with(model_id="ollama_chat/llama3.1")
 
 
 def test_create_agent_has_correct_tools():

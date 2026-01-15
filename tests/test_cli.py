@@ -47,7 +47,7 @@ def test_main_uses_cli_model_arg(monkeypatch):
 def test_main_uses_env_var_model(monkeypatch):
     """Test that main() uses model from environment variable."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-    monkeypatch.setenv("PATCHPAL_MODEL", "ollama/llama3.1")
+    monkeypatch.setenv("PATCHPAL_MODEL", "ollama_chat/llama3.1")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
     with patch("patchpal.cli.create_agent") as mock_create, \
@@ -61,13 +61,13 @@ def test_main_uses_env_var_model(monkeypatch):
         main()
 
         # Verify create_agent was called with env var model
-        mock_create.assert_called_once_with(model_id="ollama/llama3.1")
+        mock_create.assert_called_once_with(model_id="ollama_chat/llama3.1")
 
 
 def test_main_cli_arg_overrides_env_var(monkeypatch):
     """Test that CLI argument takes precedence over environment variable."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-    monkeypatch.setenv("PATCHPAL_MODEL", "ollama/llama3.1")
+    monkeypatch.setenv("PATCHPAL_MODEL", "ollama_chat/llama3.1")
     monkeypatch.setattr(sys, "argv", ["patchpal", "--model", "openai/gpt-4o"])
 
     with patch("patchpal.cli.create_agent") as mock_create, \

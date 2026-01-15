@@ -47,8 +47,8 @@ patchpal
 # Use a specific model via command-line argument
 patchpal --model openai/gpt-4o
 
-# Use Ollama (local, no API key required)
-patchpal --model ollama/llama3.1
+# Use Ollama (local, no API key required - use larger models for better results)
+patchpal --model ollama_chat/qwen2.5-coder:32b
 
 # Or set the model via environment variable
 export PATCHPAL_MODEL=openai/gpt-4o
@@ -72,7 +72,7 @@ PatchPal supports any LiteLLM-compatible model. You can configure the model in t
 ```bash
 patchpal --model openai/gpt-4o
 patchpal --model anthropic/claude-opus-4
-patchpal --model ollama/llama3.1
+patchpal --model ollama_chat/qwen2.5-coder:32b
 ```
 
 ### 2. Environment Variable
@@ -90,27 +90,74 @@ PatchPal works with any model supported by LiteLLM, including:
 
 - **Anthropic**: `anthropic/claude-sonnet-4-5`, `anthropic/claude-opus-4-5`, `anthropic/claude-3-7-sonnet-latest`
 - **OpenAI**: `openai/gpt-4o`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
-- **Ollama (Local)**: `ollama/llama3.1`, `ollama/llama3.2`, `ollama/codellama`, `ollama/mistral` - Run models locally without API keys!
+- **Ollama (Local)**: `ollama_chat/llama3.1`, `ollama_chat/llama3.2`, `ollama_chat/codellama`, `ollama_chat/mistral` - Run models locally without API keys!
 - **Google**: `gemini/gemini-pro`, `vertex_ai/gemini-pro`
 - **Others**: Cohere, Azure OpenAI, Bedrock, and many more
 
 See the [LiteLLM providers documentation](https://docs.litellm.ai/docs/providers) for the complete list.
 
-### Using Ollama (Local Models)
+### Using Local Models (Ollama & vLLM)
 
-Ollama lets you run models locally on your machine without needing API keys or internet access:
+Run models locally on your machine without needing API keys or internet access.
 
-1. **Install Ollama**: Download from https://ollama.ai/
-2. **Pull a model**: `ollama pull llama3.1` (or any other model)
-3. **Run PatchPal**: `patchpal --model ollama/llama3.1`
+**⚠️ Important: For local models, use vLLM instead of Ollama for much better performance!**
 
-Popular Ollama models for coding:
-- `ollama/llama3.1` - Meta's latest Llama model
-- `ollama/codellama` - Code-specialized Llama model
-- `ollama/deepseek-coder` - Excellent for programming tasks
-- `ollama/qwen2.5-coder` - Strong coding model
+#### vLLM (Recommended for Local Models)
 
-No API keys required - everything runs on your local machine!
+vLLM is significantly faster than Ollama due to optimized inference with continuous batching and PagedAttention.
+
+```bash
+# 1. Install vLLM
+pip install vllm
+
+# 2. Start vLLM server with a model (example: Qwen 2.5 Coder)
+vllm serve Qwen/Qwen2.5-Coder-32B-Instruct --dtype auto --api-key token-abc123
+
+# 3. Use with PatchPal (in another terminal)
+export OPENAI_API_KEY=token-abc123
+patchpal --model openai/Qwen/Qwen2.5-Coder-32B-Instruct --api_base http://localhost:8000/v1
+```
+
+**Recommended models for vLLM:**
+- `Qwen/Qwen2.5-Coder-32B-Instruct` - Excellent tool calling and coding (RECOMMENDED)
+- `deepseek-ai/deepseek-coder-33b-instruct` - Strong coding and tool support
+- `meta-llama/Meta-Llama-3.1-70B-Instruct` - Good performance, needs 64GB+ RAM
+
+#### Ollama (Easier Setup, Slower Performance)
+
+Ollama is easier to install but 3-10x slower than vLLM for the same models.
+
+```bash
+# 1. Install Ollama: Download from https://ollama.ai/
+# 2. Pull a model
+ollama pull qwen2.5-coder:32b
+
+# 3. Run PatchPal
+patchpal --model ollama_chat/qwen2.5-coder:32b
+```
+
+**Recommended Ollama models:**
+- `ollama_chat/qwen2.5-coder:32b` - Best tool calling for Ollama
+- `ollama_chat/deepseek-coder:33b` - Good coding support
+
+**Not recommended** (poor tool calling):
+- Smaller models (<32B parameters) struggle with tool calling
+- `llama3.1:8b` often fails to properly format tool arguments
+
+#### Performance Comparison
+
+| Setup | Speed | Setup Difficulty | Best For |
+|-------|-------|------------------|----------|
+| **Cloud APIs** (Claude, GPT-4) | 1-3s per step | Easy | Production, best results |
+| **vLLM** (local) | 3-10s per step | Medium | Privacy, local deployment |
+| **Ollama** (local) | 30-90s per step | Easy | Quick testing, learning |
+
+**Hardware requirements:**
+- 32B models: ~20GB RAM/VRAM
+- 70B models: ~40GB+ RAM/VRAM
+- GPU highly recommended for acceptable performance
+
+No API keys required for local models - everything runs on your machine!
 
 ### Viewing Help
 ```bash

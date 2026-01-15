@@ -15,13 +15,13 @@ Examples:
   patchpal                                    # Use default model
   patchpal --model openai/gpt-4o              # Use GPT-4o
   patchpal --model anthropic/claude-opus-4    # Use Claude Opus
-  patchpal --model ollama/llama3.1            # Use Ollama (local, no API key!)
+  patchpal --model ollama_chat/llama3.1            # Use Ollama (local, no API key!)
   PATCHPAL_MODEL=openai/gpt-4o patchpal       # Use environment variable
 
 Supported models: Any LiteLLM-supported model
   - Anthropic: anthropic/claude-sonnet-4-5 (default), anthropic/claude-opus-4-5, etc.
   - OpenAI: openai/gpt-4o, openai/gpt-3.5-turbo, etc.
-  - Ollama (local): ollama/llama3.1, ollama/codellama, ollama/deepseek-coder, etc.
+  - Ollama (local): ollama_chat/llama3.1, ollama_chat/codellama, ollama_chat/deepseek-coder, etc.
   - Others: See https://docs.litellm.ai/docs/providers
         """
     )
@@ -29,7 +29,7 @@ Supported models: Any LiteLLM-supported model
         "--model",
         type=str,
         default=None,
-        help="LiteLLM model identifier (e.g., openai/gpt-4o, anthropic/claude-opus-4, ollama/llama3.1). "
+        help="LiteLLM model identifier (e.g., openai/gpt-4o, anthropic/claude-opus-4, ollama_chat/llama3.1). "
              "Can also be set via PATCHPAL_MODEL environment variable."
     )
     args = parser.parse_args()
