@@ -140,7 +140,7 @@ def test_main_handles_exit_command(monkeypatch, capsys):
 
 
 def test_main_handles_keyboard_interrupt(monkeypatch, capsys):
-    """Test that main() handles KeyboardInterrupt gracefully."""
+    """Test that main() handles KeyboardInterrupt during input gracefully."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
@@ -155,7 +155,30 @@ def test_main_handles_keyboard_interrupt(monkeypatch, capsys):
         main()
 
         captured = capsys.readouterr()
-        assert "Interrupted" in captured.out or "Goodbye" in captured.out
+        assert "Goodbye" in captured.out
+
+
+def test_main_handles_keyboard_interrupt_during_agent_run(monkeypatch, capsys):
+    """Test that main() handles KeyboardInterrupt during agent execution without exiting."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(sys, "argv", ["patchpal"])
+
+    with patch("patchpal.cli.create_agent") as mock_create, \
+         patch("builtins.input", side_effect=["test query", "exit"]):
+
+        mock_agent = MagicMock()
+        # Agent raises KeyboardInterrupt during execution
+        mock_agent.run.side_effect = KeyboardInterrupt
+        mock_create.return_value = mock_agent
+
+        from patchpal.cli import main
+
+        main()
+
+        captured = capsys.readouterr()
+        # Should show "interrupted" message and continue, not exit immediately
+        assert "Agent interrupted" in captured.out
+        assert "Goodbye" in captured.out  # Eventually exits with "exit" command
 
 
 def test_main_handles_agent_error(monkeypatch, capsys):

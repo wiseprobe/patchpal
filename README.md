@@ -212,11 +212,17 @@ PatchPal - Claude Code Clone
 ================================================================================
 
 Type 'exit' or 'quit' to exit the program.
+Press Ctrl-C during agent execution to interrupt the agent.
 
 You: Add type hints and basic logging to my_module.py
 ```
 
 The agent will process your request and show you the results. You can continue with follow-up tasks or type `exit` to quit.
+
+**Interactive Features:**
+- **Command History**: Use ↑ (up arrow) and ↓ (down arrow) to navigate through previous commands
+- **Interrupt Agent**: Press `Ctrl-C` during agent execution to stop the current task without exiting PatchPal
+- **Exit**: Type `exit`, `quit`, or press `Ctrl-C` at the prompt to exit PatchPal
 
 ## Example Tasks
 

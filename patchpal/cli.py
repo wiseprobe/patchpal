@@ -3,6 +3,28 @@ import sys
 import argparse
 from patchpal.agent import create_agent
 
+# Enable command history with up/down arrows
+try:
+    import readline
+    # Set up history
+    import atexit
+    from pathlib import Path
+
+    history_file = Path.home() / '.patchpal_history'
+    try:
+        readline.read_history_file(history_file)
+    except FileNotFoundError:
+        pass
+
+    # Save history on exit
+    atexit.register(readline.write_history_file, history_file)
+
+    # Set history length
+    readline.set_history_length(1000)
+except ImportError:
+    # readline not available (e.g., on Windows without pyreadline3)
+    pass
+
 
 def main():
     """Main CLI entry point for PatchPal."""
@@ -55,12 +77,14 @@ Supported models: Any LiteLLM-supported model
     print("PatchPal - Claude Code Clone")
     print("=" * 80)
     print(f"\nUsing model: {model_id}")
-    print("\nType 'exit' or 'quit' to exit the program.\n")
+    print("\nType 'exit' or 'quit' to exit the program.")
+    print("Press Ctrl-C during agent execution to interrupt the agent.\n")
 
     while True:
         try:
             # Get user input
-            user_input = input("\n\033[1;36mYou:\033[0m ").strip()
+            # Use \001 and \002 to mark non-printing characters (ANSI codes) for readline
+            user_input = input("\n\001\033[1;36m\002You:\001\033[0m\002 ").strip()
 
             # Check for exit commands
             if user_input.lower() in ['exit', 'quit', 'q']:
@@ -71,16 +95,22 @@ Supported models: Any LiteLLM-supported model
             if not user_input:
                 continue
 
-            # Run the agent
-            print()  # Add blank line before agent output
-            result = agent.run(user_input)
+            # Run the agent (Ctrl-C here will interrupt agent, not exit)
+            try:
+                print()  # Add blank line before agent output
+                result = agent.run(user_input)
 
-            print("\n" + "=" * 80)
-            print("\033[1;32mAgent:\033[0m", result)
-            print("=" * 80)
+                print("\n" + "=" * 80)
+                print("\033[1;32mAgent:\033[0m", result)
+                print("=" * 80)
+
+            except KeyboardInterrupt:
+                print("\n\n\033[1;33mAgent interrupted.\033[0m Type your next command or 'exit' to quit.")
+                continue
 
         except KeyboardInterrupt:
-            print("\n\nInterrupted. Goodbye!")
+            # Ctrl-C during input prompt - exit the program
+            print("\n\nGoodbye!")
             break
         except Exception as e:
             print(f"\n\033[1;31mError:\033[0m {e}")
