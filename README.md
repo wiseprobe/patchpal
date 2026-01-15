@@ -20,17 +20,38 @@ pip install -e .
 
 ## Setup
 
-1. **Get an Anthropic API key**:
-   - Sign up at https://console.anthropic.com/
-   - Generate an API key from your account settings
+1. **Get an API key** (or use local models):
+   - For Anthropic models (default): Sign up at https://console.anthropic.com/
+   - For OpenAI models: Get a key from https://platform.openai.com/
+   - For Ollama (local): Install from https://ollama.ai/ (no API key needed!)
+   - For other providers: Check the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
 
-2. **Set up your API key**:
+2. **Set up your API key** (skip for local models like Ollama):
 ```bash
+# For Anthropic (default)
 export ANTHROPIC_API_KEY=your_api_key_here
+
+# For OpenAI
+export OPENAI_API_KEY=your_api_key_here
+
+# For Ollama (local) - no API key needed!
+
+# For other providers, check LiteLLM docs
 ```
 
 3. **Run PatchPal**:
 ```bash
+# Use default model (claude-3-7-sonnet-latest)
+patchpal
+
+# Use a specific model via command-line argument
+patchpal --model openai/gpt-4o
+
+# Use Ollama (local, no API key required)
+patchpal --model ollama/llama3.1
+
+# Or set the model via environment variable
+export PATCHPAL_MODEL=openai/gpt-4o
 patchpal
 ```
 
@@ -42,6 +63,59 @@ The agent has the following tools:
 - **list_files**: List all files in the repository
 - **apply_patch**: Modify files by providing new content
 - **run_shell**: Execute safe shell commands (forbidden: rm, mv, sudo, etc.)
+
+## Model Configuration
+
+PatchPal supports any LiteLLM-compatible model. You can configure the model in three ways (in order of priority):
+
+### 1. Command-line Argument
+```bash
+patchpal --model openai/gpt-4o
+patchpal --model anthropic/claude-opus-4
+patchpal --model ollama/llama3.1
+```
+
+### 2. Environment Variable
+```bash
+export PATCHPAL_MODEL=openai/gpt-4o
+patchpal
+```
+
+### 3. Default Model
+If no model is specified, PatchPal uses `anthropic/claude-3-7-sonnet-latest`.
+
+### Supported Models
+
+PatchPal works with any model supported by LiteLLM, including:
+
+- **Anthropic**: `anthropic/claude-opus-4`, `anthropic/claude-3-7-sonnet-latest`, `anthropic/claude-3-5-sonnet-latest`
+- **OpenAI**: `openai/gpt-4o`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
+- **Ollama (Local)**: `ollama/llama3.1`, `ollama/llama3.2`, `ollama/codellama`, `ollama/mistral` - Run models locally without API keys!
+- **Google**: `gemini/gemini-pro`, `vertex_ai/gemini-pro`
+- **Others**: Cohere, Azure OpenAI, Bedrock, and many more
+
+See the [LiteLLM providers documentation](https://docs.litellm.ai/docs/providers) for the complete list.
+
+### Using Ollama (Local Models)
+
+Ollama lets you run models locally on your machine without needing API keys or internet access:
+
+1. **Install Ollama**: Download from https://ollama.ai/
+2. **Pull a model**: `ollama pull llama3.1` (or any other model)
+3. **Run PatchPal**: `patchpal --model ollama/llama3.1`
+
+Popular Ollama models for coding:
+- `ollama/llama3.1` - Meta's latest Llama model
+- `ollama/codellama` - Code-specialized Llama model
+- `ollama/deepseek-coder` - Excellent for programming tasks
+- `ollama/qwen2.5-coder` - Strong coding model
+
+No API keys required - everything runs on your local machine!
+
+### Viewing Help
+```bash
+patchpal --help
+```
 
 ## Usage
 
