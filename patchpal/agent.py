@@ -3,11 +3,11 @@ from smolagents import ToolCallingAgent, LiteLLMModel, tool
 from patchpal.tools import read_file, list_files, apply_patch, run_shell
 
 
-def create_agent(model_id="anthropic/claude-sonnet-4-5-latest"):
+def create_agent(model_id="anthropic/claude-sonnet-4-5"):
     """Create and configure the PatchPal agent.
 
     Args:
-        model_id: LiteLLM model identifier (default: anthropic/claude-sonnet-4-5-latest)
+        model_id: LiteLLM model identifier (default: anthropic/claude-sonnet-4-5)
     """
     tools = [
         tool(read_file),

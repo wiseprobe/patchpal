@@ -1,0 +1,172 @@
+"""Tests for patchpal.tools module."""
+
+import pytest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
+import tempfile
+import os
+
+
+@pytest.fixture
+def temp_repo(monkeypatch):
+    """Create a temporary repository for testing."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        # Create test files
+        (tmpdir_path / "test.txt").write_text("Hello, World!")
+        (tmpdir_path / "subdir").mkdir()
+        (tmpdir_path / "subdir" / "file.py").write_text("print('test')")
+
+        # Monkey-patch REPO_ROOT
+        monkeypatch.setattr("patchpal.tools.REPO_ROOT", tmpdir_path)
+
+        yield tmpdir_path
+
+
+def test_read_file(temp_repo):
+    """Test reading a file."""
+    from patchpal.tools import read_file
+
+    content = read_file("test.txt")
+    assert content == "Hello, World!"
+
+
+def test_read_file_in_subdir(temp_repo):
+    """Test reading a file in a subdirectory."""
+    from patchpal.tools import read_file
+
+    content = read_file("subdir/file.py")
+    assert content == "print('test')"
+
+
+def test_read_file_not_found(temp_repo):
+    """Test reading a non-existent file raises an error."""
+    from patchpal.tools import read_file
+
+    with pytest.raises(ValueError, match="File not found"):
+        read_file("nonexistent.txt")
+
+
+def test_read_file_outside_repo(temp_repo):
+    """Test that reading outside the repo is blocked."""
+    from patchpal.tools import read_file
+
+    with pytest.raises(ValueError, match="Path outside repository"):
+        read_file("../etc/passwd")
+
+
+def test_list_files(temp_repo):
+    """Test listing files in the repository."""
+    from patchpal.tools import list_files
+
+    files = list_files()
+    assert "test.txt" in files
+    assert "subdir/file.py" in files
+    assert len(files) == 2  # Should only list files, not directories
+
+
+def test_list_files_ignores_hidden(temp_repo):
+    """Test that hidden files are ignored."""
+    from patchpal.tools import list_files
+
+    # Create a hidden file
+    (temp_repo / ".hidden").write_text("secret")
+    (temp_repo / ".git").mkdir()
+    (temp_repo / ".git" / "config").write_text("config")
+
+    files = list_files()
+    assert ".hidden" not in files
+    assert ".git/config" not in files
+
+
+def test_apply_patch_existing_file(temp_repo):
+    """Test applying a patch to an existing file."""
+    from patchpal.tools import apply_patch
+
+    result = apply_patch("test.txt", "New content!")
+    assert "Successfully updated test.txt" in result
+    assert (temp_repo / "test.txt").read_text() == "New content!"
+
+
+def test_apply_patch_new_file(temp_repo):
+    """Test creating a new file with apply_patch."""
+    from patchpal.tools import apply_patch
+
+    result = apply_patch("newfile.txt", "Brand new file")
+    assert "Successfully updated newfile.txt" in result
+    assert (temp_repo / "newfile.txt").read_text() == "Brand new file"
+
+
+def test_apply_patch_in_new_subdir(temp_repo):
+    """Test creating a file in a new subdirectory."""
+    from patchpal.tools import apply_patch
+
+    result = apply_patch("newdir/newfile.txt", "Content")
+    assert "Successfully updated newdir/newfile.txt" in result
+    assert (temp_repo / "newdir" / "newfile.txt").read_text() == "Content"
+
+
+def test_apply_patch_shows_diff(temp_repo):
+    """Test that apply_patch shows a diff."""
+    from patchpal.tools import apply_patch
+
+    result = apply_patch("test.txt", "Modified content")
+    assert "Diff:" in result
+    assert "-Hello, World!" in result
+    assert "+Modified content" in result
+
+
+def test_run_shell_success(temp_repo):
+    """Test running a safe shell command."""
+    from patchpal.tools import run_shell
+
+    result = run_shell("echo 'Hello'")
+    assert "Hello" in result
+
+
+def test_run_shell_with_output(temp_repo):
+    """Test running a shell command with output."""
+    from patchpal.tools import run_shell
+
+    result = run_shell("ls test.txt")
+    assert "test.txt" in result
+
+
+def test_run_shell_forbidden_commands(temp_repo):
+    """Test that forbidden commands are blocked."""
+    from patchpal.tools import run_shell
+
+    forbidden_cmds = ["rm test.txt", "sudo ls", "mv a b", "chmod 777 file", "dd if=/dev/zero"]
+
+    for cmd in forbidden_cmds:
+        with pytest.raises(ValueError, match="Blocked command"):
+            run_shell(cmd)
+
+
+def test_run_shell_complex_safe_command(temp_repo):
+    """Test that complex but safe commands work."""
+    from patchpal.tools import run_shell
+
+    # Create a file first
+    (temp_repo / "count.txt").write_text("line1\nline2\nline3")
+
+    result = run_shell("wc -l count.txt")
+    assert "3" in result or "count.txt" in result
+
+
+def test_check_path_validates_existence():
+    """Test that _check_path validates file existence."""
+    from patchpal.tools import _check_path
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        with patch("patchpal.tools.REPO_ROOT", tmpdir_path):
+            # Test non-existent file with must_exist=True
+            with pytest.raises(ValueError, match="File not found"):
+                _check_path("nonexistent.txt", must_exist=True)
+
+            # Test non-existent file with must_exist=False
+            result = _check_path("nonexistent.txt", must_exist=False)
+            assert result == tmpdir_path / "nonexistent.txt"

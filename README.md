@@ -41,7 +41,7 @@ export OPENAI_API_KEY=your_api_key_here
 
 3. **Run PatchPal**:
 ```bash
-# Use default model (claude-sonnet-4-5-latest)
+# Use default model (anthropic/claude-sonnet-4-5)
 patchpal
 
 # Use a specific model via command-line argument
@@ -82,13 +82,13 @@ patchpal
 ```
 
 ### 3. Default Model
-If no model is specified, PatchPal uses `anthropic/claude-sonnet-4-5-latest` (Claude Sonnet 4.5).
+If no model is specified, PatchPal uses `anthropic/claude-sonnet-4-5` (Claude Sonnet 4.5).
 
 ### Supported Models
 
 PatchPal works with any model supported by LiteLLM, including:
 
-- **Anthropic**: `anthropic/claude-sonnet-4-5-latest`, `anthropic/claude-opus-4-5-latest`, `anthropic/claude-3-7-sonnet-latest`
+- **Anthropic**: `anthropic/claude-sonnet-4-5`, `anthropic/claude-opus-4-5`, `anthropic/claude-3-7-sonnet-latest`
 - **OpenAI**: `openai/gpt-4o`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
 - **Ollama (Local)**: `ollama/llama3.1`, `ollama/llama3.2`, `ollama/codellama`, `ollama/mistral` - Run models locally without API keys!
 - **Google**: `gemini/gemini-pro`, `vertex_ai/gemini-pro`
@@ -161,7 +161,23 @@ Install in development mode with dev dependencies:
 pip install -e ".[dev]"
 ```
 
-## Package Structure
+### Running Tests
+
+PatchPal includes a test suite that runs fairly quickly:
+
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_tools.py
+
+# Run with coverage report
+pytest --cov=patchpal --cov-report=term-missing
+```
 
 ```
 patchpal/
@@ -169,6 +185,12 @@ patchpal/
 ├── tools.py     - Tool implementations (read, write, shell)
 ├── agent.py     - Agent configuration
 └── cli.py       - CLI entry point
+
+tests/
+├── __init__.py       - Test package
+├── test_tools.py     - Tests for tools module (15 tests)
+├── test_agent.py     - Tests for agent module (5 tests)
+└── test_cli.py       - Tests for CLI module (12 tests)
 ```
 
 ## Troubleshooting
