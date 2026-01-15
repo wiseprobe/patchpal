@@ -249,6 +249,9 @@ class PatchPalAgent:
 
         # Agent loop
         for iteration in range(max_iterations):
+            # Show thinking message
+            print("\033[2m🤔 Thinking...\033[0m", flush=True)
+
             # Call LiteLLM with tools
             try:
                 response = litellm.completion(
@@ -283,17 +286,31 @@ class PatchPalAgent:
                         tool_args = json.loads(tool_args_str)
                     except json.JSONDecodeError:
                         tool_result = f"Error: Invalid JSON arguments for {tool_name}"
+                        print(f"\033[1;31m✗ {tool_name}: Invalid arguments\033[0m")
                     else:
                         # Get the tool function
                         tool_func = TOOL_FUNCTIONS.get(tool_name)
                         if tool_func is None:
                             tool_result = f"Error: Unknown tool {tool_name}"
+                            print(f"\033[1;31m✗ Unknown tool: {tool_name}\033[0m")
                         else:
+                            # Show tool call message
+                            tool_display = tool_name.replace('_', ' ').title()
+                            if tool_name == 'read_file':
+                                print(f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m", flush=True)
+                            elif tool_name == 'list_files':
+                                print(f"\033[2m📁 Listing files...\033[0m", flush=True)
+                            elif tool_name == 'apply_patch':
+                                print(f"\033[2m✏️  Modifying: {tool_args.get('path', '')}\033[0m", flush=True)
+                            elif tool_name == 'run_shell':
+                                print(f"\033[2m⚡ Running: {tool_args.get('cmd', '')}\033[0m", flush=True)
+
                             # Execute the tool (permission checks happen inside the tool)
                             try:
                                 tool_result = tool_func(**tool_args)
                             except Exception as e:
                                 tool_result = f"Error executing {tool_name}: {e}"
+                                print(f"\033[1;31m✗ {tool_display}: {e}\033[0m")
 
                     # Add tool result to messages
                     self.messages.append({
