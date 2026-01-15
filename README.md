@@ -90,11 +90,48 @@ PatchPal works with any model supported by LiteLLM, including:
 
 - **Anthropic**: `anthropic/claude-sonnet-4-5`, `anthropic/claude-opus-4-5`, `anthropic/claude-3-7-sonnet-latest`
 - **OpenAI**: `openai/gpt-4o`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
+- **AWS Bedrock**: `bedrock/anthropic.claude-sonnet-4-5-v1:0`, or full ARNs for GovCloud/VPC endpoints
 - **Ollama (Local)**: `ollama_chat/llama3.1`, `ollama_chat/llama3.2`, `ollama_chat/codellama`, `ollama_chat/mistral` - Run models locally without API keys!
 - **Google**: `gemini/gemini-pro`, `vertex_ai/gemini-pro`
-- **Others**: Cohere, Azure OpenAI, Bedrock, and many more
+- **Others**: Cohere, Azure OpenAI, and many more
 
 See the [LiteLLM providers documentation](https://docs.litellm.ai/docs/providers) for the complete list.
+
+### Using AWS Bedrock (Including GovCloud and VPC Endpoints)
+
+PatchPal supports AWS Bedrock with custom regions and VPC endpoints for secure enterprise deployments.
+
+**Basic AWS Bedrock Setup:**
+```bash
+# Set AWS credentials
+export AWS_ACCESS_KEY_ID=your_access_key
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+
+# Use Bedrock model
+patchpal --model bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0
+```
+
+**AWS GovCloud or VPC Endpoint Setup:**
+```bash
+# Set AWS credentials
+export AWS_ACCESS_KEY_ID=your_access_key
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+
+# Set custom region (e.g., GovCloud)
+export AWS_BEDROCK_REGION=us-gov-east-1
+
+# Set VPC endpoint URL (optional, for VPC endpoints)
+export AWS_BEDROCK_ENDPOINT=https://vpce-xxxxx.bedrock-runtime.us-gov-east-1.vpce.amazonaws.com
+
+# Use Bedrock with full ARN (bedrock/ prefix is optional - auto-detected)
+patchpal --model "arn:aws-us-gov:bedrock:us-gov-east-1:012345678901:inference-profile/us-gov.anthropic.claude-sonnet-4-5-20250929-v1:0"
+```
+
+**Environment Variables for Bedrock:**
+- `AWS_ACCESS_KEY_ID`: AWS access key ID (required)
+- `AWS_SECRET_ACCESS_KEY`: AWS secret access key (required)
+- `AWS_BEDROCK_REGION`: Custom AWS region (e.g., `us-gov-east-1` for GovCloud)
+- `AWS_BEDROCK_ENDPOINT`: Custom endpoint URL for VPC endpoints or GovCloud
 
 ### Using Local Models (Ollama & vLLM)
 
@@ -219,8 +256,6 @@ PatchPal includes comprehensive security protections enabled by default:
 - **Automatic backups**: Optional auto-backup of files to `~/.patchpal/<repo-name>/backups/` before modification
 - **Resource limits**: Configurable operation counter prevents infinite loops (1000 operations default)
 - **Git state awareness**: Warns when modifying files with uncommitted changes
-
-See `GUARDRAILS.md` for detailed information on all security features.
 
 **Configuration via environment variables:**
 ```bash
