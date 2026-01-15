@@ -1,6 +1,6 @@
 # PatchPal - A Claude Code Clone
 
-An educational implementation of a Claude Code-like agent.
+An open-source Claude Code clone implemented purely in Python.
 
 ## Installation
 

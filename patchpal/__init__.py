@@ -1,4 +1,4 @@
-"""PatchPal - A Claude Code clone implemented using smolagents."""
+"""PatchPal - An open-source Claude Code clone implemented purely in Python."""
 
 __version__ = "0.1.0"
 
