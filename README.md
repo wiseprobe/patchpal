@@ -395,7 +395,9 @@ You: Add type hints and basic logging to my_module.py
 The agent will process your request and show you the results. You can continue with follow-up tasks or type `exit` to quit.
 
 **Interactive Features:**
-- **Command History**: Use ↑ (up arrow) and ↓ (down arrow) to navigate through previous commands
+- **Path Autocompletion**: Press `Tab` while typing file paths to see suggestions (e.g., `./src/mo` + Tab → `./src/models.py`)
+- **Skill Autocompletion**: Type `/` followed by Tab to see available skills (e.g., `/comm` + Tab → `/commit`)
+- **Command History**: Use ↑ (up arrow) and ↓ (down arrow) to navigate through previous commands within the current session
 - **Interrupt Agent**: Press `Ctrl-C` during agent execution to stop the current task without exiting PatchPal
 - **Exit**: Type `exit`, `quit`, or press `Ctrl-C` at the prompt to exit PatchPal
 

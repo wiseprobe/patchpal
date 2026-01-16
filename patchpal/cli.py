@@ -5,7 +5,50 @@ import warnings
 from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
+from prompt_toolkit import prompt as pt_prompt
+from prompt_toolkit.completion import Completer, Completion, PathCompleter, merge_completers
+from prompt_toolkit.document import Document
+from prompt_toolkit.formatted_text import FormattedText
+from prompt_toolkit.history import InMemoryHistory
 from patchpal.agent import create_agent
+
+
+class SkillCompleter(Completer):
+    """Completer for skill names when input starts with /"""
+
+    def __init__(self):
+        self.repo_root = Path(".").resolve()
+
+    def get_completions(self, document, complete_event):
+        text = document.text_before_cursor
+
+        # Only complete if line starts with /
+        if not text.startswith('/'):
+            return
+
+        # Get the text after the /
+        word = text[1:]
+
+        # Import here to avoid circular imports
+        from patchpal.skills import discover_skills
+
+        try:
+            # Get all available skills
+            skills = discover_skills(repo_root=self.repo_root)
+
+            # Filter skills that match the current word
+            for skill_name in sorted(skills.keys()):
+                if skill_name.startswith(word):
+                    # Calculate how much we need to complete
+                    yield Completion(
+                        skill_name,
+                        start_position=-len(word),
+                        display=skill_name,
+                        display_meta=skills[skill_name].description[:60] + "..." if len(skills[skill_name].description) > 60 else skills[skill_name].description
+                    )
+        except Exception:
+            # Silently fail if skills discovery fails
+            pass
 
 
 def _get_patchpal_dir() -> Path:
@@ -107,6 +150,15 @@ Supported models: Any LiteLLM-supported model
     # Create Rich console for markdown rendering
     console = Console()
 
+    # Create completers for paths and skills
+    path_completer = PathCompleter(expanduser=True)
+    skill_completer = SkillCompleter()
+    # Merge completers - skill completer takes precedence for / commands
+    completer = merge_completers([skill_completer, path_completer])
+
+    # Create in-memory history (within session only, no persistence)
+    history = InMemoryHistory()
+
     print("=" * 80)
     print("PatchPal - Claude Code Clone")
     print("=" * 80)
@@ -124,8 +176,19 @@ Supported models: Any LiteLLM-supported model
             # Print separator and prompt on fresh line to ensure visibility
             # even if warnings/logs appear above
             print()  # Blank line for separation
-            # Use \001 and \002 to mark non-printing characters (ANSI codes) for readline
-            user_input = input("\001\033[1;36m\002You:\001\033[0m\002 ").strip()
+
+            # Use prompt_toolkit for input with autocompletion
+            # FormattedText: (style, text) tuples
+            prompt_text = FormattedText([
+                ('ansibrightcyan bold', 'You:'),
+                ('', ' ')
+            ])
+            user_input = pt_prompt(
+                prompt_text,
+                completer=completer,
+                complete_while_typing=False,  # Only show completions on Tab
+                history=history  # In-memory history for this session only
+            ).strip()
 
             # Replace newlines with spaces to prevent history file corruption
             # This can happen if user pastes multi-line text
