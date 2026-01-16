@@ -2,7 +2,7 @@
 
 ![PatchPal Screenshot](patchpal_screenshot.png)
 
-A very lean, open-source clone of Claude Code implemented purely in Python.
+> A lightweight clone of Claude Code in Python -- supports both local and cloud LLMs.
 
 A key goal is to mimic Claude Code's core functionality while maintaining a lightweight, accessible codebase, making it ideal for education and experimentation:
 
