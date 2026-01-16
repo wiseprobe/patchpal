@@ -270,3 +270,56 @@ def test_web_tools_disabled_with_various_values(monkeypatch):
 
         # Clean up
         del sys.modules['patchpal.agent']
+
+
+def test_agent_returns_immediately_on_cancellation(monkeypatch):
+    """Test that agent returns immediately when user cancels operation (no extra API calls)."""
+    from patchpal.agent import create_agent
+
+    # Disable permissions for this test
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    # Track how many times litellm.completion is called
+    call_count = [0]
+
+    def mock_completion(*args, **kwargs):
+        call_count[0] += 1
+
+        # First call: agent wants to call run_shell
+        tool_call = MagicMock()
+        tool_call.id = "call_123"
+        tool_call.function.name = "run_shell"
+        tool_call.function.arguments = '{"cmd": "echo test"}'
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message = MagicMock()
+        mock_response.choices[0].message.content = ""
+        mock_response.choices[0].message.tool_calls = [tool_call]
+
+        return mock_response
+
+    # Mock run_shell to return cancellation message (simulating user pressing "3")
+    def mock_run_shell(cmd):
+        return "Operation cancelled by user."
+
+    # Patch the TOOL_FUNCTIONS dict directly since it's populated at import time
+    from patchpal.agent import TOOL_FUNCTIONS
+    original_run_shell = TOOL_FUNCTIONS['run_shell']
+    TOOL_FUNCTIONS['run_shell'] = mock_run_shell
+
+    try:
+        with patch('patchpal.agent.litellm.completion', side_effect=mock_completion):
+            agent = create_agent()
+
+            result = agent.run("Run echo test")
+
+            # Verify agent made only ONE API call (not two)
+            # Without the fix, it would make a second call to process the cancellation
+            assert call_count[0] == 1, f"Expected 1 API call, got {call_count[0]}"
+
+            # Verify the result is the cancellation message
+            assert "Operation cancelled by user" in result
+    finally:
+        # Restore original function
+        TOOL_FUNCTIONS['run_shell'] = original_run_shell

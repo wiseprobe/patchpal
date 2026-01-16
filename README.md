@@ -375,7 +375,7 @@ Choice [1-3]:
 
 Permissions are stored per-repository and persist across sessions. You can edit `~/.patchpal/<repo-name>/permissions.json` to manage saved permissions.
 
-**Test coverage:** 106 tests including 38 dedicated security tests
+**Test coverage:** 107 tests including 38 dedicated security tests
 
 ## Development
 

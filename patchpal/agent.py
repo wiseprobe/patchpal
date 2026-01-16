@@ -589,6 +589,11 @@ class PatchPalAgent:
                         "content": str(tool_result)
                     })
 
+                    # Check if operation was cancelled by user
+                    if "Operation cancelled by user" in str(tool_result):
+                        # Return immediately - don't continue agent loop
+                        return str(tool_result)
+
                 # Continue loop to let agent process tool results
                 continue
             else:
