@@ -120,7 +120,7 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file_path": {
+                    "path": {
                         "type": "string",
                         "description": "Relative path to the file from the repository root"
                     },
@@ -133,7 +133,7 @@ TOOLS = [
                         "description": "The string to replace it with"
                     }
                 },
-                "required": ["file_path", "old_string", "new_string"]
+                "required": ["path", "old_string", "new_string"]
             }
         }
     },
@@ -556,7 +556,7 @@ class PatchPalAgent:
                             elif tool_name == 'get_file_info':
                                 print(f"\033[2m📊 Getting info: {tool_args.get('path', '')}\033[0m", flush=True)
                             elif tool_name == 'edit_file':
-                                print(f"\033[2m✏️  Editing: {tool_args.get('file_path', '')}\033[0m", flush=True)
+                                print(f"\033[2m✏️  Editing: {tool_args.get('path', '')}\033[0m", flush=True)
                             elif tool_name == 'apply_patch':
                                 print(f"\033[2m📝 Patching: {tool_args.get('path', '')}\033[0m", flush=True)
                             elif tool_name == 'git_status':

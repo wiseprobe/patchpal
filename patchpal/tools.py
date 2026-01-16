@@ -368,10 +368,10 @@ def get_file_info(path: str) -> str:
 
     # Format file information
     results = []
-    for file_path in sorted(files):
+    for path in sorted(files):
         try:
-            stat = file_path.stat()
-            relative_path = file_path.relative_to(REPO_ROOT)
+            stat = path.stat()
+            relative_path = path.relative_to(REPO_ROOT)
 
             # Format size
             size = stat.st_size
@@ -387,10 +387,10 @@ def get_file_info(path: str) -> str:
             mtime = datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
 
             # Detect file type
-            if _is_binary_file(file_path):
+            if _is_binary_file(path):
                 file_type = "binary"
             else:
-                mime_type, _ = mimetypes.guess_type(str(file_path))
+                mime_type, _ = mimetypes.guess_type(str(path))
                 file_type = mime_type or "text"
 
             results.append(f"{str(relative_path):<50} {size_str:>10}  {mtime}  {file_type}")
@@ -491,12 +491,12 @@ def apply_patch(path: str, new_content: str) -> str:
     return f"Successfully updated {path}{warning}{git_warning}{backup_msg}\n\nDiff:\n{diff_str}"
 
 
-def edit_file(file_path: str, old_string: str, new_string: str) -> str:
+def edit_file(path: str, old_string: str, new_string: str) -> str:
     """
     Edit a file by replacing an exact string match.
 
     Args:
-        file_path: Relative path to the file from the repository root
+        path: Relative path to the file from the repository root
         old_string: The exact string to find and replace
         new_string: The string to replace it with
 
@@ -506,7 +506,7 @@ def edit_file(file_path: str, old_string: str, new_string: str) -> str:
     Raises:
         ValueError: If file not found, old_string not found, or multiple matches
     """
-    _operation_limiter.check_limit(f"edit_file({file_path[:30]}...)")
+    _operation_limiter.check_limit(f"edit_file({path[:30]}...)")
 
     if READ_ONLY_MODE:
         raise ValueError(
@@ -514,7 +514,7 @@ def edit_file(file_path: str, old_string: str, new_string: str) -> str:
             "Set PATCHPAL_READ_ONLY=false to allow modifications"
         )
 
-    p = _check_path(file_path, must_exist=True)
+    p = _check_path(path, must_exist=True)
 
     # Read current content
     try:
@@ -525,7 +525,7 @@ def edit_file(file_path: str, old_string: str, new_string: str) -> str:
     # Check for old_string
     if old_string not in content:
         raise ValueError(
-            f"String not found in {file_path}:\n{old_string[:100]}"
+            f"String not found in {path}:\n{old_string[:100]}"
             + ("..." if len(old_string) > 100 else "")
         )
 
@@ -533,15 +533,15 @@ def edit_file(file_path: str, old_string: str, new_string: str) -> str:
     count = content.count(old_string)
     if count > 1:
         raise ValueError(
-            f"String appears {count} times in {file_path}. "
+            f"String appears {count} times in {path}. "
             f"Please provide a more specific string to ensure correct replacement.\n"
             f"First occurrence context:\n{content[max(0, content.find(old_string)-50):content.find(old_string)+len(old_string)+50]}"
         )
 
     # Check permission before proceeding
     permission_manager = _get_permission_manager()
-    description = f"   Edit {file_path}\n   Replace: {old_string[:60]}{'...' if len(old_string) > 60 else ''}\n   With: {new_string[:60]}{'...' if len(new_string) > 60 else ''}"
-    if not permission_manager.request_permission('edit_file', description, pattern=file_path):
+    description = f"   Edit {path}\n   Replace: {old_string[:60]}{'...' if len(old_string) > 60 else ''}\n   With: {new_string[:60]}{'...' if len(new_string) > 60 else ''}"
+    if not permission_manager.request_permission('edit_file', description, pattern=path):
         return "Operation cancelled by user."
 
     # Backup if enabled
@@ -565,10 +565,10 @@ def edit_file(file_path: str, old_string: str, new_string: str) -> str:
     )
     diff_str = '\n'.join(diff)
 
-    audit_logger.info(f"EDIT: {file_path} ({len(old_string)} -> {len(new_string)} chars)")
+    audit_logger.info(f"EDIT: {path} ({len(old_string)} -> {len(new_string)} chars)")
 
     backup_msg = f"\n[Backup saved: {backup_path}]" if backup_path else ""
-    return f"Successfully edited {file_path}{backup_msg}\n\nChange:\n{diff_str}"
+    return f"Successfully edited {path}{backup_msg}\n\nChange:\n{diff_str}"
 
 
 def git_status() -> str:
