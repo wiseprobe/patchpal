@@ -16,7 +16,11 @@ Example skills demonstrate how to create reusable workflows:
 **From Anthropic's official skills repository:**
 - **slack-gif-creator**: Create animated GIFs optimized for Slack (demonstrates Claude Code skill compatibility)
   - Source: https://github.com/anthropics/skills
-  - License: MIT (see ATTRIBUTION.md)
+  - License: Apache 2.0 (see ATTRIBUTION.md)
+- **skill-creator**: Comprehensive guide for creating effective skills with bundled scripts and references (demonstrates full bundled resources support)
+  - Source: https://github.com/anthropics/skills/tree/main/skills/skill-creator
+  - License: Apache 2.0 (see ATTRIBUTION.md)
+  - Includes: init_skill.py, package_skill.py, quick_validate.py scripts and workflow/output-pattern references
 
 ### Using These Examples
 

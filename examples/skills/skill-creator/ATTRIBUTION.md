@@ -2,7 +2,7 @@
 
 This skill is from the official Anthropic Skills repository.
 
-**Source:** https://github.com/anthropics/skills/tree/main/skills/slack-gif-creator
+**Source:** https://github.com/anthropics/skills/tree/main/skills/skill-creator
 
 **Copyright:** Anthropic PBC
 
@@ -189,14 +189,22 @@ This skill is from the official Anthropic Skills repository.
 
 ## Why This Skill Is Included
 
-This skill is included in PatchPal's examples to demonstrate:
-1. **Compatibility** - PatchPal can use Claude Code skills without modification
-2. **Real-world example** - Official Anthropic skill showing best practices
-3. **Rich content** - Skills can include extensive code blocks and utilities
+This skill demonstrates:
+1. **Claude Code compatibility** - PatchPal can use official Anthropic skills without modification
+2. **Complete bundled resources** - Includes scripts/ (init_skill.py, package_skill.py, quick_validate.py) and references/ (workflows.md, output-patterns.md) directories
+3. **Meta-skill capability** - Shows how skills can teach users to create other skills
 
-## Note on Usage
+The skill-creator is particularly valuable as it provides comprehensive guidance for creating effective skills, including the 6-step skill creation process, progressive disclosure patterns, and best practices for skill design.
 
-This skill references Python utilities (`core.gif_builder`, `core.validators`, etc.) that are part of the [Anthropic skills repository](https://github.com/anthropics/skills). To use this skill fully with PatchPal, you would either:
-- Install the Anthropic skills utilities
-- Adapt the patterns for your own implementation
-- Use it as reference/inspiration for creating similar skills
+## Usage Notes
+
+This skill references Python scripts in the `scripts/` directory:
+- `init_skill.py` - Initialize a new skill with template structure
+- `package_skill.py` - Package a skill into a distributable .skill file
+- `quick_validate.py` - Validate skill structure and metadata
+
+And reference documentation in the `references/` directory:
+- `workflows.md` - Sequential and conditional workflow patterns
+- `output-patterns.md` - Template and example patterns for consistent output
+
+These bundled resources demonstrate the full capabilities of the PatchPal skills system.

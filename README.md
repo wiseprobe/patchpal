@@ -168,6 +168,7 @@ The PatchPal repository includes example skills you can use as templates:
 - **review**: Comprehensive code review checklist
 - **add-tests**: Add comprehensive pytest tests (includes code block templates)
 - **slack-gif-creator**: Create animated GIFs for Slack (from [Anthropic's official skills repo](https://github.com/anthropics/skills), demonstrates Claude Code compatibility)
+- **skill-creator**: Guide for creating effective skills with bundled scripts and references (from [Anthropic's official skills repo](https://github.com/anthropics/skills/tree/main/skills/skill-creator), demonstrates full bundled resources support)
 
 **After `pip install patchpal`, get examples:**
 
