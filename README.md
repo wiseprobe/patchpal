@@ -1,5 +1,7 @@
 # PatchPal - A Claude Code Clone
 
+![PatchPal Screenshot](patchpal_screenshot.png)
+
 A very lean, open-source clone of Claude Code implemented purely in Python.
 
 ## Installation

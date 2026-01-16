@@ -3,6 +3,8 @@ import sys
 import argparse
 import warnings
 from pathlib import Path
+from rich.console import Console
+from rich.markdown import Markdown
 from patchpal.agent import create_agent
 
 
@@ -99,6 +101,9 @@ Supported models: Any LiteLLM-supported model
     # Create the agent with the specified model
     agent = create_agent(model_id=model_id)
 
+    # Create Rich console for markdown rendering
+    console = Console()
+
     print("=" * 80)
     print("PatchPal - Claude Code Clone")
     print("=" * 80)
@@ -137,7 +142,10 @@ Supported models: Any LiteLLM-supported model
                 result = agent.run(user_input)
 
                 print("\n" + "=" * 80)
-                print("\033[1;32mAgent:\033[0m", result)
+                print("\033[1;32mAgent:\033[0m")
+                print("=" * 80)
+                # Render markdown output
+                console.print(Markdown(result))
                 print("=" * 80)
 
             except KeyboardInterrupt:
