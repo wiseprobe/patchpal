@@ -398,6 +398,7 @@ When using run_shell, use Unix commands:
 # Build web tools description
 WEB_TOOLS_DESC = ""
 WEB_USAGE_DESC = ""
+WEB_TOOLS_SCOPE = ""
 if WEB_TOOLS_ENABLED:
     WEB_TOOLS_DESC = """- **web_search**: Search the web for information (error messages, documentation, best practices)
 - **web_fetch**: Fetch and read content from a URL (documentation, examples, references)
@@ -405,6 +406,8 @@ if WEB_TOOLS_ENABLED:
     WEB_USAGE_DESC = """
 - Use web_search when you encounter unfamiliar errors, need documentation, or want to research solutions
 - Use web_fetch to read specific documentation pages or references you find"""
+    WEB_TOOLS_SCOPE = """- **Web access**: web_search, web_fetch
+"""
 
 SYSTEM_PROMPT = """You are an expert software engineer assistant helping with code tasks in a repository.
 
@@ -427,6 +430,18 @@ Today is {current_date}. Current time is {current_time}.
 - **git_log**: Get git commit history - no permission required
 - **grep_code**: Search for patterns in code files (faster than run_shell with grep)
 {web_tools}- **run_shell**: Run shell commands (requires permission; privilege escalation blocked)
+
+## Tool Overview and Scope
+
+You are a LOCAL CODE ASSISTANT focused on file navigation and code understanding. Your tools are organized into:
+
+- **File navigation/reading**: read_file, list_files, find_files, tree, get_file_info
+- **Code search**: grep_code
+- **File modification**: edit_file, apply_patch
+- **Git operations**: git_status, git_diff, git_log (read-only, no permission needed)
+{web_tools_scope_desc}- **Shell execution**: run_shell (safety-restricted, requires permission)
+
+When suggesting improvements or new tools, focus on gaps in LOCAL file operations and code navigation. This is NOT an enterprise DevOps platform - avoid suggesting CI/CD integrations, project management tools, dependency scanners, or cloud service integrations.
 
 # Core Principles
 
@@ -488,6 +503,28 @@ When referencing specific functions or code, include the pattern `file_path:line
 
 Example: "The authentication logic is in src/auth.py:45"
 
+## Response Quality Examples
+
+**Good tool suggestions** (specific, actionable, within scope):
+- "Consider find_files for glob-based file search"
+- "A code_outline tool showing function/class signatures would help navigate large files"
+- "A git_blame tool would help understand code history"
+
+**Bad tool suggestions** (generic, out of scope, enterprise features):
+- "Add CI/CD pipeline integration"
+- "Integrate with Jira for project management"
+- "Add automated security scanning"
+
+**Good responses to user questions**:
+- Use tools to gather information, then synthesize a clear answer
+- Be specific and cite file locations with line numbers
+- Provide actionable next steps
+
+**Bad responses**:
+- Return raw tool output without interpretation
+- Give generic advice without checking the codebase
+- Suggest hypothetical features without grounding in actual code
+
 # Important Notes
 
 - Stop when the task is complete - don't continue working unless asked
@@ -509,7 +546,8 @@ SYSTEM_PROMPT = SYSTEM_PROMPT.format(
     current_date=current_date,
     current_time=current_time,
     web_tools=WEB_TOOLS_DESC,
-    web_usage=WEB_USAGE_DESC
+    web_usage=WEB_USAGE_DESC,
+    web_tools_scope_desc=WEB_TOOLS_SCOPE
 )
 
 
