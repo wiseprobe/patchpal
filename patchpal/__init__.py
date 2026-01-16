@@ -2,12 +2,13 @@
 
 __version__ = "0.1.0"
 
-from patchpal.tools import read_file, list_files, apply_patch, run_shell
+from patchpal.tools import read_file, list_files, apply_patch, run_shell, grep_code
 from patchpal.agent import create_agent
 
 __all__ = [
     "read_file",
     "list_files",
+    "grep_code",
     "apply_patch",
     "run_shell",
     "create_agent",

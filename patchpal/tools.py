@@ -372,6 +372,120 @@ def apply_patch(path: str, new_content: str) -> str:
     return f"Successfully updated {path}{warning}{git_warning}{backup_msg}\n\nDiff:\n{diff_str}"
 
 
+def grep_code(pattern: str, file_glob: Optional[str] = None,
+              case_sensitive: bool = True, max_results: int = 100) -> str:
+    """
+    Search for a pattern in repository files using grep.
+
+    Args:
+        pattern: Regular expression pattern to search for
+        file_glob: Optional glob pattern to filter files (e.g., "*.py", "src/**/*.js")
+        case_sensitive: Whether the search should be case-sensitive (default: True)
+        max_results: Maximum number of results to return (default: 100)
+
+    Returns:
+        Search results in format "file:line:content" or a message if no results found
+
+    Raises:
+        ValueError: If pattern is invalid or search fails
+    """
+    _operation_limiter.check_limit(f"grep_code({pattern[:30]}...)")
+
+    # Try ripgrep first (faster), fall back to grep
+    use_rg = shutil.which('rg') is not None
+
+    try:
+        if use_rg:
+            # Build ripgrep command
+            cmd = [
+                'rg',
+                '--no-heading',  # Don't group by file
+                '--line-number',  # Show line numbers
+                '--color', 'never',  # No color codes
+                '--max-count', str(max_results),  # Limit results per file
+            ]
+
+            if not case_sensitive:
+                cmd.append('--ignore-case')
+
+            # Add glob pattern if provided
+            if file_glob:
+                cmd.extend(['--glob', file_glob])
+
+            # Add the search pattern
+            cmd.append(pattern)
+
+        else:
+            # Fall back to grep
+            cmd = [
+                'grep',
+                '--recursive',
+                '--line-number',
+                '--binary-files=without-match',  # Skip binary files
+            ]
+
+            if not case_sensitive:
+                cmd.append('--ignore-case')
+
+            # Add pattern
+            cmd.extend(['--regexp', pattern])
+
+            # Add file glob if provided (grep uses --include)
+            if file_glob:
+                cmd.extend(['--include', file_glob])
+
+            # Current directory (will be executed with cwd=REPO_ROOT)
+            cmd.append('.')
+
+        # Execute search from repository root
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=REPO_ROOT
+        )
+
+        # ripgrep/grep return exit code 1 when no matches found (not an error)
+        # exit code 0 = matches found
+        # exit code 1 = no matches
+        # exit code 2+ = actual error
+
+        if result.returncode > 1:
+            # Actual error occurred
+            raise ValueError(f"Search failed: {result.stderr or 'Unknown error'}")
+
+        # Process output
+        output = result.stdout.strip()
+
+        if not output or result.returncode == 1:
+            audit_logger.info(f"GREP: {pattern} - No matches found")
+            return f"No matches found for pattern: {pattern}"
+
+        # Count and limit results
+        lines = output.split('\n')
+        total_matches = len(lines)
+
+        if total_matches > max_results:
+            lines = lines[:max_results]
+            output = '\n'.join(lines)
+            output += f"\n\n... (showing first {max_results} of {total_matches} matches)"
+
+        audit_logger.info(f"GREP: {pattern} - Found {total_matches} matches")
+        return output
+
+    except subprocess.TimeoutExpired:
+        raise ValueError(
+            f"Search timed out after 30 seconds\n"
+            f"Try narrowing your search with a file_glob parameter"
+        )
+    except ValueError:
+        # Re-raise ValueError (from our checks above)
+        raise
+    except Exception as e:
+        raise ValueError(f"Search error: {e}")
+
+
 def run_shell(cmd: str) -> str:
     """
     Run a safe shell command in the repository.

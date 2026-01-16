@@ -177,3 +177,61 @@ def test_check_path_validates_existence():
             # Test non-existent file with must_exist=False
             result = _check_path("nonexistent.txt", must_exist=False)
             assert result == tmpdir_path / "nonexistent.txt"
+
+
+def test_grep_code_finds_matches(temp_repo):
+    """Test that grep_code finds matches in files."""
+    from patchpal.tools import grep_code
+
+    # Create a test file with searchable content
+    (temp_repo / "search.py").write_text("def hello():\n    print('Hello')\n    return True")
+
+    result = grep_code("hello")
+    assert "search.py" in result
+    assert "hello" in result.lower()
+
+
+def test_grep_code_case_insensitive(temp_repo):
+    """Test case-insensitive search."""
+    from patchpal.tools import grep_code
+
+    (temp_repo / "case.txt").write_text("Hello World\nHELLO WORLD\nhello world")
+
+    result = grep_code("HELLO", case_sensitive=False)
+    assert "case.txt" in result
+    # Should find all three lines
+    assert result.count("case.txt") >= 3
+
+
+def test_grep_code_with_file_glob(temp_repo):
+    """Test filtering by file glob pattern."""
+    from patchpal.tools import grep_code
+
+    (temp_repo / "test.py").write_text("def test(): pass")
+    (temp_repo / "test.txt").write_text("def test(): pass")
+
+    # Search only in .py files
+    result = grep_code("test", file_glob="*.py")
+    assert "test.py" in result
+    assert "test.txt" not in result
+
+
+def test_grep_code_no_matches(temp_repo):
+    """Test behavior when no matches are found."""
+    from patchpal.tools import grep_code
+
+    result = grep_code("nonexistent_pattern_xyz")
+    assert "No matches found" in result
+
+
+def test_grep_code_max_results(temp_repo):
+    """Test that max_results limits output."""
+    from patchpal.tools import grep_code
+
+    # Create a file with many matching lines
+    content = "\n".join([f"line {i} with match" for i in range(200)])
+    (temp_repo / "many.txt").write_text(content)
+
+    result = grep_code("match", max_results=50)
+    # Should mention truncation
+    assert "showing first 50" in result.lower() or result.count("\n") <= 55  # ~50 lines + header

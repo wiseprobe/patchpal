@@ -4,7 +4,7 @@ import os
 import json
 from typing import Any, Dict, List, Optional
 import litellm
-from patchpal.tools import read_file, list_files, apply_patch, run_shell
+from patchpal.tools import read_file, list_files, apply_patch, run_shell, grep_code
 
 
 def _is_bedrock_arn(model_id: str) -> bool:
@@ -113,6 +113,35 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "grep_code",
+            "description": "Search for a pattern in repository files. Much faster than run_shell with grep. Returns results in 'file:line:content' format.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pattern": {
+                        "type": "string",
+                        "description": "Regular expression pattern to search for"
+                    },
+                    "file_glob": {
+                        "type": "string",
+                        "description": "Optional glob pattern to filter files (e.g., '*.py', 'src/**/*.js')"
+                    },
+                    "case_sensitive": {
+                        "type": "boolean",
+                        "description": "Whether the search should be case-sensitive (default: true)"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 100)"
+                    }
+                },
+                "required": ["pattern"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_shell",
             "description": "Run a safe shell command in the repository. Dangerous commands (rm, mv, sudo, etc.) are blocked.",
             "parameters": {
@@ -134,6 +163,7 @@ TOOL_FUNCTIONS = {
     "read_file": read_file,
     "list_files": list_files,
     "apply_patch": apply_patch,
+    "grep_code": grep_code,
     "run_shell": run_shell,
 }
 
@@ -144,6 +174,7 @@ SYSTEM_PROMPT = """You are an expert software engineer assistant helping with co
 
 - **read_file**: Read the contents of any file in the repository
 - **list_files**: List all files in the repository
+- **grep_code**: Search for patterns in code files (faster than run_shell with grep)
 - **apply_patch**: Modify a file by providing the complete new content
 - **run_shell**: Run safe shell commands (dangerous commands like rm, mv, sudo are blocked)
 
@@ -190,6 +221,7 @@ The user will primarily request software engineering tasks like solving bugs, ad
 ## Tool Usage Guidelines
 
 - Use list_files to explore the repository structure
+- Use grep_code to search for patterns across files (preferred over run_shell with grep)
 - Use read_file to examine specific files before modifying them
 - When using apply_patch, provide the COMPLETE new file content (not just the changed parts)
 - Use run_shell for safe commands only (testing, building, git operations, etc.)
@@ -300,6 +332,8 @@ class PatchPalAgent:
                                 print(f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m", flush=True)
                             elif tool_name == 'list_files':
                                 print(f"\033[2m📁 Listing files...\033[0m", flush=True)
+                            elif tool_name == 'grep_code':
+                                print(f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m", flush=True)
                             elif tool_name == 'apply_patch':
                                 print(f"\033[2m✏️  Modifying: {tool_args.get('path', '')}\033[0m", flush=True)
                             elif tool_name == 'run_shell':
