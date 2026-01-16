@@ -4,6 +4,12 @@
 
 A very lean, open-source clone of Claude Code implemented purely in Python.
 
+One of the goals of this project is to get as close as possible to Claude Code performance while remaining lightweight and lean for educational purposes and experimentation:
+```bash
+$ls ./patchpal
+__init__.py agent.py  cli.py  permissions.py  skills.py  tools.py
+```
+
 ## Installation
 
 Install PatchPal from PyPI:
@@ -117,6 +123,93 @@ The agent has the following tools:
   - Read documentation pages
   - Access API references
   - Extract readable text from HTML pages
+
+### Skills System
+
+Skills are reusable workflows and custom commands that can be invoked by name or discovered automatically by the agent.
+
+**Creating Your Own Skills:**
+
+1. **Choose a location:**
+   - Personal skills (all projects): `~/.patchpal/skills/<skill-name>/SKILL.md`
+   - Project-specific skills: `<repo>/.patchpal/skills/<skill-name>/SKILL.md`
+
+2. **Create the skill file:**
+```bash
+# Create a personal skill
+mkdir -p ~/.patchpal/skills/my-skill
+cat > ~/.patchpal/skills/my-skill/SKILL.md <<'EOF'
+---
+name: my-skill
+description: Brief description of what this skill does
+---
+# Instructions
+Your detailed instructions here...
+EOF
+```
+
+3. **Skill File Format:**
+```markdown
+---
+name: skill-name
+description: One-line description
+---
+# Detailed Instructions
+- Step 1: Do this
+- Step 2: Do that
+- Use specific PatchPal tools like git_status, read_file, etc.
+```
+
+**Example Skills:**
+
+The PatchPal repository includes example skills you can use as templates:
+- **commit**: Best practices for creating git commits
+- **review**: Comprehensive code review checklist
+
+**After `pip install patchpal`, get examples:**
+
+```bash
+# Quick way: Download examples directly from GitHub
+curl -L https://github.com/amaiya/patchpal/archive/main.tar.gz | tar xz --strip=1 patchpal-main/examples
+
+# Or clone the repository
+git clone https://github.com/amaiya/patchpal.git
+cd patchpal
+
+# Copy examples to your personal skills directory
+cp -r examples/skills/commit ~/.patchpal/skills/
+cp -r examples/skills/review ~/.patchpal/skills/
+```
+
+**View examples online:**
+Browse the [examples/skills/](https://github.com/amaiya/patchpal/tree/main/examples/skills) directory on GitHub to see the skill format and create your own.
+
+**Using Skills:**
+
+There are two ways to invoke skills:
+
+1. **Direct invocation** - Type `/skillname` at the prompt:
+```bash
+$ patchpal
+You: /commit Fix authentication bug
+```
+
+2. **Natural language** - Just ask, and the agent discovers the right skill:
+```bash
+You: Help me commit these changes following best practices
+# Agent automatically discovers and uses the commit skill
+```
+
+**Finding Available Skills:**
+
+Ask the agent to list them:
+```bash
+You: list skills
+```
+
+**Skill Priority:**
+
+Project skills (`.patchpal/skills/`) override personal skills (`~/.patchpal/skills/`) with the same name.
 
 ## Model Configuration
 
@@ -285,7 +378,10 @@ $ patchpal
 PatchPal - Claude Code Clone
 ================================================================================
 
+Using model: anthropic/claude-sonnet-4-5
+
 Type 'exit' or 'quit' to exit the program.
+Ask 'list skills' to see available skills, or use /skillname to invoke one
 Press Ctrl-C during agent execution to interrupt the agent.
 
 You: Add type hints and basic logging to my_module.py
@@ -395,7 +491,7 @@ Choice [1-3]:
 
 Permissions are stored per-repository and persist across sessions. You can edit `~/.patchpal/<repo-name>/permissions.json` to manage saved permissions.
 
-**Test coverage:** 120 tests including 38 dedicated security tests
+**Test coverage:** 131 tests including 38 dedicated security tests and 11 skills tests
 
 ## Development
 

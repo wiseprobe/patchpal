@@ -39,9 +39,9 @@ def test_agent_has_correct_tools():
     """Test that the agent has the correct tools defined."""
     from patchpal.agent import TOOLS, TOOL_FUNCTIONS
 
-    # Verify we have 14 tools (added find_files and tree)
-    assert len(TOOLS) == 14
-    assert len(TOOL_FUNCTIONS) == 14
+    # Verify we have 16 tools (added find_files, tree, list_skills, use_skill)
+    assert len(TOOLS) == 16
+    assert len(TOOL_FUNCTIONS) == 16
 
     # Verify tool names
     tool_names = [tool['function']['name'] for tool in TOOLS]
@@ -56,6 +56,8 @@ def test_agent_has_correct_tools():
     assert 'git_diff' in tool_names
     assert 'git_log' in tool_names
     assert 'grep_code' in tool_names
+    assert 'list_skills' in tool_names
+    assert 'use_skill' in tool_names
     assert 'web_search' in tool_names
     assert 'web_fetch' in tool_names
     assert 'run_shell' in tool_names

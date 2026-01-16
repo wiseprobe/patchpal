@@ -9,7 +9,8 @@ import litellm
 from patchpal.tools import (
     read_file, list_files, apply_patch, run_shell, grep_code,
     web_fetch, web_search, get_file_info, edit_file,
-    git_status, git_diff, git_log, find_files, tree
+    git_status, git_diff, git_log, find_files, tree,
+    list_skills, use_skill
 )
 
 
@@ -332,6 +333,39 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "list_skills",
+            "description": "List all available skills. When telling users about skills, instruct them to use /skillname syntax (e.g., /commit).",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "use_skill",
+            "description": "Invoke a skill programmatically when it's relevant to the user's request. Note: Users invoke skills via /skillname at the CLI, not by calling tools.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "skill_name": {
+                        "type": "string",
+                        "description": "Name of the skill to invoke (without / prefix)"
+                    },
+                    "args": {
+                        "type": "string",
+                        "description": "Optional arguments to pass to the skill"
+                    }
+                },
+                "required": ["skill_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_shell",
             "description": "Run a safe shell command in the repository. Dangerous commands (rm, mv, sudo, etc.) are blocked.",
             "parameters": {
@@ -363,6 +397,8 @@ TOOL_FUNCTIONS = {
     "grep_code": grep_code,
     "web_search": web_search,
     "web_fetch": web_fetch,
+    "list_skills": list_skills,
+    "use_skill": use_skill,
     "run_shell": run_shell,
 }
 
@@ -429,6 +465,8 @@ Today is {current_date}. Current time is {current_time}.
 - **git_diff**: Get git diff to see changes - no permission required
 - **git_log**: Get git commit history - no permission required
 - **grep_code**: Search for patterns in code files (faster than run_shell with grep)
+- **list_skills**: List available skills (custom workflows in ~/.patchpal/skills/ or .patchpal/skills/)
+- **use_skill**: Invoke a skill with optional arguments
 {web_tools}- **run_shell**: Run shell commands (requires permission; privilege escalation blocked)
 
 ## Tool Overview and Scope
@@ -439,7 +477,17 @@ You are a LOCAL CODE ASSISTANT focused on file navigation and code understanding
 - **Code search**: grep_code
 - **File modification**: edit_file, apply_patch
 - **Git operations**: git_status, git_diff, git_log (read-only, no permission needed)
+- **Skills**: list_skills, use_skill (custom reusable workflows)
 {web_tools_scope_desc}- **Shell execution**: run_shell (safety-restricted, requires permission)
+
+### Skills System
+Skills are reusable workflows defined as markdown files in ~/.patchpal/skills/ or .patchpal/skills/. They provide custom, project-specific functionality beyond the core tools.
+
+Use list_skills to discover available skills, and use_skill to invoke them programmatically when appropriate for the user's request.
+
+**Important:** Users invoke skills via /skillname at the CLI prompt (e.g., /commit). When responding to users about skills, instruct them to use the slash command syntax, NOT the use_skill tool name.
+
+Skills are ideal for repetitive tasks, custom workflows, or project-specific operations.
 
 When suggesting improvements or new tools, focus on gaps in LOCAL file operations and code navigation. This is NOT an enterprise DevOps platform - avoid suggesting CI/CD integrations, project management tools, dependency scanners, or cloud service integrations.
 
@@ -661,6 +709,10 @@ class PatchPalAgent:
                                 print(f"\033[2m🔍 Finding: {tool_args.get('pattern', '')}\033[0m", flush=True)
                             elif tool_name == 'tree':
                                 print(f"\033[2m🌳 Tree: {tool_args.get('path', '.')}\033[0m", flush=True)
+                            elif tool_name == 'list_skills':
+                                print(f"\033[2m📋 Listing skills...\033[0m", flush=True)
+                            elif tool_name == 'use_skill':
+                                print(f"\033[2m⚡ Using skill: {tool_args.get('skill_name', '')}\033[0m", flush=True)
                             elif tool_name == 'web_search':
                                 print(f"\033[2m🌐 Searching web: {tool_args.get('query', '')}\033[0m", flush=True)
                             elif tool_name == 'web_fetch':

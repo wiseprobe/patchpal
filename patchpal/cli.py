@@ -112,6 +112,7 @@ Supported models: Any LiteLLM-supported model
     print("=" * 80)
     print(f"\nUsing model: {model_id}")
     print("\nType 'exit' or 'quit' to exit the program.")
+    print("Ask 'list skills' to see available skills, or use /skillname to invoke one")
     print("Press Ctrl-C during agent execution to interrupt the agent.\n")
 
     while True:
@@ -137,6 +138,40 @@ Supported models: Any LiteLLM-supported model
 
             # Skip empty input
             if not user_input:
+                continue
+
+            # Handle skill invocations (/skillname args...)
+            if user_input.startswith('/'):
+                parts = user_input[1:].split(maxsplit=1)
+                skill_name = parts[0]
+                skill_args = parts[1] if len(parts) > 1 else ""
+
+                from patchpal.skills import get_skill
+                from pathlib import Path
+
+                skill = get_skill(skill_name, repo_root=Path(".").resolve())
+
+                if skill:
+                    print(f"\n\033[1;35m⚡ Invoking skill: {skill.name}\033[0m")
+                    print("=" * 80)
+
+                    # Pass skill instructions to agent with context
+                    prompt = f"Execute this skill:\n\n{skill.instructions}"
+                    if skill_args:
+                        prompt += f"\n\nArguments: {skill_args}"
+
+                    result = agent.run(prompt, max_iterations=max_iterations)
+
+                    print("\n" + "=" * 80)
+                    print("\033[1;32mAgent:\033[0m")
+                    print("=" * 80)
+                    console.print(Markdown(result))
+                    print("=" * 80)
+                else:
+                    print(f"\n\033[1;31mSkill not found: {skill_name}\033[0m")
+                    print("Ask 'list skills' to see available skills.")
+                    print("See example skills at: https://github.com/amaiya/patchpal/tree/main/examples/skills")
+
                 continue
 
             # Run the agent (Ctrl-C here will interrupt agent, not exit)
