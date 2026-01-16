@@ -1,6 +1,6 @@
 # PatchPal - A Claude Code Clone
 
-An open-source Claude Code clone implemented purely in Python.
+A very lean, open-source clone of Claude Code implemented purely in Python.
 
 ## Installation
 
@@ -59,10 +59,22 @@ patchpal
 
 The agent has the following tools:
 
+### File Operations
 - **read_file**: Read contents of files in the repository
 - **list_files**: List all files in the repository
+- **grep_code**: Search for patterns in code files (regex support, file filtering)
 - **apply_patch**: Modify files by providing new content
 - **run_shell**: Execute safe shell commands (forbidden: rm, mv, sudo, etc.)
+
+### Web Capabilities
+- **web_search**: Search the web using DuckDuckGo (no API key required!)
+  - Look up error messages and solutions
+  - Find current documentation and best practices
+  - Research library versions and compatibility
+- **web_fetch**: Fetch and read content from URLs
+  - Read documentation pages
+  - Access API references
+  - Extract readable text from HTML pages
 
 ## Model Configuration
 
@@ -232,6 +244,9 @@ Fix the divide by zero error in calculator.py
 Create unit tests for the utils module
 Refactor the authentication code for better security
 Add error handling to all API calls
+Search for solutions to this error message: "ModuleNotFoundError: requests"
+Find and implement best practices for async/await in Python
+Look up the latest FastAPI documentation and add dependency injection
 ```
 
 ## Safety
@@ -279,6 +294,10 @@ export PATCHPAL_ALLOW_SENSITIVE=true      # Allow access to .env, credentials, A
 export PATCHPAL_AUDIT_LOG=false           # Log all operations to ~/.patchpal/<repo-name>/audit.log (default: true)
 export PATCHPAL_ENABLE_BACKUPS=true       # Auto-backup files to ~/.patchpal/<repo-name>/backups/ before modification (default: false)
 export PATCHPAL_MAX_OPERATIONS=5000       # Maximum operations per session to prevent infinite loops (default: 1000)
+
+# Web Tool Controls
+export PATCHPAL_WEB_TIMEOUT=60            # Timeout for web requests in seconds (default: 30)
+export PATCHPAL_MAX_WEB_SIZE=10485760     # Maximum web content size in bytes (default: 5242880 = 5MB)
 ```
 
 **Permission System:**
@@ -306,7 +325,7 @@ Choice [1-3]:
 
 Permissions are stored per-repository and persist across sessions. You can edit `~/.patchpal/<repo-name>/permissions.json` to manage saved permissions.
 
-**Test coverage:** 70 tests including 38 dedicated security tests
+**Test coverage:** 87 tests including 38 dedicated security tests
 
 ## Development
 
@@ -336,16 +355,19 @@ pytest --cov=patchpal --cov-report=term-missing
 
 ```
 patchpal/
-├── __init__.py  - Package exports
-├── tools.py     - Tool implementations (read, write, shell)
-├── agent.py     - Agent configuration
-└── cli.py       - CLI entry point
+├── __init__.py       - Package exports
+├── tools.py          - Tool implementations (file ops, grep, web, shell)
+├── agent.py          - Agent configuration and tool orchestration
+├── permissions.py    - Permission management system
+└── cli.py            - CLI entry point
 
 tests/
-├── __init__.py       - Test package
-├── test_tools.py     - Tests for tools module (15 tests)
-├── test_agent.py     - Tests for agent module (5 tests)
-└── test_cli.py       - Tests for CLI module (12 tests)
+├── __init__.py                   - Test package
+├── test_tools.py                 - Tests for tools module (26 tests)
+├── test_agent.py                 - Tests for agent module (10 tests)
+├── test_cli.py                   - Tests for CLI module (13 tests)
+├── test_enhanced_guardrails.py   - Security guardrail tests (19 tests)
+└── test_operational_safety.py    - Operational safety tests (19 tests)
 ```
 
 ## Troubleshooting

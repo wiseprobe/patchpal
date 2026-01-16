@@ -39,15 +39,17 @@ def test_agent_has_correct_tools():
     """Test that the agent has the correct tools defined."""
     from patchpal.agent import TOOLS, TOOL_FUNCTIONS
 
-    # Verify we have 5 tools
-    assert len(TOOLS) == 5
-    assert len(TOOL_FUNCTIONS) == 5
+    # Verify we have 7 tools
+    assert len(TOOLS) == 7
+    assert len(TOOL_FUNCTIONS) == 7
 
     # Verify tool names
     tool_names = [tool['function']['name'] for tool in TOOLS]
     assert 'read_file' in tool_names
     assert 'list_files' in tool_names
     assert 'grep_code' in tool_names
+    assert 'web_search' in tool_names
+    assert 'web_fetch' in tool_names
     assert 'apply_patch' in tool_names
     assert 'run_shell' in tool_names
 
@@ -60,6 +62,8 @@ def test_agent_system_prompt():
     assert "read_file" in SYSTEM_PROMPT
     assert "list_files" in SYSTEM_PROMPT
     assert "grep_code" in SYSTEM_PROMPT
+    assert "web_search" in SYSTEM_PROMPT
+    assert "web_fetch" in SYSTEM_PROMPT
     assert "apply_patch" in SYSTEM_PROMPT
     assert "run_shell" in SYSTEM_PROMPT
 

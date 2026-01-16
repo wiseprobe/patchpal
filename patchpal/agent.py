@@ -4,7 +4,7 @@ import os
 import json
 from typing import Any, Dict, List, Optional
 import litellm
-from patchpal.tools import read_file, list_files, apply_patch, run_shell, grep_code
+from patchpal.tools import read_file, list_files, apply_patch, run_shell, grep_code, web_fetch, web_search
 
 
 def _is_bedrock_arn(model_id: str) -> bool:
@@ -142,6 +142,48 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "web_search",
+            "description": "Search the web for information. Useful for looking up error messages, documentation, best practices, or current information.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (default: 5, max: 10)"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_fetch",
+            "description": "Fetch and read content from a URL. Useful for reading documentation, error references, or code examples.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL to fetch (must start with http:// or https://)"
+                    },
+                    "extract_text": {
+                        "type": "boolean",
+                        "description": "If true, extract readable text from HTML (default: true)"
+                    }
+                },
+                "required": ["url"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_shell",
             "description": "Run a safe shell command in the repository. Dangerous commands (rm, mv, sudo, etc.) are blocked.",
             "parameters": {
@@ -164,6 +206,8 @@ TOOL_FUNCTIONS = {
     "list_files": list_files,
     "apply_patch": apply_patch,
     "grep_code": grep_code,
+    "web_search": web_search,
+    "web_fetch": web_fetch,
     "run_shell": run_shell,
 }
 
@@ -175,6 +219,8 @@ SYSTEM_PROMPT = """You are an expert software engineer assistant helping with co
 - **read_file**: Read the contents of any file in the repository
 - **list_files**: List all files in the repository
 - **grep_code**: Search for patterns in code files (faster than run_shell with grep)
+- **web_search**: Search the web for information (error messages, documentation, best practices)
+- **web_fetch**: Fetch and read content from a URL (documentation, examples, references)
 - **apply_patch**: Modify a file by providing the complete new content
 - **run_shell**: Run safe shell commands (dangerous commands like rm, mv, sudo are blocked)
 
@@ -223,6 +269,8 @@ The user will primarily request software engineering tasks like solving bugs, ad
 - Use list_files to explore the repository structure
 - Use grep_code to search for patterns across files (preferred over run_shell with grep)
 - Use read_file to examine specific files before modifying them
+- Use web_search when you encounter unfamiliar errors, need documentation, or want to research solutions
+- Use web_fetch to read specific documentation pages or references you find
 - When using apply_patch, provide the COMPLETE new file content (not just the changed parts)
 - Use run_shell for safe commands only (testing, building, git operations, etc.)
 - Never use run_shell for file operations - use read_file and apply_patch instead
@@ -334,6 +382,10 @@ class PatchPalAgent:
                                 print(f"\033[2m📁 Listing files...\033[0m", flush=True)
                             elif tool_name == 'grep_code':
                                 print(f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m", flush=True)
+                            elif tool_name == 'web_search':
+                                print(f"\033[2m🌐 Searching web: {tool_args.get('query', '')}\033[0m", flush=True)
+                            elif tool_name == 'web_fetch':
+                                print(f"\033[2m🌐 Fetching: {tool_args.get('url', '')}\033[0m", flush=True)
                             elif tool_name == 'apply_patch':
                                 print(f"\033[2m✏️  Modifying: {tool_args.get('path', '')}\033[0m", flush=True)
                             elif tool_name == 'run_shell':

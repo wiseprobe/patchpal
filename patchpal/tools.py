@@ -10,6 +10,15 @@ import shutil
 from datetime import datetime
 from typing import Optional
 from patchpal.permissions import PermissionManager
+import requests
+from bs4 import BeautifulSoup
+from duckduckgo_search import DDGS
+
+# Import version for user agent
+try:
+    from patchpal import __version__
+except ImportError:
+    __version__ = "unknown"
 
 REPO_ROOT = Path(".").resolve()
 
@@ -41,6 +50,11 @@ ALLOW_SENSITIVE = os.getenv('PATCHPAL_ALLOW_SENSITIVE', 'false').lower() == 'tru
 ENABLE_AUDIT_LOG = os.getenv('PATCHPAL_AUDIT_LOG', 'true').lower() == 'true'
 ENABLE_BACKUPS = os.getenv('PATCHPAL_ENABLE_BACKUPS', 'false').lower() == 'true'
 MAX_OPERATIONS = int(os.getenv('PATCHPAL_MAX_OPERATIONS', 1000))
+
+# Web request configuration
+WEB_REQUEST_TIMEOUT = int(os.getenv('PATCHPAL_WEB_TIMEOUT', 30))  # 30 seconds
+MAX_WEB_CONTENT_SIZE = int(os.getenv('PATCHPAL_MAX_WEB_SIZE', 5 * 1024 * 1024))  # 5MB
+WEB_USER_AGENT = f'PatchPal/{__version__} (AI Code Assistant)'
 
 # Create patchpal directory structure in home directory
 # Format: ~/.patchpal/<repo-name>/
@@ -484,6 +498,132 @@ def grep_code(pattern: str, file_glob: Optional[str] = None,
         raise
     except Exception as e:
         raise ValueError(f"Search error: {e}")
+
+
+def web_fetch(url: str, extract_text: bool = True) -> str:
+    """
+    Fetch content from a URL and optionally extract readable text.
+
+    Args:
+        url: The URL to fetch
+        extract_text: If True, extract readable text from HTML (default: True)
+
+    Returns:
+        The fetched content (text extracted from HTML if extract_text=True)
+
+    Raises:
+        ValueError: If request fails or content is too large
+    """
+    _operation_limiter.check_limit(f"web_fetch({url[:50]}...)")
+
+    # Validate URL format
+    if not url.startswith(('http://', 'https://')):
+        raise ValueError("URL must start with http:// or https://")
+
+    try:
+        # Make request with timeout
+        response = requests.get(
+            url,
+            timeout=WEB_REQUEST_TIMEOUT,
+            headers={'User-Agent': WEB_USER_AGENT},
+            stream=True  # Stream to check size first
+        )
+        response.raise_for_status()
+
+        # Check content size
+        content_length = response.headers.get('Content-Length')
+        if content_length and int(content_length) > MAX_WEB_CONTENT_SIZE:
+            raise ValueError(
+                f"Content too large: {int(content_length):,} bytes "
+                f"(max {MAX_WEB_CONTENT_SIZE:,} bytes)"
+            )
+
+        # Read content with size limit
+        content = b''
+        for chunk in response.iter_content(chunk_size=8192):
+            content += chunk
+            if len(content) > MAX_WEB_CONTENT_SIZE:
+                raise ValueError(
+                    f"Content exceeds size limit ({MAX_WEB_CONTENT_SIZE:,} bytes)"
+                )
+
+        # Decode content
+        text_content = content.decode(response.encoding or 'utf-8', errors='replace')
+
+        # Extract readable text from HTML if requested
+        if extract_text and 'html' in response.headers.get('Content-Type', '').lower():
+            soup = BeautifulSoup(text_content, 'html.parser')
+
+            # Remove script and style elements
+            for element in soup(['script', 'style', 'nav', 'footer', 'header']):
+                element.decompose()
+
+            # Get text
+            text = soup.get_text()
+
+            # Clean up whitespace
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text_content = '\n'.join(chunk for chunk in chunks if chunk)
+
+        audit_logger.info(f"WEB_FETCH: {url} ({len(text_content)} chars)")
+        return text_content
+
+    except requests.Timeout:
+        raise ValueError(f"Request timed out after {WEB_REQUEST_TIMEOUT} seconds")
+    except requests.RequestException as e:
+        raise ValueError(f"Failed to fetch URL: {e}")
+    except Exception as e:
+        raise ValueError(f"Error processing content: {e}")
+
+
+def web_search(query: str, max_results: int = 5) -> str:
+    """
+    Search the web using DuckDuckGo and return results.
+
+    Args:
+        query: The search query
+        max_results: Maximum number of results to return (default: 5, max: 10)
+
+    Returns:
+        Formatted search results with titles, URLs, and snippets
+
+    Raises:
+        ValueError: If search fails
+    """
+    _operation_limiter.check_limit(f"web_search({query[:30]}...)")
+
+    # Limit max_results
+    max_results = min(max_results, 10)
+
+    try:
+        # Perform search using DuckDuckGo
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=max_results))
+
+        if not results:
+            audit_logger.info(f"WEB_SEARCH: {query} - No results")
+            return f"No search results found for: {query}"
+
+        # Format results
+        formatted_results = [f"Search results for: {query}\n"]
+        for i, result in enumerate(results, 1):
+            title = result.get('title', 'No title')
+            url = result.get('href', 'No URL')
+            snippet = result.get('body', 'No description')
+
+            formatted_results.append(
+                f"\n{i}. {title}\n"
+                f"   URL: {url}\n"
+                f"   {snippet}"
+            )
+
+        output = '\n'.join(formatted_results)
+        audit_logger.info(f"WEB_SEARCH: {query} - Found {len(results)} results")
+        return output
+
+    except Exception as e:
+        raise ValueError(f"Web search failed: {e}")
 
 
 def run_shell(cmd: str) -> str:

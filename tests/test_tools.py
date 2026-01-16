@@ -235,3 +235,147 @@ def test_grep_code_max_results(temp_repo):
     result = grep_code("match", max_results=50)
     # Should mention truncation
     assert "showing first 50" in result.lower() or result.count("\n") <= 55  # ~50 lines + header
+
+
+def test_web_fetch_success(monkeypatch):
+    """Test fetching content from a URL."""
+    from patchpal.tools import web_fetch
+    from unittest.mock import Mock
+
+    # Mock requests.get
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'text/html', 'Content-Length': '100'}
+    mock_response.encoding = 'utf-8'
+    mock_response.iter_content = lambda chunk_size: [b'<html><body><h1>Test</h1><p>Content</p></body></html>']
+
+    mock_get = Mock(return_value=mock_response)
+    monkeypatch.setattr('patchpal.tools.requests.get', mock_get)
+
+    # Disable permission prompts
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    # Reset operation counter
+    from patchpal.tools import reset_operation_counter
+    reset_operation_counter()
+
+    result = web_fetch("https://example.com")
+    assert "Test" in result
+    assert "Content" in result
+
+
+def test_web_fetch_invalid_url():
+    """Test that invalid URLs are rejected."""
+    from patchpal.tools import web_fetch
+    from patchpal.tools import reset_operation_counter
+    reset_operation_counter()
+
+    with pytest.raises(ValueError, match="URL must start with"):
+        web_fetch("not-a-url")
+
+
+def test_web_fetch_content_too_large(monkeypatch):
+    """Test that large content is rejected."""
+    from patchpal.tools import web_fetch
+    from unittest.mock import Mock
+
+    # Mock a response with large content
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'text/plain', 'Content-Length': str(10 * 1024 * 1024)}
+    mock_response.encoding = 'utf-8'
+
+    mock_get = Mock(return_value=mock_response)
+    monkeypatch.setattr('patchpal.tools.requests.get', mock_get)
+
+    # Disable permission prompts
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    from patchpal.tools import reset_operation_counter
+    reset_operation_counter()
+
+    with pytest.raises(ValueError, match="Content too large"):
+        web_fetch("https://example.com")
+
+
+def test_web_search_success(monkeypatch):
+    """Test web search returns results."""
+    from patchpal.tools import web_search
+    from unittest.mock import Mock, MagicMock
+
+    # Mock DDGS
+    mock_ddgs_instance = MagicMock()
+    mock_ddgs_instance.text.return_value = [
+        {'title': 'Result 1', 'href': 'https://example.com/1', 'body': 'Description 1'},
+        {'title': 'Result 2', 'href': 'https://example.com/2', 'body': 'Description 2'},
+    ]
+    mock_ddgs_instance.__enter__.return_value = mock_ddgs_instance
+    mock_ddgs_instance.__exit__.return_value = None
+
+    mock_ddgs_class = Mock(return_value=mock_ddgs_instance)
+    monkeypatch.setattr('patchpal.tools.DDGS', mock_ddgs_class)
+
+    # Disable permission prompts
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    from patchpal.tools import reset_operation_counter
+    reset_operation_counter()
+
+    result = web_search("test query")
+    assert "Result 1" in result
+    assert "Result 2" in result
+    assert "https://example.com/1" in result
+    assert "Description 1" in result
+
+
+def test_web_search_no_results(monkeypatch):
+    """Test web search with no results."""
+    from patchpal.tools import web_search
+    from unittest.mock import Mock, MagicMock
+
+    # Mock DDGS with empty results
+    mock_ddgs_instance = MagicMock()
+    mock_ddgs_instance.text.return_value = []
+    mock_ddgs_instance.__enter__.return_value = mock_ddgs_instance
+    mock_ddgs_instance.__exit__.return_value = None
+
+    mock_ddgs_class = Mock(return_value=mock_ddgs_instance)
+    monkeypatch.setattr('patchpal.tools.DDGS', mock_ddgs_class)
+
+    # Disable permission prompts
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    from patchpal.tools import reset_operation_counter
+    reset_operation_counter()
+
+    result = web_search("nonexistent query")
+    assert "No search results found" in result
+
+
+def test_web_search_limits_results(monkeypatch):
+    """Test that web search respects max_results limit."""
+    from patchpal.tools import web_search
+    from unittest.mock import Mock, MagicMock
+
+    # Mock DDGS with many results
+    mock_results = [
+        {'title': f'Result {i}', 'href': f'https://example.com/{i}', 'body': f'Desc {i}'}
+        for i in range(20)
+    ]
+    mock_ddgs_instance = MagicMock()
+    mock_ddgs_instance.text.return_value = mock_results[:3]  # Should only get 3 results
+    mock_ddgs_instance.__enter__.return_value = mock_ddgs_instance
+    mock_ddgs_instance.__exit__.return_value = None
+
+    mock_ddgs_class = Mock(return_value=mock_ddgs_instance)
+    monkeypatch.setattr('patchpal.tools.DDGS', mock_ddgs_class)
+
+    # Disable permission prompts
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    from patchpal.tools import reset_operation_counter
+    reset_operation_counter()
+
+    result = web_search("test", max_results=3)
+    # Should call with max_results=3
+    mock_ddgs_instance.text.assert_called_once_with("test", max_results=3)
