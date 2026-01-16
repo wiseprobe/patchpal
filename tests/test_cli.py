@@ -218,8 +218,8 @@ def test_main_runs_agent_with_user_input(monkeypatch):
 
         main()
 
-        # Verify agent.run was called with user input
-        mock_agent.run.assert_called_once_with("What files are here?")
+        # Verify agent.run was called with user input and max_iterations
+        mock_agent.run.assert_called_once_with("What files are here?", max_iterations=100)
 
 
 def test_main_skips_empty_input(monkeypatch):
@@ -239,6 +239,27 @@ def test_main_skips_empty_input(monkeypatch):
 
         # Verify agent.run was never called (empty inputs were skipped)
         mock_agent.run.assert_not_called()
+
+
+def test_main_respects_max_iterations_env_var(monkeypatch):
+    """Test that main() respects PATCHPAL_MAX_ITERATIONS environment variable."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("PATCHPAL_MAX_ITERATIONS", "150")
+    monkeypatch.setattr(sys, "argv", ["patchpal"])
+
+    with patch("patchpal.cli.create_agent") as mock_create, \
+         patch("builtins.input", side_effect=["Test task", "exit"]):
+
+        mock_agent = MagicMock()
+        mock_agent.run.return_value = "Done"
+        mock_create.return_value = mock_agent
+
+        from patchpal.cli import main
+
+        main()
+
+        # Verify agent.run was called with custom max_iterations from env var
+        mock_agent.run.assert_called_once_with("Test task", max_iterations=150)
 
 
 def test_main_displays_model_name(monkeypatch, capsys):

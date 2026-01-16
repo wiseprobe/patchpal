@@ -101,6 +101,9 @@ Supported models: Any LiteLLM-supported model
     # Create the agent with the specified model
     agent = create_agent(model_id=model_id)
 
+    # Get max iterations from environment variable or use default
+    max_iterations = int(os.getenv("PATCHPAL_MAX_ITERATIONS", "100"))
+
     # Create Rich console for markdown rendering
     console = Console()
 
@@ -139,7 +142,7 @@ Supported models: Any LiteLLM-supported model
             # Run the agent (Ctrl-C here will interrupt agent, not exit)
             try:
                 print()  # Add blank line before agent output
-                result = agent.run(user_input)
+                result = agent.run(user_input, max_iterations=max_iterations)
 
                 print("\n" + "=" * 80)
                 print("\033[1;32mAgent:\033[0m")

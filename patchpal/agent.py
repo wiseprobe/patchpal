@@ -484,12 +484,12 @@ class PatchPalAgent:
         if self.model_id.startswith('bedrock/'):
             self.litellm_kwargs['drop_params'] = True
 
-    def run(self, user_message: str, max_iterations: int = 10) -> str:
+    def run(self, user_message: str, max_iterations: int = 100) -> str:
         """Run the agent on a user message.
 
         Args:
             user_message: The user's request
-            max_iterations: Maximum number of agent iterations
+            max_iterations: Maximum number of agent iterations (default: 100)
 
         Returns:
             The agent's final response

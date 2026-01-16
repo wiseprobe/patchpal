@@ -350,6 +350,8 @@ export PATCHPAL_ALLOW_SENSITIVE=true      # Allow access to .env, credentials, A
 export PATCHPAL_AUDIT_LOG=false           # Log all operations to ~/.patchpal/<repo-name>/audit.log (default: true)
 export PATCHPAL_ENABLE_BACKUPS=true       # Auto-backup files to ~/.patchpal/<repo-name>/backups/ before modification (default: false)
 export PATCHPAL_MAX_OPERATIONS=5000       # Maximum operations per session to prevent infinite loops (default: 1000)
+export PATCHPAL_MAX_ITERATIONS=150        # Maximum agent iterations per task (default: 100)
+                                          # Increase for very complex multi-file tasks, decrease for testing
 
 # Web Tool Controls
 export PATCHPAL_ENABLE_WEB=false          # Enable/disable web search and fetch tools (default: true)
@@ -384,7 +386,7 @@ Choice [1-3]:
 
 Permissions are stored per-repository and persist across sessions. You can edit `~/.patchpal/<repo-name>/permissions.json` to manage saved permissions.
 
-**Test coverage:** 108 tests including 38 dedicated security tests
+**Test coverage:** 109 tests including 38 dedicated security tests
 
 ## Development
 
@@ -424,7 +426,7 @@ tests/
 ├── __init__.py                   - Test package
 ├── test_tools.py                 - Tests for tools module (42 tests)
 ├── test_agent.py                 - Tests for agent module (15 tests)
-├── test_cli.py                   - Tests for CLI module (13 tests)
+├── test_cli.py                   - Tests for CLI module (14 tests)
 ├── test_guardrails.py            - Security guardrail tests (20 tests)
 └── test_operational_safety.py    - Operational safety tests (18 tests)
 ```
