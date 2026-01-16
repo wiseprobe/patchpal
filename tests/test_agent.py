@@ -82,6 +82,10 @@ def test_agent_system_prompt():
     assert "avoid over-engineering" in SYSTEM_PROMPT.lower()
     assert "read before modifying" in SYSTEM_PROMPT.lower()
 
+    # Verify system prompt includes current date/time
+    assert "Current Date and Time" in SYSTEM_PROMPT
+    assert "Today is" in SYSTEM_PROMPT
+
 
 def test_create_agent_bedrock_env_setup(monkeypatch):
     """Test that Bedrock environment variables are set up correctly."""

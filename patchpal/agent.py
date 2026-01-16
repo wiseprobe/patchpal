@@ -3,6 +3,7 @@
 import os
 import json
 import platform
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 import litellm
 from patchpal.tools import (
@@ -340,6 +341,9 @@ When using run_shell, use Unix commands:
 
 SYSTEM_PROMPT = """You are an expert software engineer assistant helping with code tasks in a repository.
 
+## Current Date and Time
+Today is {current_date}. Current time is {current_time}.
+
 {platform_info}
 
 # Available Tools
@@ -424,8 +428,20 @@ Example: "The authentication logic is in src/auth.py:45"
 - Focus on what needs to be done, not when (don't suggest timelines)
 - Maintain consistency with the existing codebase style and patterns"""
 
-# Substitute platform information into the system prompt
-SYSTEM_PROMPT = SYSTEM_PROMPT.format(platform_info=PLATFORM_INFO)
+# Get current date and time
+now = datetime.now()
+current_date = now.strftime("%A, %B %d, %Y")  # e.g., "Wednesday, January 15, 2026"
+current_time = now.strftime("%I:%M %p %Z").strip()  # e.g., "03:45 PM EST"
+if not current_time.endswith(('EST', 'CST', 'MST', 'PST', 'UTC')):
+    # If no timezone abbreviation, just show time without timezone
+    current_time = now.strftime("%I:%M %p").strip()
+
+# Substitute platform information and date/time into the system prompt
+SYSTEM_PROMPT = SYSTEM_PROMPT.format(
+    platform_info=PLATFORM_INFO,
+    current_date=current_date,
+    current_time=current_time
+)
 
 
 class PatchPalAgent:

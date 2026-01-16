@@ -57,6 +57,16 @@ patchpal
 
 ## Features
 
+### Context Awareness
+
+The agent is context-aware and knows:
+- **Current date and time**: The agent always knows today's date and current time, useful for:
+  - Searching for recent information (e.g., "latest React 2026 documentation")
+  - Understanding file timestamps relative to "now"
+  - Date-based queries (e.g., "what was released this month?")
+
+### Tools
+
 The agent has the following tools:
 
 ### File Operations
