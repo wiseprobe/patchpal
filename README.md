@@ -166,6 +166,7 @@ description: One-line description
 The PatchPal repository includes example skills you can use as templates:
 - **commit**: Best practices for creating git commits
 - **review**: Comprehensive code review checklist
+- **add-tests**: Add comprehensive pytest tests (includes code block templates)
 
 **After `pip install patchpal`, get examples:**
 
@@ -180,6 +181,7 @@ cd patchpal
 # Copy examples to your personal skills directory
 cp -r examples/skills/commit ~/.patchpal/skills/
 cp -r examples/skills/review ~/.patchpal/skills/
+cp -r examples/skills/add-tests ~/.patchpal/skills/
 ```
 
 **View examples online:**

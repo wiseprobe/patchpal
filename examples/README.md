@@ -10,6 +10,7 @@ Example skills demonstrate how to create reusable workflows:
 
 - **commit**: Best practices for creating git commits with proper formatting
 - **review**: Comprehensive code review checklist
+- **add-tests**: Add comprehensive pytest tests with code templates and examples
 
 ### Using These Examples
 
@@ -22,6 +23,7 @@ cp -r examples/skills/* ~/.patchpal/skills/
 # Or copy individual skills
 cp -r examples/skills/commit ~/.patchpal/skills/
 cp -r examples/skills/review ~/.patchpal/skills/
+cp -r examples/skills/add-tests ~/.patchpal/skills/
 ```
 
 For project-specific skills, copy to your repository:
