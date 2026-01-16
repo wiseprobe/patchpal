@@ -486,6 +486,274 @@ def apply_patch(path: str, new_content: str) -> str:
     return f"Successfully updated {path}{warning}{git_warning}{backup_msg}\n\nDiff:\n{diff_str}"
 
 
+def edit_file(file_path: str, old_string: str, new_string: str) -> str:
+    """
+    Edit a file by replacing an exact string match.
+
+    Args:
+        file_path: Relative path to the file from the repository root
+        old_string: The exact string to find and replace
+        new_string: The string to replace it with
+
+    Returns:
+        Confirmation message with the changes made
+
+    Raises:
+        ValueError: If file not found, old_string not found, or multiple matches
+    """
+    _operation_limiter.check_limit(f"edit_file({file_path[:30]}...)")
+
+    if READ_ONLY_MODE:
+        raise ValueError(
+            "Cannot edit files in read-only mode\n"
+            "Set PATCHPAL_READ_ONLY=false to allow modifications"
+        )
+
+    p = _check_path(file_path, must_exist=True)
+
+    # Read current content
+    try:
+        content = p.read_text()
+    except Exception as e:
+        raise ValueError(f"Failed to read file: {e}")
+
+    # Check for old_string
+    if old_string not in content:
+        raise ValueError(
+            f"String not found in {file_path}:\n{old_string[:100]}"
+            + ("..." if len(old_string) > 100 else "")
+        )
+
+    # Count occurrences
+    count = content.count(old_string)
+    if count > 1:
+        raise ValueError(
+            f"String appears {count} times in {file_path}. "
+            f"Please provide a more specific string to ensure correct replacement.\n"
+            f"First occurrence context:\n{content[max(0, content.find(old_string)-50):content.find(old_string)+len(old_string)+50]}"
+        )
+
+    # Check permission before proceeding
+    permission_manager = _get_permission_manager()
+    description = f"   Edit {file_path}\n   Replace: {old_string[:60]}{'...' if len(old_string) > 60 else ''}\n   With: {new_string[:60]}{'...' if len(new_string) > 60 else ''}"
+    if not permission_manager.request_permission('edit_file', description, pattern=file_path):
+        return "Operation cancelled by user."
+
+    # Backup if enabled
+    backup_path = _backup_file(p)
+
+    # Perform replacement
+    new_content = content.replace(old_string, new_string)
+
+    # Write the new content
+    p.write_text(new_content)
+
+    # Generate diff for the specific change
+    old_lines = old_string.split('\n')
+    new_lines = new_string.split('\n')
+    diff = difflib.unified_diff(
+        old_lines,
+        new_lines,
+        fromfile="old",
+        tofile="new",
+        lineterm=''
+    )
+    diff_str = '\n'.join(diff)
+
+    audit_logger.info(f"EDIT: {file_path} ({len(old_string)} -> {len(new_string)} chars)")
+
+    backup_msg = f"\n[Backup saved: {backup_path}]" if backup_path else ""
+    return f"Successfully edited {file_path}{backup_msg}\n\nChange:\n{diff_str}"
+
+
+def git_status() -> str:
+    """
+    Get the status of the git repository.
+
+    Returns:
+        Formatted git status output showing modified, staged, and untracked files
+
+    Raises:
+        ValueError: If not in a git repository or git command fails
+    """
+    _operation_limiter.check_limit("git_status()")
+
+    try:
+        # Check if we're in a git repo
+        result = subprocess.run(
+            ['git', 'rev-parse', '--git-dir'],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=5
+        )
+        if result.returncode != 0:
+            return "Not a git repository"
+
+        # Get status with short format
+        result = subprocess.run(
+            ['git', 'status', '--short', '--branch'],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=10
+        )
+
+        if result.returncode != 0:
+            raise ValueError(f"Git status failed: {result.stderr}")
+
+        output = result.stdout.strip()
+        if not output:
+            return "Git repository: No changes (working tree clean)"
+
+        audit_logger.info("GIT_STATUS: executed")
+        return f"Git status:\n{output}"
+
+    except subprocess.TimeoutExpired:
+        raise ValueError("Git status timed out")
+    except FileNotFoundError:
+        raise ValueError("Git command not found. Is git installed?")
+    except Exception as e:
+        raise ValueError(f"Git status error: {e}")
+
+
+def git_diff(path: Optional[str] = None, staged: bool = False) -> str:
+    """
+    Get the git diff for the repository or a specific file.
+
+    Args:
+        path: Optional path to a specific file (relative to repo root)
+        staged: If True, show staged changes (--cached), else show unstaged changes
+
+    Returns:
+        Git diff output
+
+    Raises:
+        ValueError: If not in a git repository or git command fails
+    """
+    _operation_limiter.check_limit(f"git_diff({path or 'all'})")
+
+    try:
+        # Check if we're in a git repo
+        result = subprocess.run(
+            ['git', 'rev-parse', '--git-dir'],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=5
+        )
+        if result.returncode != 0:
+            return "Not a git repository"
+
+        # Build git diff command
+        cmd = ['git', 'diff']
+        if staged:
+            cmd.append('--cached')
+
+        if path:
+            # Validate path
+            p = _check_path(path, must_exist=False)
+            cmd.append(str(p.relative_to(REPO_ROOT)))
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+            raise ValueError(f"Git diff failed: {result.stderr}")
+
+        output = result.stdout.strip()
+        if not output:
+            stage_msg = "staged " if staged else ""
+            path_msg = f" for {path}" if path else ""
+            return f"No {stage_msg}changes{path_msg}"
+
+        audit_logger.info(f"GIT_DIFF: {path or 'all'} (staged={staged})")
+        return output
+
+    except subprocess.TimeoutExpired:
+        raise ValueError("Git diff timed out")
+    except FileNotFoundError:
+        raise ValueError("Git command not found. Is git installed?")
+    except Exception as e:
+        raise ValueError(f"Git diff error: {e}")
+
+
+def git_log(max_count: int = 10, path: Optional[str] = None) -> str:
+    """
+    Get the git commit history.
+
+    Args:
+        max_count: Maximum number of commits to show (default: 10, max: 50)
+        path: Optional path to show history for a specific file
+
+    Returns:
+        Formatted git log output
+
+    Raises:
+        ValueError: If not in a git repository or git command fails
+    """
+    _operation_limiter.check_limit(f"git_log({max_count})")
+
+    # Limit max_count
+    max_count = min(max_count, 50)
+
+    try:
+        # Check if we're in a git repo
+        result = subprocess.run(
+            ['git', 'rev-parse', '--git-dir'],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=5
+        )
+        if result.returncode != 0:
+            return "Not a git repository"
+
+        # Build git log command with formatting
+        cmd = [
+            'git', 'log',
+            f'-{max_count}',
+            '--pretty=format:%h - %an, %ar : %s',
+            '--abbrev-commit'
+        ]
+
+        if path:
+            # Validate path
+            p = _check_path(path, must_exist=False)
+            cmd.append('--')
+            cmd.append(str(p.relative_to(REPO_ROOT)))
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+            raise ValueError(f"Git log failed: {result.stderr}")
+
+        output = result.stdout.strip()
+        if not output:
+            return "No commits found"
+
+        audit_logger.info(f"GIT_LOG: {max_count} commits" + (f" for {path}" if path else ""))
+        return f"Recent commits:\n{output}"
+
+    except subprocess.TimeoutExpired:
+        raise ValueError("Git log timed out")
+    except FileNotFoundError:
+        raise ValueError("Git command not found. Is git installed?")
+    except Exception as e:
+        raise ValueError(f"Git log error: {e}")
+
+
 def grep_code(pattern: str, file_glob: Optional[str] = None,
               case_sensitive: bool = True, max_results: int = 100) -> str:
     """

@@ -438,3 +438,151 @@ def test_get_file_info_no_matches(temp_repo):
 
     result = get_file_info("*.xyz")
     assert "No files found" in result
+
+
+def test_edit_file_success(temp_repo):
+    """Test successfully editing a file."""
+    from patchpal.tools import edit_file
+
+    # Create a test file
+    (temp_repo / "edit_test.txt").write_text("Hello World\nThis is a test\nGoodbye World")
+
+    result = edit_file("edit_test.txt", "This is a test", "This is EDITED")
+    assert "Successfully edited" in result
+
+    # Verify the edit
+    content = (temp_repo / "edit_test.txt").read_text()
+    assert "This is EDITED" in content
+    assert "This is a test" not in content
+
+
+def test_edit_file_not_found(temp_repo):
+    """Test editing with string not found."""
+    from patchpal.tools import edit_file
+
+    (temp_repo / "edit_test.txt").write_text("Hello World")
+
+    with pytest.raises(ValueError, match="String not found"):
+        edit_file("edit_test.txt", "Nonexistent", "Replaced")
+
+
+def test_edit_file_multiple_matches(temp_repo):
+    """Test editing with multiple occurrences."""
+    from patchpal.tools import edit_file
+
+    (temp_repo / "edit_test.txt").write_text("test\ntest\ntest")
+
+    with pytest.raises(ValueError, match="appears 3 times"):
+        edit_file("edit_test.txt", "test", "replaced")
+
+
+def test_git_status_not_a_repo(temp_repo, monkeypatch):
+    """Test git_status when not in a git repo."""
+    from patchpal.tools import git_status
+
+    # Mock git command to return non-zero (not a git repo)
+    def mock_run(*args, **kwargs):
+        result = MagicMock()
+        result.returncode = 1
+        result.stderr = "not a git repository"
+        return result
+
+    monkeypatch.setattr('patchpal.tools.subprocess.run', mock_run)
+
+    result = git_status()
+    assert "Not a git repository" in result
+
+
+def test_git_status_clean(temp_repo, monkeypatch):
+    """Test git_status with clean working tree."""
+    from patchpal.tools import git_status
+
+    call_count = [0]
+    def mock_run(cmd, *args, **kwargs):
+        result = MagicMock()
+        call_count[0] += 1
+        if call_count[0] == 1:  # First call: check if git repo
+            result.returncode = 0
+        else:  # Second call: git status
+            result.returncode = 0
+            result.stdout = ""  # Clean working tree
+        return result
+
+    monkeypatch.setattr('patchpal.tools.subprocess.run', mock_run)
+
+    result = git_status()
+    assert "No changes" in result or "clean" in result
+
+
+def test_git_diff_no_repo(temp_repo, monkeypatch):
+    """Test git_diff when not in a git repo."""
+    from patchpal.tools import git_diff
+
+    def mock_run(*args, **kwargs):
+        result = MagicMock()
+        result.returncode = 1
+        return result
+
+    monkeypatch.setattr('patchpal.tools.subprocess.run', mock_run)
+
+    result = git_diff()
+    assert "Not a git repository" in result
+
+
+def test_git_diff_no_changes(temp_repo, monkeypatch):
+    """Test git_diff with no changes."""
+    from patchpal.tools import git_diff
+
+    call_count = [0]
+    def mock_run(cmd, *args, **kwargs):
+        result = MagicMock()
+        call_count[0] += 1
+        if call_count[0] == 1:  # First call: check if git repo
+            result.returncode = 0
+        else:  # Second call: git diff
+            result.returncode = 0
+            result.stdout = ""  # No changes
+        return result
+
+    monkeypatch.setattr('patchpal.tools.subprocess.run', mock_run)
+
+    result = git_diff()
+    assert "No" in result and "changes" in result
+
+
+def test_git_log_not_a_repo(temp_repo, monkeypatch):
+    """Test git_log when not in a git repo."""
+    from patchpal.tools import git_log
+
+    def mock_run(*args, **kwargs):
+        result = MagicMock()
+        result.returncode = 1
+        return result
+
+    monkeypatch.setattr('patchpal.tools.subprocess.run', mock_run)
+
+    result = git_log()
+    assert "Not a git repository" in result
+
+
+def test_git_log_success(temp_repo, monkeypatch):
+    """Test git_log with commits."""
+    from patchpal.tools import git_log
+
+    call_count = [0]
+    def mock_run(cmd, *args, **kwargs):
+        result = MagicMock()
+        call_count[0] += 1
+        if call_count[0] == 1:  # First call: check if git repo
+            result.returncode = 0
+        else:  # Second call: git log
+            result.returncode = 0
+            result.stdout = "abc123 - John Doe, 2 hours ago : Initial commit\ndef456 - Jane Doe, 1 day ago : Add feature"
+        return result
+
+    monkeypatch.setattr('patchpal.tools.subprocess.run', mock_run)
+
+    result = git_log(max_count=10)
+    assert "Recent commits" in result
+    assert "abc123" in result
+    assert "John Doe" in result

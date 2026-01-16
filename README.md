@@ -67,8 +67,19 @@ The agent has the following tools:
   - Supports directories: `get_file_info("src/")`
   - Supports glob patterns: `get_file_info("tests/*.py")`
 - **grep_code**: Search for patterns in code files (regex support, file filtering)
-- **apply_patch**: Modify files by providing new content
+- **edit_file**: Edit a file by replacing an exact string (efficient for small changes)
+  - Example: `edit_file("config.py", "port = 3000", "port = 8080")`
+  - More efficient than apply_patch for targeted changes
+  - Old string must appear exactly once in the file
+- **apply_patch**: Modify files by providing complete new content
 - **run_shell**: Execute shell commands (requires user permission; privilege escalation blocked)
+
+### Git Operations (No Permission Required)
+- **git_status**: Show modified, staged, and untracked files
+- **git_diff**: Show changes in working directory or staged area
+  - Optional parameters: `path` (specific file), `staged` (show staged changes)
+- **git_log**: Show commit history
+  - Optional parameters: `max_count` (number of commits, max 50), `path` (specific file history)
 
 ### Web Capabilities
 - **web_search**: Search the web using DuckDuckGo (no API key required!)
@@ -332,7 +343,7 @@ Choice [1-3]:
 
 Permissions are stored per-repository and persist across sessions. You can edit `~/.patchpal/<repo-name>/permissions.json` to manage saved permissions.
 
-**Test coverage:** 92 tests including 38 dedicated security tests
+**Test coverage:** 101 tests including 38 dedicated security tests
 
 ## Development
 

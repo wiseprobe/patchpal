@@ -5,7 +5,11 @@ import json
 import platform
 from typing import Any, Dict, List, Optional
 import litellm
-from patchpal.tools import read_file, list_files, apply_patch, run_shell, grep_code, web_fetch, web_search, get_file_info
+from patchpal.tools import (
+    read_file, list_files, apply_patch, run_shell, grep_code,
+    web_fetch, web_search, get_file_info, edit_file,
+    git_status, git_diff, git_log
+)
 
 
 def _is_bedrock_arn(model_id: str) -> bool:
@@ -110,6 +114,31 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "edit_file",
+            "description": "Edit a file by replacing an exact string. More efficient than apply_patch for small changes. The old_string must match exactly and appear only once.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Relative path to the file from the repository root"
+                    },
+                    "old_string": {
+                        "type": "string",
+                        "description": "The exact string to find and replace (must appear exactly once)"
+                    },
+                    "new_string": {
+                        "type": "string",
+                        "description": "The string to replace it with"
+                    }
+                },
+                "required": ["file_path", "old_string", "new_string"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "apply_patch",
             "description": "Modify a file by replacing its contents. Returns a unified diff of changes.",
             "parameters": {
@@ -125,6 +154,60 @@ TOOLS = [
                     }
                 },
                 "required": ["path", "new_content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "git_status",
+            "description": "Get git repository status showing modified, staged, and untracked files. No permission required - read-only operation.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "git_diff",
+            "description": "Get git diff to see changes. No permission required - read-only operation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Optional: specific file path to show diff for"
+                    },
+                    "staged": {
+                        "type": "boolean",
+                        "description": "If true, show staged changes (--cached), else show unstaged changes"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "git_log",
+            "description": "Get git commit history. No permission required - read-only operation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "max_count": {
+                        "type": "integer",
+                        "description": "Maximum number of commits to show (default: 10, max: 50)"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Optional: specific file path to show history for"
+                    }
+                },
+                "required": []
             }
         }
     },
@@ -223,7 +306,11 @@ TOOL_FUNCTIONS = {
     "read_file": read_file,
     "list_files": list_files,
     "get_file_info": get_file_info,
+    "edit_file": edit_file,
     "apply_patch": apply_patch,
+    "git_status": git_status,
+    "git_diff": git_diff,
+    "git_log": git_log,
     "grep_code": grep_code,
     "web_search": web_search,
     "web_fetch": web_fetch,
@@ -260,10 +347,14 @@ SYSTEM_PROMPT = """You are an expert software engineer assistant helping with co
 - **read_file**: Read the contents of any file in the repository
 - **list_files**: List all files in the repository
 - **get_file_info**: Get metadata for file(s) - size, type, modified time (supports globs like '*.py')
+- **edit_file**: Edit a file by replacing an exact string (more efficient than apply_patch for small changes)
+- **apply_patch**: Modify a file by providing the complete new content
+- **git_status**: Get git status (modified, staged, untracked files) - no permission required
+- **git_diff**: Get git diff to see changes - no permission required
+- **git_log**: Get git commit history - no permission required
 - **grep_code**: Search for patterns in code files (faster than run_shell with grep)
 - **web_search**: Search the web for information (error messages, documentation, best practices)
 - **web_fetch**: Fetch and read content from a URL (documentation, examples, references)
-- **apply_patch**: Modify a file by providing the complete new content
 - **run_shell**: Run shell commands (requires permission; privilege escalation blocked)
 
 # Core Principles
@@ -309,13 +400,17 @@ The user will primarily request software engineering tasks like solving bugs, ad
 ## Tool Usage Guidelines
 
 - Use list_files to explore the repository structure
+- Use get_file_info to check file metadata (size, type, timestamps) - supports globs
 - Use grep_code to search for patterns across files (preferred over run_shell with grep)
 - Use read_file to examine specific files before modifying them
+- For modifications:
+  - Use edit_file for small, targeted changes (replacing a specific string)
+  - Use apply_patch for larger changes or when rewriting significant portions
+- Use git_status, git_diff, git_log to understand repository state (no permission needed)
 - Use web_search when you encounter unfamiliar errors, need documentation, or want to research solutions
 - Use web_fetch to read specific documentation pages or references you find
-- When using apply_patch, provide the COMPLETE new file content (not just the changed parts)
-- Use run_shell for safe commands only (testing, building, git operations, etc.)
-- Never use run_shell for file operations - use read_file and apply_patch instead
+- Use run_shell only when no dedicated tool exists (requires permission)
+- Never use run_shell for file operations or git commands - dedicated tools are available
 
 ## Code References
 When referencing specific functions or code, include the pattern `file_path:line_number` to help users navigate.
@@ -427,14 +522,22 @@ class PatchPalAgent:
                                 print(f"\033[2m📁 Listing files...\033[0m", flush=True)
                             elif tool_name == 'get_file_info':
                                 print(f"\033[2m📊 Getting info: {tool_args.get('path', '')}\033[0m", flush=True)
+                            elif tool_name == 'edit_file':
+                                print(f"\033[2m✏️  Editing: {tool_args.get('file_path', '')}\033[0m", flush=True)
+                            elif tool_name == 'apply_patch':
+                                print(f"\033[2m📝 Patching: {tool_args.get('path', '')}\033[0m", flush=True)
+                            elif tool_name == 'git_status':
+                                print(f"\033[2m🔀 Git status...\033[0m", flush=True)
+                            elif tool_name == 'git_diff':
+                                print(f"\033[2m🔀 Git diff{': ' + tool_args.get('path', '') if tool_args.get('path') else '...'}\033[0m", flush=True)
+                            elif tool_name == 'git_log':
+                                print(f"\033[2m🔀 Git log...\033[0m", flush=True)
                             elif tool_name == 'grep_code':
                                 print(f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m", flush=True)
                             elif tool_name == 'web_search':
                                 print(f"\033[2m🌐 Searching web: {tool_args.get('query', '')}\033[0m", flush=True)
                             elif tool_name == 'web_fetch':
                                 print(f"\033[2m🌐 Fetching: {tool_args.get('url', '')}\033[0m", flush=True)
-                            elif tool_name == 'apply_patch':
-                                print(f"\033[2m✏️  Modifying: {tool_args.get('path', '')}\033[0m", flush=True)
                             elif tool_name == 'run_shell':
                                 print(f"\033[2m⚡ Running: {tool_args.get('cmd', '')}\033[0m", flush=True)
 
