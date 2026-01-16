@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import warnings
 from pathlib import Path
 from patchpal.agent import create_agent
 
@@ -50,6 +51,9 @@ except ImportError:
 
 def main():
     """Main CLI entry point for PatchPal."""
+    # Suppress warnings to keep CLI clean (e.g., Pydantic, deprecation warnings from dependencies)
+    warnings.simplefilter('ignore')
+
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
         description="PatchPal - Claude Code Clone",
@@ -104,9 +108,15 @@ Supported models: Any LiteLLM-supported model
 
     while True:
         try:
-            # Get user input
+            # Flush any pending output to ensure clean prompt
+            sys.stdout.flush()
+            sys.stderr.flush()
+
+            # Print separator and prompt on fresh line to ensure visibility
+            # even if warnings/logs appear above
+            print()  # Blank line for separation
             # Use \001 and \002 to mark non-printing characters (ANSI codes) for readline
-            user_input = input("\n\001\033[1;36m\002You:\001\033[0m\002 ").strip()
+            user_input = input("\001\033[1;36m\002You:\001\033[0m\002 ").strip()
 
             # Replace newlines with spaces to prevent history file corruption
             # This can happen if user pastes multi-line text
