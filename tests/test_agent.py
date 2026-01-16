@@ -299,9 +299,9 @@ def test_agent_returns_immediately_on_cancellation(monkeypatch):
 
         return mock_response
 
-    # Mock run_shell to return cancellation message (simulating user pressing "3")
+    # Mock run_shell to return exact cancellation message (simulating user pressing "3")
     def mock_run_shell(cmd):
-        return "Operation cancelled by user."
+        return "Operation cancelled by user."  # Exact message from permissions.py
 
     # Patch the TOOL_FUNCTIONS dict directly since it's populated at import time
     from patchpal.agent import TOOL_FUNCTIONS
@@ -323,3 +323,65 @@ def test_agent_returns_immediately_on_cancellation(monkeypatch):
     finally:
         # Restore original function
         TOOL_FUNCTIONS['run_shell'] = original_run_shell
+
+
+def test_agent_doesnt_trigger_on_file_containing_cancellation_text(monkeypatch):
+    """Test that reading a file containing 'Operation cancelled by user' doesn't trigger early exit."""
+    from patchpal.agent import create_agent, TOOL_FUNCTIONS
+
+    # Disable permissions for this test
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    call_count = [0]
+
+    def mock_completion(*args, **kwargs):
+        call_count[0] += 1
+
+        if call_count[0] == 1:
+            # First call: agent wants to call read_file
+            tool_call = MagicMock()
+            tool_call.id = "call_123"
+            tool_call.function.name = "read_file"
+            tool_call.function.arguments = '{"path": "test.txt"}'
+
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message = MagicMock()
+            mock_response.choices[0].message.content = ""
+            mock_response.choices[0].message.tool_calls = [tool_call]
+
+            return mock_response
+        else:
+            # Second call: agent responds after reading the file
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message = MagicMock()
+            mock_response.choices[0].message.content = "The file contains documentation about cancellation."
+            mock_response.choices[0].message.tool_calls = None
+
+            return mock_response
+
+    # Mock read_file to return content that includes the cancellation phrase
+    def mock_read_file(path):
+        return "Documentation: When user presses 3, the system shows 'Operation cancelled by user.' message."
+
+    # Patch TOOL_FUNCTIONS dict
+    original_read_file = TOOL_FUNCTIONS['read_file']
+    TOOL_FUNCTIONS['read_file'] = mock_read_file
+
+    try:
+        with patch('patchpal.agent.litellm.completion', side_effect=mock_completion):
+            agent = create_agent()
+
+            result = agent.run("Read the test file")
+
+            # Verify agent made TWO API calls (not one)
+            # If the cancellation check was too broad, it would exit after first call
+            assert call_count[0] == 2, f"Expected 2 API calls, got {call_count[0]}"
+
+            # Verify the result is the agent's synthesized response, not raw file contents
+            assert result == "The file contains documentation about cancellation."
+            assert "Documentation:" not in result  # Should not be raw file contents
+    finally:
+        # Restore original function
+        TOOL_FUNCTIONS['read_file'] = original_read_file

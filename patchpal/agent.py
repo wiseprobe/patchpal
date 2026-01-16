@@ -590,7 +590,8 @@ class PatchPalAgent:
                     })
 
                     # Check if operation was cancelled by user
-                    if "Operation cancelled by user" in str(tool_result):
+                    # Use exact match to avoid false positives from file contents
+                    if str(tool_result).strip() == "Operation cancelled by user.":
                         # Return immediately - don't continue agent loop
                         return str(tool_result)
 

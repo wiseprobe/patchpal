@@ -375,7 +375,7 @@ Choice [1-3]:
 
 Permissions are stored per-repository and persist across sessions. You can edit `~/.patchpal/<repo-name>/permissions.json` to manage saved permissions.
 
-**Test coverage:** 107 tests including 38 dedicated security tests
+**Test coverage:** 108 tests including 38 dedicated security tests
 
 ## Development
 
@@ -414,7 +414,7 @@ patchpal/
 tests/
 ├── __init__.py                   - Test package
 ├── test_tools.py                 - Tests for tools module (42 tests)
-├── test_agent.py                 - Tests for agent module (14 tests)
+├── test_agent.py                 - Tests for agent module (15 tests)
 ├── test_cli.py                   - Tests for CLI module (13 tests)
 ├── test_guardrails.py            - Security guardrail tests (20 tests)
 └── test_operational_safety.py    - Operational safety tests (18 tests)
