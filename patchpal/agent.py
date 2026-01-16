@@ -617,9 +617,12 @@ class PatchPalAgent:
         # Conversation history (list of message dicts)
         self.messages: List[Dict[str, Any]] = []
 
-        # LiteLLM settings for Bedrock
+        # LiteLLM settings for models that need parameter dropping
         self.litellm_kwargs = {}
         if self.model_id.startswith('bedrock/'):
+            self.litellm_kwargs['drop_params'] = True
+        elif self.model_id.startswith('openai/') and os.getenv('OPENAI_API_BASE'):
+            # Custom OpenAI-compatible servers (vLLM, etc.) often don't support all parameters
             self.litellm_kwargs['drop_params'] = True
 
     def run(self, user_message: str, max_iterations: int = 100) -> str:
