@@ -186,11 +186,11 @@ Supported models: Any LiteLLM-supported model
     history = InMemoryHistory()
 
     print("=" * 80)
-    print("PatchPal - Claude Code Clone")
+    print("PatchPal - a lightweight, flexible Claude Code clone")
     print("=" * 80)
     print(f"\nUsing model: {model_id}")
     print("\nType 'exit' or 'quit' to exit the program.")
-    print("Ask 'list skills' to see available skills, or use /skillname to invoke one")
+    print("Ask 'list skills' to see available skills, or use /skillname to invoke one.")
     print("Press Ctrl-C during agent execution to interrupt the agent.\n")
 
     while True:
