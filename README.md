@@ -4,7 +4,7 @@
 
 > A lightweight clone of Claude Code in Python -- supports both local and cloud LLMs.
 
-A key goal is to mimic Claude Code's core functionality while maintaining a lightweight, accessible codebase, making it ideal for education and experimentation:
+A key goal is to mimic Claude Code's core functionality while maintaining a lean, lightweight, accessible codebase, making it ideal for education and experimentation:
 
 ```bash
 $ls ./patchpal
