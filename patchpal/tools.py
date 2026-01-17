@@ -1437,9 +1437,13 @@ def run_shell(cmd: str) -> str:
         cmd,
         shell=True,
         capture_output=True,
-        text=True,
         cwd=REPO_ROOT,
         timeout=30,  # 30 second timeout
     )
 
-    return result.stdout + result.stderr
+    # Decode output with error handling for problematic characters
+    # Use utf-8 on all platforms with 'replace' to handle encoding issues
+    stdout = result.stdout.decode('utf-8', errors='replace') if result.stdout else ''
+    stderr = result.stderr.decode('utf-8', errors='replace') if result.stderr else ''
+
+    return stdout + stderr

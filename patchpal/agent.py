@@ -419,7 +419,9 @@ if os_name == 'Windows':
 When using run_shell, use Windows commands:
 - File operations: `dir`, `type`, `copy`, `move`, `del`, `mkdir`, `rmdir`
 - Search: `where`, `findstr`
-- Path format: Use backslashes `C:\\path\\file.txt` or forward slashes (both work)
+- Path format: Use backslashes `C:\\path\\to\\file.txt`
+  - For relative paths: Use `.\\Documents` NOT `./Documents`
+  - For current directory: Use `.` or omit the path prefix
 - Chain commands with `&&`
 """
 else:  # Linux or macOS
