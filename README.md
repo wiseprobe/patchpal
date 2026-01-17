@@ -37,6 +37,8 @@ export ANTHROPIC_API_KEY=your_api_key_here
 export OPENAI_API_KEY=your_api_key_here
 
 # For vLLM - no API key needed (unless configured)!
+export HOSTED_VLLM_API_BASE=http://localhost:8000 # changeme
+export HOSTED_VLLM_API_KEY=token-abc123           # optional -
 
 # For other providers, check LiteLLM docs
 ```
@@ -52,11 +54,11 @@ patchpal --model openai/gpt-4o
 # Use vLLM (local)
 # Note: vLLM server must be started with --tool-call-parser and --enable-auto-tool-choice
 # See "Using Local Models (vLLM & Ollama)" section below for details
-export OPENAI_API_BASE=http://localhost:8000/v1
-export OPENAI_API_KEY=token-abc123
-patchpal --model openai/Qwen2.5-Coder-32B-Instruct
+export HOSTED_VLLM_API_BASE=http://localhost:8000
+export HOSTED_VLLM_API_KEY=token-abc123
+patchpal --model hosted_vllm/openai/gpt-oss-20b
 
-# Use Ollama (local, ⚠️ experimental - limited multi-turn support)
+# Use Ollama (local, ⚠️ not recommended due to Ollama's limited tool support)
 patchpal --model ollama/llama3.1
 
 # Or set the model via environment variable
@@ -218,7 +220,7 @@ PatchPal supports any LiteLLM-compatible model. You can configure the model in t
 ```bash
 patchpal --model openai/gpt-4o
 patchpal --model anthropic/claude-sonnet-4-5
-patchpal --model hosted_vllm/gpt-oss-20b # local model - no API charges
+patchpal --model hosted_vllm/openai/gpt-oss-20b # local model - no API charges
 ```
 
 ### 2. Environment Variable
@@ -238,7 +240,6 @@ PatchPal works with any model supported by LiteLLM, including:
 - **OpenAI**: `openai/gpt-4o`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
 - **AWS Bedrock**: `bedrock/anthropic.claude-sonnet-4-5-v1:0`, or full ARNs for GovCloud/VPC endpoints
 - **vLLM (Local)** (Recommended for local): See vLLM section for setup
-- **Ollama (Local)** (⚠️ Experimental): `ollama/llama3.1` - Limited multi-turn support, not for production
 - **Google**: `gemini/gemini-pro`, `vertex_ai/gemini-pro`
 - **Others**: Cohere, Azure OpenAI, and many more
 
@@ -304,43 +305,29 @@ vLLM is significantly faster than Ollama due to optimized inference with continu
 pip install vllm
 
 # 2. Start vLLM server with tool calling enabled
-vllm serve Qwen/Qwen2.5-Coder-32B-Instruct \
+vllm serve openai/gpt-oss-20b \
   --dtype auto \
   --api-key token-abc123 \
-  --tool-call-parser qwen3_xml \
+  --tool-call-parser openai \
   --enable-auto-tool-choice
 
 # 3. Use with PatchPal (in another terminal)
-# Option A: Using openai/ prefix (recommended)
-export OPENAI_API_BASE=http://localhost:8000/v1
-export OPENAI_API_KEY=token-abc123
-patchpal --model openai/Qwen2.5-Coder-32B-Instruct
-
-# Option B: Using hosted_vllm/ prefix
 export HOSTED_VLLM_API_BASE=http://localhost:8000
 export HOSTED_VLLM_API_KEY=token-abc123
-patchpal --model hosted_vllm/Qwen2.5-Coder-32B-Instruct
+patchpal --model hosted_vllm/openai/gpt-oss-20b
 ```
 
 **Using Remote/Hosted vLLM Server:**
 
 ```bash
 # For remote vLLM servers (e.g., hosted by your organization)
-# Option A: Using openai/ prefix (recommended)
-export OPENAI_API_BASE=https://your-vllm-server.com/v1
-export OPENAI_API_KEY=your_api_key_here
-patchpal --model openai/your-model-name
-
-# Option B: Using hosted_vllm/ prefix
 export HOSTED_VLLM_API_BASE=https://your-vllm-server.com
 export HOSTED_VLLM_API_KEY=your_api_key_here
-patchpal --model hosted_vllm/your-model-name
+patchpal --model hosted_vllm/openai/gpt-oss-20b
 ```
 
 **Environment Variables:**
-- For `openai/` prefix: Use `OPENAI_API_BASE` and `OPENAI_API_KEY`
-- For `hosted_vllm/` prefix: Use `HOSTED_VLLM_API_BASE` and `HOSTED_VLLM_API_KEY`
-- **Note:** The `openai/` prefix is recommended as it's more widely compatible
+- Use `HOSTED_VLLM_API_BASE` and `HOSTED_VLLM_API_KEY`
 
 **Using YAML Configuration (Alternative):**
 
@@ -359,44 +346,16 @@ Then start vLLM:
 vllm serve openai/gpt-oss-20b --config config.yaml
 
 # Use with PatchPal
-export OPENAI_API_BASE=http://localhost:8000/v1
-export OPENAI_API_KEY=token-abc123
-patchpal --model openai/gpt-oss-20b
+export HOSTED_VLLM_API_BASE=http://localhost:8000
+export HOSTED_VLLM_API_KEY=token-abc123
+patchpal --model hosted_vllm/openai/gpt-oss-20b
 ```
 
 **Recommended models for vLLM:**
-- `Qwen/Qwen2.5-Coder-32B-Instruct` - Excellent tool calling and coding (use parser: `qwen3_xml`) (RECOMMENDED)
 - `openai/gpt-oss-20b` - OpenAI's open-source model (use parser: `openai`)
-- `deepseek-ai/deepseek-coder-33b-instruct` - Strong coding and tool support (use parser: `deepseek_v3`)
-- `meta-llama/Meta-Llama-3.1-70B-Instruct` - Good performance, needs 64GB+ RAM (use parser: `llama3_json`)
 
 **Tool Call Parser Reference:**
 Different models require different parsers. Common parsers include: `qwen3_xml`, `openai`, `deepseek_v3`, `llama3_json`, `mistral`, `hermes`, `pythonic`, `xlam`. See [vLLM Tool Calling docs](https://docs.vllm.ai/en/latest/features/tool_calling/) for the complete list.
-
-#### Ollama (⚠️ Limited Support - Experimental Only)
-
-**⚠️ WARNING: Ollama has significant limitations with multi-turn tool calling and is NOT recommended for production use.**
-
-**Known Limitations:**
-- ❌ Cannot handle complex multi-step workflows (explore → read → modify → test)
-- ❌ Stops making tool calls after first result (reverts to text output)
-- ❌ Gives vague summaries instead of including tool results
-- ❌ After tool errors, stops using tools entirely
-
-**For production use, we strongly recommend:**
-- **Cloud**: Claude Sonnet 4.5 (`anthropic/claude-sonnet-4-5`) or GPT-4 (`openai/gpt-4`)
-- **Local**: vLLM with gpt-oss-20b (see vLLM section above)
-
-**If you still want to try Ollama** (for experimentation only):
-
-```bash
-# 1. Install Ollama: Download from https://ollama.ai/
-# 2. Pull a model
-ollama pull llama3.1
-
-# 3. Run PatchPal
-patchpal --model ollama/llama3.1
-```
 
 ### Air-Gapped and Offline Environments
 
@@ -409,9 +368,9 @@ patchpal
 
 # Or combine with local vLLM for complete offline operation (recommended)
 export PATCHPAL_ENABLE_WEB=false
-export OPENAI_API_BASE=http://localhost:8000/v1
-export OPENAI_API_KEY=token-abc123
-patchpal --model openai/Qwen2.5-Coder-32B-Instruct # using "openai" because vLLM is openai-compatible
+export HOSTED_VLLM_API_BASE=http://localhost:8000
+export HOSTED_VLLM_API_KEY=token-abc123
+patchpal --model hosted_vllm/openai/gpt-oss-20b
 ```
 
 When web tools are disabled:
