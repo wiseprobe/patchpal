@@ -8,7 +8,7 @@ A key goal is to approximate Claude Code’s core functionality while preserving
 
 ```bash
 $ls ./patchpal
-__init__.py agent.py  cli.py  permissions.py  skills.py  tools.py
+__init__.py agent.py  cli.py  permissions.py  skills.py system_prompt.md tools.py
 ```
 
 ## Installation
