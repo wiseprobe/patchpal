@@ -552,10 +552,66 @@ Format:
 
 ## Development
 
+### Quick Start
+
 Install in development mode with dev dependencies:
 
 ```bash
+# Clone the repository
+git clone https://github.com/amaiya/patchpal.git
+cd patchpal
+
+# Install in development mode
 pip install -e ".[dev]"
+
+# Set up pre-commit hooks (recommended)
+pip install pre-commit
+pre-commit install
+```
+
+### Pre-commit Hooks
+
+Pre-commit hooks automatically check your code before each commit:
+
+- **Black** - Auto-formats code to maintain consistent style
+- **Ruff** - Lints and auto-fixes common issues
+- **Trailing whitespace** - Removes trailing whitespace
+- **End of file fixer** - Ensures files end with a newline
+- **YAML validation** - Checks YAML syntax
+- **Merge conflict detection** - Prevents committing merge conflicts
+
+**Run pre-commit manually:**
+```bash
+# Run on all files
+pre-commit run --all-files
+
+# Run on staged files only
+pre-commit run
+```
+
+**Skip pre-commit (not recommended):**
+```bash
+git commit --no-verify
+```
+
+### Code Quality Tools
+
+**Format code with Black:**
+```bash
+# Auto-format
+black patchpal tests
+
+# Check without modifying
+black --check patchpal tests
+```
+
+**Lint with Ruff:**
+```bash
+# Auto-fix issues
+ruff check --fix patchpal tests
+
+# Check without fixing
+ruff check patchpal tests
 ```
 
 ### Running Tests

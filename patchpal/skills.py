@@ -4,10 +4,10 @@ Skills are reusable workflows/prompts defined as markdown files with YAML frontm
 They can be invoked manually via /skillname or discovered and used by the agent.
 """
 
-import os
-import yaml
 from pathlib import Path
 from typing import Dict, List, Optional
+
+import yaml
 
 
 class Skill:
@@ -44,11 +44,11 @@ def _parse_skill_file(skill_path: Path) -> Optional[Skill]:
         content = skill_path.read_text()
 
         # Check for YAML frontmatter
-        if not content.startswith('---'):
+        if not content.startswith("---"):
             return None
 
         # Split frontmatter and content
-        parts = content.split('---', 2)
+        parts = content.split("---", 2)
         if len(parts) < 3:
             return None
 
@@ -57,14 +57,14 @@ def _parse_skill_file(skill_path: Path) -> Optional[Skill]:
 
         # Parse YAML
         metadata = yaml.safe_load(frontmatter)
-        if not metadata or 'name' not in metadata or 'description' not in metadata:
+        if not metadata or "name" not in metadata or "description" not in metadata:
             return None
 
         return Skill(
-            name=metadata['name'],
-            description=metadata['description'],
+            name=metadata["name"],
+            description=metadata["description"],
             instructions=instructions,
-            path=skill_path
+            path=skill_path,
         )
     except Exception:
         return None
@@ -82,11 +82,11 @@ def discover_skills(repo_root: Optional[Path] = None) -> Dict[str, Skill]:
     skills = {}
 
     # Personal skills: ~/.patchpal/skills/
-    personal_skills_dir = Path.home() / '.patchpal' / 'skills'
+    personal_skills_dir = Path.home() / ".patchpal" / "skills"
     if personal_skills_dir.exists():
         for skill_dir in personal_skills_dir.iterdir():
             if skill_dir.is_dir():
-                skill_file = skill_dir / 'SKILL.md'
+                skill_file = skill_dir / "SKILL.md"
                 if skill_file.exists():
                     skill = _parse_skill_file(skill_file)
                     if skill:
@@ -94,11 +94,11 @@ def discover_skills(repo_root: Optional[Path] = None) -> Dict[str, Skill]:
 
     # Project-specific skills: <repo>/.patchpal/skills/
     if repo_root:
-        project_skills_dir = repo_root / '.patchpal' / 'skills'
+        project_skills_dir = repo_root / ".patchpal" / "skills"
         if project_skills_dir.exists():
             for skill_dir in project_skills_dir.iterdir():
                 if skill_dir.is_dir():
-                    skill_file = skill_dir / 'SKILL.md'
+                    skill_file = skill_dir / "SKILL.md"
                     if skill_file.exists():
                         skill = _parse_skill_file(skill_file)
                         if skill:

@@ -1,18 +1,21 @@
 """Tools with security guardrails for safe code modification."""
 
-from pathlib import Path
-import subprocess
 import difflib
+import logging
+import mimetypes
 import os
 import platform
-import mimetypes
-import logging
 import shutil
+import subprocess
 from datetime import datetime
-from typing import Optional, Tuple
-from patchpal.permissions import PermissionManager
+from pathlib import Path
+from typing import Optional
+
 import requests
 from bs4 import BeautifulSoup
+
+from patchpal.permissions import PermissionManager
+
 try:
     from ddgs import DDGS
 except ImportError:
@@ -29,7 +32,7 @@ REPO_ROOT = Path(".").resolve()
 
 # Platform-aware command blocking - minimal list since we have permission system
 # Only block privilege escalation commands specific to each platform
-if platform.system() == 'Windows':
+if platform.system() == "Windows":
     # Windows privilege escalation commands
     FORBIDDEN = {"runas", "psexec"}  # Run as different user, SysInternals elevated execution
 else:
@@ -38,45 +41,66 @@ else:
 
 # Sensitive file patterns
 SENSITIVE_PATTERNS = {
-    '.env', '.env.local', '.env.production', '.env.development',
-    'credentials.json', 'secrets.yaml', 'secrets.yml',
-    '.aws/credentials', '.ssh/id_rsa', '.ssh/id_ed25519',
-    'config/master.key', 'config/credentials.yml.enc',
-    '.npmrc', '.pypirc', 'keyring.cfg'
+    ".env",
+    ".env.local",
+    ".env.production",
+    ".env.development",
+    "credentials.json",
+    "secrets.yaml",
+    "secrets.yml",
+    ".aws/credentials",
+    ".ssh/id_rsa",
+    ".ssh/id_ed25519",
+    "config/master.key",
+    "config/credentials.yml.enc",
+    ".npmrc",
+    ".pypirc",
+    "keyring.cfg",
 }
 
 # Critical files that should have warnings
 CRITICAL_FILES = {
-    'package.json', 'package-lock.json',
-    'pyproject.toml', 'setup.py', 'requirements.txt',
-    'Cargo.toml', 'Cargo.lock',
-    'Dockerfile', 'docker-compose.yml',
-    'Makefile', '.github/workflows'
+    "package.json",
+    "package-lock.json",
+    "pyproject.toml",
+    "setup.py",
+    "requirements.txt",
+    "Cargo.toml",
+    "Cargo.lock",
+    "Dockerfile",
+    "docker-compose.yml",
+    "Makefile",
+    ".github/workflows",
 }
 
 # Configuration
-MAX_FILE_SIZE = int(os.getenv('PATCHPAL_MAX_FILE_SIZE', 10 * 1024 * 1024))  # 10MB default
-READ_ONLY_MODE = os.getenv('PATCHPAL_READ_ONLY', 'false').lower() == 'true'
-ALLOW_SENSITIVE = os.getenv('PATCHPAL_ALLOW_SENSITIVE', 'false').lower() == 'true'
-ENABLE_AUDIT_LOG = os.getenv('PATCHPAL_AUDIT_LOG', 'true').lower() == 'true'
-ENABLE_BACKUPS = os.getenv('PATCHPAL_ENABLE_BACKUPS', 'false').lower() == 'true'
-MAX_OPERATIONS = int(os.getenv('PATCHPAL_MAX_OPERATIONS', 1000))
+MAX_FILE_SIZE = int(os.getenv("PATCHPAL_MAX_FILE_SIZE", 10 * 1024 * 1024))  # 10MB default
+READ_ONLY_MODE = os.getenv("PATCHPAL_READ_ONLY", "false").lower() == "true"
+ALLOW_SENSITIVE = os.getenv("PATCHPAL_ALLOW_SENSITIVE", "false").lower() == "true"
+ENABLE_AUDIT_LOG = os.getenv("PATCHPAL_AUDIT_LOG", "true").lower() == "true"
+ENABLE_BACKUPS = os.getenv("PATCHPAL_ENABLE_BACKUPS", "false").lower() == "true"
+MAX_OPERATIONS = int(os.getenv("PATCHPAL_MAX_OPERATIONS", 1000))
 
 # Web request configuration
-WEB_REQUEST_TIMEOUT = int(os.getenv('PATCHPAL_WEB_TIMEOUT', 30))  # 30 seconds
-MAX_WEB_CONTENT_SIZE = int(os.getenv('PATCHPAL_MAX_WEB_SIZE', 5 * 1024 * 1024))  # 5MB download limit
-MAX_WEB_CONTENT_CHARS = int(os.getenv('PATCHPAL_MAX_WEB_CHARS', 500_000))  # 500k chars (~125k tokens)
-WEB_USER_AGENT = f'PatchPal/{__version__} (AI Code Assistant)'
+WEB_REQUEST_TIMEOUT = int(os.getenv("PATCHPAL_WEB_TIMEOUT", 30))  # 30 seconds
+MAX_WEB_CONTENT_SIZE = int(
+    os.getenv("PATCHPAL_MAX_WEB_SIZE", 5 * 1024 * 1024)
+)  # 5MB download limit
+MAX_WEB_CONTENT_CHARS = int(
+    os.getenv("PATCHPAL_MAX_WEB_CHARS", 500_000)
+)  # 500k chars (~125k tokens)
+WEB_USER_AGENT = f"PatchPal/{__version__} (AI Code Assistant)"
 
 # Shell command configuration
-SHELL_TIMEOUT = int(os.getenv('PATCHPAL_SHELL_TIMEOUT', 30))  # 30 seconds default
+SHELL_TIMEOUT = int(os.getenv("PATCHPAL_SHELL_TIMEOUT", 30))  # 30 seconds default
+
 
 # Create patchpal directory structure in home directory
 # Format: ~/.patchpal/<repo-name>/
 def _get_patchpal_dir() -> Path:
     """Get the patchpal directory for this repository."""
     home = Path.home()
-    patchpal_root = home / '.patchpal'
+    patchpal_root = home / ".patchpal"
 
     # Use repo name (last part of path) to create unique directory
     repo_name = REPO_ROOT.name
@@ -84,16 +108,18 @@ def _get_patchpal_dir() -> Path:
 
     # Create directories if they don't exist
     repo_dir.mkdir(parents=True, exist_ok=True)
-    (repo_dir / 'backups').mkdir(exist_ok=True)
+    (repo_dir / "backups").mkdir(exist_ok=True)
 
     return repo_dir
 
+
 PATCHPAL_DIR = _get_patchpal_dir()
-BACKUP_DIR = PATCHPAL_DIR / 'backups'
-AUDIT_LOG_FILE = PATCHPAL_DIR / 'audit.log'
+BACKUP_DIR = PATCHPAL_DIR / "backups"
+AUDIT_LOG_FILE = PATCHPAL_DIR / "audit.log"
 
 # Permission manager
 _permission_manager = None
+
 
 def _get_permission_manager() -> PermissionManager:
     """Get or create the global permission manager."""
@@ -102,17 +128,20 @@ def _get_permission_manager() -> PermissionManager:
         _permission_manager = PermissionManager(PATCHPAL_DIR)
     return _permission_manager
 
+
 # Audit logging setup
-audit_logger = logging.getLogger('patchpal.audit')
+audit_logger = logging.getLogger("patchpal.audit")
 if ENABLE_AUDIT_LOG and not audit_logger.handlers:
     audit_logger.setLevel(logging.INFO)
     handler = logging.FileHandler(AUDIT_LOG_FILE)
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     audit_logger.addHandler(handler)
+
 
 # Operation counter for resource limits
 class OperationLimiter:
     """Track operations to prevent abuse."""
+
     def __init__(self):
         self.operations = 0
         self.max_operations = MAX_OPERATIONS
@@ -131,6 +160,7 @@ class OperationLimiter:
         """Reset operation counter."""
         self.operations = 0
 
+
 # Global operation limiter
 _operation_limiter = OperationLimiter()
 
@@ -145,7 +175,13 @@ def get_operation_count() -> int:
     return _operation_limiter.operations
 
 
-def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file_path: Optional[str] = None, start_line: Optional[int] = None) -> str:
+def _format_colored_diff(
+    old_text: str,
+    new_text: str,
+    max_lines: int = 50,
+    file_path: Optional[str] = None,
+    start_line: Optional[int] = None,
+) -> str:
     """Format text changes with colors showing actual differences.
 
     Args:
@@ -159,7 +195,6 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
         Formatted string with colored unified diff with line numbers
     """
     import difflib
-    import re
 
     # If we have a file path, read the full content to get accurate line numbers
     if file_path:
@@ -173,8 +208,8 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
                 pos = full_content.find(old_text)
                 if pos != -1:
                     # Count lines before the match to get the starting line number
-                    start_line = full_content[:pos].count('\n') + 1
-        except:
+                    start_line = full_content[:pos].count("\n") + 1
+        except Exception:
             pass  # If reading fails, fall back to relative line numbers
 
     # Split into lines for diffing
@@ -184,18 +219,18 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
     # Use SequenceMatcher for a cleaner diff that shows true changes
     # instead of unified diff which can be confusing with context lines
     matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
-    
+
     result = []
     line_count = 0
     old_line_num = start_line if start_line else 1
     new_line_num = start_line if start_line else 1
-    
+
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if line_count >= max_lines:
             result.append("   \033[90m... (truncated)\033[0m")
             break
-            
-        if tag == 'equal':
+
+        if tag == "equal":
             # Show context lines in gray (only once, not as -/+)
             for i in range(i1, i2):
                 if line_count >= max_lines:
@@ -210,8 +245,8 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
                     line_count += 1
                 old_line_num += 1
                 new_line_num += 1
-                
-        elif tag == 'delete':
+
+        elif tag == "delete":
             # Lines only in old (removed)
             for i in range(i1, i2):
                 if line_count >= max_lines:
@@ -219,8 +254,8 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
                 result.append(f"   \033[31m{old_line_num:4d} -{old_lines[i].rstrip()}\033[0m")
                 old_line_num += 1
                 line_count += 1
-                
-        elif tag == 'insert':
+
+        elif tag == "insert":
             # Lines only in new (added)
             for j in range(j1, j2):
                 if line_count >= max_lines:
@@ -228,8 +263,8 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
                 result.append(f"   \033[32m{new_line_num:4d} +{new_lines[j].rstrip()}\033[0m")
                 new_line_num += 1
                 line_count += 1
-                
-        elif tag == 'replace':
+
+        elif tag == "replace":
             # Lines changed (show old then new)
             for i in range(i1, i2):
                 if line_count >= max_lines:
@@ -248,7 +283,7 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
     if not result:
         return "   \033[90m(no changes)\033[0m"
 
-    return '\n'.join(result)
+    return "\n".join(result)
 
 
 def _check_git_status() -> dict:
@@ -256,31 +291,31 @@ def _check_git_status() -> dict:
     try:
         # Check if we're in a git repo
         result = subprocess.run(
-            ['git', 'rev-parse', '--git-dir'],
+            ["git", "rev-parse", "--git-dir"],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
-            timeout=5
+            timeout=5,
         )
         if result.returncode != 0:
-            return {'is_repo': False}
+            return {"is_repo": False}
 
         # Get status
         result = subprocess.run(
-            ['git', 'status', '--porcelain'],
+            ["git", "status", "--porcelain"],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
-            timeout=5
+            timeout=5,
         )
 
         return {
-            'is_repo': True,
-            'has_uncommitted': bool(result.stdout.strip()),
-            'changes': result.stdout.strip().split('\n') if result.stdout.strip() else []
+            "is_repo": True,
+            "has_uncommitted": bool(result.stdout.strip()),
+            "changes": result.stdout.strip().split("\n") if result.stdout.strip() else [],
         }
     except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-        return {'is_repo': False}
+        return {"is_repo": False}
 
 
 def _backup_file(path: Path) -> Optional[Path]:
@@ -290,7 +325,7 @@ def _backup_file(path: Path) -> Optional[Path]:
 
     try:
         BACKUP_DIR.mkdir(exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Include path structure in backup name to handle same filenames
         # Handle both repo-relative and absolute paths
@@ -330,15 +365,15 @@ def _is_binary_file(path: Path) -> bool:
 
     # Check MIME type first
     mime_type, _ = mimetypes.guess_type(str(path))
-    if mime_type and not mime_type.startswith('text/'):
+    if mime_type and not mime_type.startswith("text/"):
         return True
 
     # Fallback: check for null bytes in first 8KB
     try:
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             chunk = f.read(8192)
-            return b'\x00' in chunk
-    except:
+            return b"\x00" in chunk
+    except Exception:
         return True
 
 
@@ -414,8 +449,7 @@ def read_file(path: str) -> str:
     # Check if binary
     if _is_binary_file(p):
         raise ValueError(
-            f"Cannot read binary file: {path}\n"
-            f"Type: {mimetypes.guess_type(str(p))[0] or 'unknown'}"
+            f"Cannot read binary file: {path}\nType: {mimetypes.guess_type(str(p))[0] or 'unknown'}"
         )
 
     content = p.read_text()
@@ -438,7 +472,7 @@ def list_files() -> list[str]:
             continue
 
         # Skip hidden files
-        if any(part.startswith('.') for part in p.parts):
+        if any(part.startswith(".") for part in p.parts):
             continue
 
         # Skip binary files (optional - can be slow on large repos)
@@ -469,11 +503,8 @@ def get_file_info(path: str) -> str:
     _operation_limiter.check_limit(f"get_file_info({path[:30]}...)")
 
     # Handle glob patterns
-    if '*' in path or '?' in path:
+    if "*" in path or "?" in path:
         # It's a glob pattern
-        pattern_path = REPO_ROOT / path
-        base_dir = REPO_ROOT / Path(path).parts[0] if '/' in path else REPO_ROOT
-
         # Use glob to find matching files
         try:
             matches = list(REPO_ROOT.glob(path))
@@ -498,7 +529,7 @@ def get_file_info(path: str) -> str:
             files = [p]
         elif p.is_dir():
             # List all files in directory (non-recursive)
-            files = [f for f in p.iterdir() if f.is_file() and not f.name.startswith('.')]
+            files = [f for f in p.iterdir() if f.is_file() and not f.name.startswith(".")]
             if not files:
                 return f"No files found in directory: {path}"
         else:
@@ -522,7 +553,8 @@ def get_file_info(path: str) -> str:
 
             # Format modification time
             from datetime import datetime
-            mtime = datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+
+            mtime = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
 
             # Detect file type
             if _is_binary_file(path):
@@ -568,21 +600,15 @@ def find_files(pattern: str, case_sensitive: bool = True) -> str:
         if case_sensitive:
             matches = list(REPO_ROOT.glob(pattern))
         else:
-            # Case-insensitive: convert pattern to lowercase and match
-            pattern_lower = pattern.lower()
-            all_files = REPO_ROOT.glob(pattern.replace('*', '[!.]*'))  # Exclude hidden by default
-            matches = [f for f in REPO_ROOT.rglob('*') if f.is_file() and
-                      not any(part.startswith('.') for part in f.relative_to(REPO_ROOT).parts) and
-                      f.name.lower() == pattern_lower.replace('*', f.name.lower())]
-
-            # Simpler approach: just do case-insensitive glob matching
+            # Case-insensitive: just do case-insensitive glob matching
             import fnmatch
+
             matches = []
-            for file_path in REPO_ROOT.rglob('*'):
+            for file_path in REPO_ROOT.rglob("*"):
                 if file_path.is_file():
                     # Skip hidden files
                     relative_path = file_path.relative_to(REPO_ROOT)
-                    if any(part.startswith('.') for part in relative_path.parts):
+                    if any(part.startswith(".") for part in relative_path.parts):
                         continue
                     # Check if matches pattern (case-insensitive)
                     if fnmatch.fnmatch(str(relative_path).lower(), pattern.lower()):
@@ -594,7 +620,7 @@ def find_files(pattern: str, case_sensitive: bool = True) -> str:
             if match.is_file():
                 relative_path = match.relative_to(REPO_ROOT)
                 # Skip hidden files/directories
-                if not any(part.startswith('.') for part in relative_path.parts):
+                if not any(part.startswith(".") for part in relative_path.parts):
                     files.append(str(relative_path))
 
         if not files:
@@ -666,7 +692,7 @@ def tree(path: str = ".", max_depth: int = 3, show_hidden: bool = False) -> str:
 
             # Filter hidden files if needed
             if not show_hidden:
-                items = [item for item in items if not item.name.startswith('.')]
+                items = [item for item in items if not item.name.startswith(".")]
 
             lines = []
             for i, item in enumerate(items):
@@ -692,7 +718,9 @@ def tree(path: str = ".", max_depth: int = 3, show_hidden: bool = False) -> str:
         # Build the tree
         # Show relative path if inside repo, absolute path if outside
         if _is_inside_repo(start_path):
-            display_path = start_path.relative_to(REPO_ROOT) if start_path != REPO_ROOT else Path(".")
+            display_path = (
+                start_path.relative_to(REPO_ROOT) if start_path != REPO_ROOT else Path(".")
+            )
         else:
             display_path = start_path
 
@@ -811,11 +839,9 @@ def apply_patch(path: str, new_content: str) -> str:
     p = _check_path(path, must_exist=False)
 
     # Check size of new content
-    new_size = len(new_content.encode('utf-8'))
+    new_size = len(new_content.encode("utf-8"))
     if new_size > MAX_FILE_SIZE:
-        raise ValueError(
-            f"New content too large: {new_size:,} bytes (max {MAX_FILE_SIZE:,} bytes)"
-        )
+        raise ValueError(f"New content too large: {new_size:,} bytes (max {MAX_FILE_SIZE:,} bytes)")
 
     # Read old content if file exists (needed for diff in permission prompt)
     old_content = ""
@@ -837,15 +863,15 @@ def apply_patch(path: str, new_content: str) -> str:
 
     description = f"   ● {operation}({path}){outside_repo_warning}\n{diff_display}"
 
-    if not permission_manager.request_permission('apply_patch', description, pattern=path):
+    if not permission_manager.request_permission("apply_patch", description, pattern=path):
         return "Operation cancelled by user."
 
     # Check git status for uncommitted changes (only for files inside repo)
     git_status = _check_git_status()
     git_warning = ""
-    if _is_inside_repo(p) and git_status.get('is_repo') and git_status.get('has_uncommitted'):
+    if _is_inside_repo(p) and git_status.get("is_repo") and git_status.get("has_uncommitted"):
         relative_path = str(p.relative_to(REPO_ROOT))
-        if any(relative_path in change for change in git_status.get('changes', [])):
+        if any(relative_path in change for change in git_status.get("changes", [])):
             git_warning = "\n⚠️  Note: File has uncommitted changes in git\n"
 
     # Backup existing file
@@ -874,8 +900,9 @@ def apply_patch(path: str, new_content: str) -> str:
     p.write_text(new_content)
 
     # Audit log
-    audit_logger.info(f"WRITE: {path} ({new_size} bytes)" +
-                     (f" [BACKUP: {backup_path}]" if backup_path else ""))
+    audit_logger.info(
+        f"WRITE: {path} ({new_size} bytes)" + (f" [BACKUP: {backup_path}]" if backup_path else "")
+    )
 
     backup_msg = f"\n[Backup saved: {backup_path}]" if backup_path else ""
 
@@ -926,7 +953,7 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
         raise ValueError(
             f"String appears {count} times in {path}. "
             f"Please provide a more specific string to ensure correct replacement.\n"
-            f"First occurrence context:\n{content[max(0, content.find(old_string)-50):content.find(old_string)+len(old_string)+50]}"
+            f"First occurrence context:\n{content[max(0, content.find(old_string) - 50) : content.find(old_string) + len(old_string) + 50]}"
         )
 
     # Check permission before proceeding
@@ -942,7 +969,7 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
 
     description = f"   ● Update({path}){outside_repo_warning}\n{diff_display}"
 
-    if not permission_manager.request_permission('edit_file', description, pattern=path):
+    if not permission_manager.request_permission("edit_file", description, pattern=path):
         return "Operation cancelled by user."
 
     # Backup if enabled
@@ -955,16 +982,10 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
     p.write_text(new_content)
 
     # Generate diff for the specific change
-    old_lines = old_string.split('\n')
-    new_lines = new_string.split('\n')
-    diff = difflib.unified_diff(
-        old_lines,
-        new_lines,
-        fromfile="old",
-        tofile="new",
-        lineterm=''
-    )
-    diff_str = '\n'.join(diff)
+    old_lines = old_string.split("\n")
+    new_lines = new_string.split("\n")
+    diff = difflib.unified_diff(old_lines, new_lines, fromfile="old", tofile="new", lineterm="")
+    diff_str = "\n".join(diff)
 
     audit_logger.info(f"EDIT: {path} ({len(old_string)} -> {len(new_string)} chars)")
 
@@ -987,22 +1008,22 @@ def git_status() -> str:
     try:
         # Check if we're in a git repo
         result = subprocess.run(
-            ['git', 'rev-parse', '--git-dir'],
+            ["git", "rev-parse", "--git-dir"],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
-            timeout=5
+            timeout=5,
         )
         if result.returncode != 0:
             return "Not a git repository"
 
         # Get status with short format
         result = subprocess.run(
-            ['git', 'status', '--short', '--branch'],
+            ["git", "status", "--short", "--branch"],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
-            timeout=10
+            timeout=10,
         )
 
         if result.returncode != 0:
@@ -1042,35 +1063,31 @@ def git_diff(path: Optional[str] = None, staged: bool = False) -> str:
     try:
         # Check if we're in a git repo
         result = subprocess.run(
-            ['git', 'rev-parse', '--git-dir'],
+            ["git", "rev-parse", "--git-dir"],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
-            timeout=5
+            timeout=5,
         )
         if result.returncode != 0:
             return "Not a git repository"
 
         # Build git diff command
-        cmd = ['git', 'diff']
+        cmd = ["git", "diff"]
         if staged:
-            cmd.append('--cached')
+            cmd.append("--cached")
 
         if path:
             # Validate path
             p = _check_path(path, must_exist=False)
             # Git operations only work on repository files
             if not _is_inside_repo(p):
-                raise ValueError(f"Git operations only work on repository files. Path {path} is outside the repository.")
+                raise ValueError(
+                    f"Git operations only work on repository files. Path {path} is outside the repository."
+                )
             cmd.append(str(p.relative_to(REPO_ROOT)))
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=REPO_ROOT,
-            timeout=30
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO_ROOT, timeout=30)
 
         if result.returncode != 0:
             raise ValueError(f"Git diff failed: {result.stderr}")
@@ -1114,21 +1131,22 @@ def git_log(max_count: int = 10, path: Optional[str] = None) -> str:
     try:
         # Check if we're in a git repo
         result = subprocess.run(
-            ['git', 'rev-parse', '--git-dir'],
+            ["git", "rev-parse", "--git-dir"],
             capture_output=True,
             text=True,
             cwd=REPO_ROOT,
-            timeout=5
+            timeout=5,
         )
         if result.returncode != 0:
             return "Not a git repository"
 
         # Build git log command with formatting
         cmd = [
-            'git', 'log',
-            f'-{max_count}',
-            '--pretty=format:%h - %an, %ar : %s',
-            '--abbrev-commit'
+            "git",
+            "log",
+            f"-{max_count}",
+            "--pretty=format:%h - %an, %ar : %s",
+            "--abbrev-commit",
         ]
 
         if path:
@@ -1136,17 +1154,13 @@ def git_log(max_count: int = 10, path: Optional[str] = None) -> str:
             p = _check_path(path, must_exist=False)
             # Git operations only work on repository files
             if not _is_inside_repo(p):
-                raise ValueError(f"Git operations only work on repository files. Path {path} is outside the repository.")
-            cmd.append('--')
+                raise ValueError(
+                    f"Git operations only work on repository files. Path {path} is outside the repository."
+                )
+            cmd.append("--")
             cmd.append(str(p.relative_to(REPO_ROOT)))
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=REPO_ROOT,
-            timeout=30
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO_ROOT, timeout=30)
 
         if result.returncode != 0:
             raise ValueError(f"Git log failed: {result.stderr}")
@@ -1166,8 +1180,12 @@ def git_log(max_count: int = 10, path: Optional[str] = None) -> str:
         raise ValueError(f"Git log error: {e}")
 
 
-def grep_code(pattern: str, file_glob: Optional[str] = None,
-              case_sensitive: bool = True, max_results: int = 100) -> str:
+def grep_code(
+    pattern: str,
+    file_glob: Optional[str] = None,
+    case_sensitive: bool = True,
+    max_results: int = 100,
+) -> str:
     """
     Search for a pattern in repository files using grep.
 
@@ -1186,25 +1204,27 @@ def grep_code(pattern: str, file_glob: Optional[str] = None,
     _operation_limiter.check_limit(f"grep_code({pattern[:30]}...)")
 
     # Try ripgrep first (faster), fall back to grep
-    use_rg = shutil.which('rg') is not None
+    use_rg = shutil.which("rg") is not None
 
     try:
         if use_rg:
             # Build ripgrep command
             cmd = [
-                'rg',
-                '--no-heading',  # Don't group by file
-                '--line-number',  # Show line numbers
-                '--color', 'never',  # No color codes
-                '--max-count', str(max_results),  # Limit results per file
+                "rg",
+                "--no-heading",  # Don't group by file
+                "--line-number",  # Show line numbers
+                "--color",
+                "never",  # No color codes
+                "--max-count",
+                str(max_results),  # Limit results per file
             ]
 
             if not case_sensitive:
-                cmd.append('--ignore-case')
+                cmd.append("--ignore-case")
 
             # Add glob pattern if provided
             if file_glob:
-                cmd.extend(['--glob', file_glob])
+                cmd.extend(["--glob", file_glob])
 
             # Add the search pattern
             cmd.append(pattern)
@@ -1212,33 +1232,27 @@ def grep_code(pattern: str, file_glob: Optional[str] = None,
         else:
             # Fall back to grep
             cmd = [
-                'grep',
-                '--recursive',
-                '--line-number',
-                '--binary-files=without-match',  # Skip binary files
+                "grep",
+                "--recursive",
+                "--line-number",
+                "--binary-files=without-match",  # Skip binary files
             ]
 
             if not case_sensitive:
-                cmd.append('--ignore-case')
+                cmd.append("--ignore-case")
 
             # Add pattern
-            cmd.extend(['--regexp', pattern])
+            cmd.extend(["--regexp", pattern])
 
             # Add file glob if provided (grep uses --include)
             if file_glob:
-                cmd.extend(['--include', file_glob])
+                cmd.extend(["--include", file_glob])
 
             # Current directory (will be executed with cwd=REPO_ROOT)
-            cmd.append('.')
+            cmd.append(".")
 
         # Execute search from repository root
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            cwd=REPO_ROOT
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=REPO_ROOT)
 
         # ripgrep/grep return exit code 1 when no matches found (not an error)
         # exit code 0 = matches found
@@ -1257,12 +1271,12 @@ def grep_code(pattern: str, file_glob: Optional[str] = None,
             return f"No matches found for pattern: {pattern}"
 
         # Count and limit results
-        lines = output.split('\n')
+        lines = output.split("\n")
         total_matches = len(lines)
 
         if total_matches > max_results:
             lines = lines[:max_results]
-            output = '\n'.join(lines)
+            output = "\n".join(lines)
             output += f"\n\n... (showing first {max_results} of {total_matches} matches)"
 
         audit_logger.info(f"GREP: {pattern} - Found {total_matches} matches")
@@ -1270,8 +1284,8 @@ def grep_code(pattern: str, file_glob: Optional[str] = None,
 
     except subprocess.TimeoutExpired:
         raise ValueError(
-            f"Search timed out after 30 seconds\n"
-            f"Try narrowing your search with a file_glob parameter"
+            "Search timed out after 30 seconds\n"
+            "Try narrowing your search with a file_glob parameter"
         )
     except ValueError:
         # Re-raise ValueError (from our checks above)
@@ -1297,7 +1311,7 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
     _operation_limiter.check_limit(f"web_fetch({url[:50]}...)")
 
     # Validate URL format
-    if not url.startswith(('http://', 'https://')):
+    if not url.startswith(("http://", "https://")):
         raise ValueError("URL must start with http:// or https://")
 
     try:
@@ -1305,13 +1319,13 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
         response = requests.get(
             url,
             timeout=WEB_REQUEST_TIMEOUT,
-            headers={'User-Agent': WEB_USER_AGENT},
-            stream=True  # Stream to check size first
+            headers={"User-Agent": WEB_USER_AGENT},
+            stream=True,  # Stream to check size first
         )
         response.raise_for_status()
 
         # Check content size
-        content_length = response.headers.get('Content-Length')
+        content_length = response.headers.get("Content-Length")
         if content_length and int(content_length) > MAX_WEB_CONTENT_SIZE:
             raise ValueError(
                 f"Content too large: {int(content_length):,} bytes "
@@ -1319,23 +1333,21 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
             )
 
         # Read content with size limit
-        content = b''
+        content = b""
         for chunk in response.iter_content(chunk_size=8192):
             content += chunk
             if len(content) > MAX_WEB_CONTENT_SIZE:
-                raise ValueError(
-                    f"Content exceeds size limit ({MAX_WEB_CONTENT_SIZE:,} bytes)"
-                )
+                raise ValueError(f"Content exceeds size limit ({MAX_WEB_CONTENT_SIZE:,} bytes)")
 
         # Decode content
-        text_content = content.decode(response.encoding or 'utf-8', errors='replace')
+        text_content = content.decode(response.encoding or "utf-8", errors="replace")
 
         # Extract readable text from HTML if requested
-        if extract_text and 'html' in response.headers.get('Content-Type', '').lower():
-            soup = BeautifulSoup(text_content, 'html.parser')
+        if extract_text and "html" in response.headers.get("Content-Type", "").lower():
+            soup = BeautifulSoup(text_content, "html.parser")
 
             # Remove script and style elements
-            for element in soup(['script', 'style', 'nav', 'footer', 'header']):
+            for element in soup(["script", "style", "nav", "footer", "header"]):
                 element.decompose()
 
             # Get text
@@ -1344,7 +1356,7 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
             # Clean up whitespace
             lines = (line.strip() for line in text.splitlines())
             chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text_content = '\n'.join(chunk for chunk in chunks if chunk)
+            text_content = "\n".join(chunk for chunk in chunks if chunk)
 
         # Truncate content if it exceeds character limit to prevent context window overflow
         if len(text_content) > MAX_WEB_CONTENT_CHARS:
@@ -1354,7 +1366,9 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
                 f"{MAX_WEB_CONTENT_CHARS:,} characters to prevent context window overflow. "
                 f"Set PATCHPAL_MAX_WEB_CHARS environment variable to adjust limit.]"
             )
-            audit_logger.info(f"WEB_FETCH: {url} ({len(text_content)} chars, truncated to {MAX_WEB_CONTENT_CHARS})")
+            audit_logger.info(
+                f"WEB_FETCH: {url} ({len(text_content)} chars, truncated to {MAX_WEB_CONTENT_CHARS})"
+            )
             return truncated_content + warning_msg
 
         audit_logger.info(f"WEB_FETCH: {url} ({len(text_content)} chars)")
@@ -1399,17 +1413,13 @@ def web_search(query: str, max_results: int = 5) -> str:
         # Format results
         formatted_results = [f"Search results for: {query}\n"]
         for i, result in enumerate(results, 1):
-            title = result.get('title', 'No title')
-            url = result.get('href', 'No URL')
-            snippet = result.get('body', 'No description')
+            title = result.get("title", "No title")
+            url = result.get("href", "No URL")
+            snippet = result.get("body", "No description")
 
-            formatted_results.append(
-                f"\n{i}. {title}\n"
-                f"   URL: {url}\n"
-                f"   {snippet}"
-            )
+            formatted_results.append(f"\n{i}. {title}\n   URL: {url}\n   {snippet}")
 
-        output = '\n'.join(formatted_results)
+        output = "\n".join(formatted_results)
         audit_logger.info(f"WEB_SEARCH: {query} - Found {len(results)} results")
         return output
 
@@ -1419,17 +1429,17 @@ def web_search(query: str, max_results: int = 5) -> str:
         # Provide helpful error messages for common issues
         if "CERTIFICATE_VERIFY_FAILED" in error_msg or "TLS handshake failed" in error_msg:
             return (
-                f"Web search unavailable: SSL certificate verification failed.\n"
-                f"This may be due to:\n"
-                f"- Corporate proxy/firewall blocking requests\n"
-                f"- Network configuration issues\n"
-                f"- VPN interference\n\n"
-                f"Consider using web_fetch with a specific URL if you have one."
+                "Web search unavailable: SSL certificate verification failed.\n"
+                "This may be due to:\n"
+                "- Corporate proxy/firewall blocking requests\n"
+                "- Network configuration issues\n"
+                "- VPN interference\n\n"
+                "Consider using web_fetch with a specific URL if you have one."
             )
         elif "RuntimeError" in error_msg or "error sending request" in error_msg:
             return (
-                f"Web search unavailable: Network connection failed.\n"
-                f"Please check your internet connection and try again."
+                "Web search unavailable: Network connection failed.\n"
+                "Please check your internet connection and try again."
             )
         else:
             raise ValueError(f"Web search failed: {e}")
@@ -1452,7 +1462,7 @@ def run_shell(cmd: str) -> str:
     permission_manager = _get_permission_manager()
     description = f"   {cmd}"
     pattern = cmd.split()[0] if cmd.split() else None
-    if not permission_manager.request_permission('run_shell', description, pattern=pattern):
+    if not permission_manager.request_permission("run_shell", description, pattern=pattern):
         return "Operation cancelled by user."
 
     _operation_limiter.check_limit(f"run_shell({cmd[:50]}...)")
@@ -1460,16 +1470,15 @@ def run_shell(cmd: str) -> str:
     # Basic token-based blocking
     if any(tok in FORBIDDEN for tok in cmd.split()):
         raise ValueError(
-            f"Blocked dangerous command: {cmd}\n"
-            f"Forbidden operations: {', '.join(FORBIDDEN)}"
+            f"Blocked dangerous command: {cmd}\nForbidden operations: {', '.join(FORBIDDEN)}"
         )
 
     # Additional pattern-based blocking
     dangerous_patterns = [
-        '> /dev/',  # Writing to devices
-        'rm -rf /',  # Recursive delete
-        '| dd',  # Piping to dd
-        '--force',  # Force flags often dangerous
+        "> /dev/",  # Writing to devices
+        "rm -rf /",  # Recursive delete
+        "| dd",  # Piping to dd
+        "--force",  # Force flags often dangerous
     ]
 
     for pattern in dangerous_patterns:
@@ -1488,7 +1497,7 @@ def run_shell(cmd: str) -> str:
 
     # Decode output with error handling for problematic characters
     # Use utf-8 on all platforms with 'replace' to handle encoding issues
-    stdout = result.stdout.decode('utf-8', errors='replace') if result.stdout else ''
-    stderr = result.stderr.decode('utf-8', errors='replace') if result.stderr else ''
+    stdout = result.stdout.decode("utf-8", errors="replace") if result.stdout else ""
+    stderr = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
 
     return stdout + stderr

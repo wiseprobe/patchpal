@@ -2,9 +2,9 @@
 
 import json
 import os
+from functools import wraps
 from pathlib import Path
 from typing import Optional
-from functools import wraps
 
 
 class PermissionManager:
@@ -17,19 +17,19 @@ class PermissionManager:
             repo_dir: Path to the repository-specific patchpal directory
         """
         self.repo_dir = repo_dir
-        self.permissions_file = repo_dir / 'permissions.json'
+        self.permissions_file = repo_dir / "permissions.json"
         self.session_grants = {}  # In-memory grants for this session
         self.persistent_grants = self._load_persistent_grants()
 
         # Check if permissions are globally disabled
         # Using streaming mode in CLI allows permissions to work properly
-        self.enabled = os.getenv('PATCHPAL_REQUIRE_PERMISSION', 'true').lower() == 'true'
+        self.enabled = os.getenv("PATCHPAL_REQUIRE_PERMISSION", "true").lower() == "true"
 
     def _load_persistent_grants(self) -> dict:
         """Load persistent permission grants from file."""
         if self.permissions_file.exists():
             try:
-                with open(self.permissions_file, 'r') as f:
+                with open(self.permissions_file, "r") as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
                 return {}
@@ -38,7 +38,7 @@ class PermissionManager:
     def _save_persistent_grants(self):
         """Save persistent permission grants to file."""
         try:
-            with open(self.permissions_file, 'w') as f:
+            with open(self.permissions_file, "w") as f:
                 json.dump(self.persistent_grants, f, indent=2)
         except IOError as e:
             print(f"Warning: Could not save permissions: {e}")
@@ -71,7 +71,9 @@ class PermissionManager:
 
         return False
 
-    def _grant_permission(self, tool_name: str, persistent: bool = False, pattern: Optional[str] = None):
+    def _grant_permission(
+        self, tool_name: str, persistent: bool = False, pattern: Optional[str] = None
+    ):
         """Grant permission for a tool.
 
         Args:
@@ -102,7 +104,9 @@ class PermissionManager:
             else:
                 self.session_grants[tool_name] = True
 
-    def request_permission(self, tool_name: str, description: str, pattern: Optional[str] = None) -> bool:
+    def request_permission(
+        self, tool_name: str, description: str, pattern: Optional[str] = None
+    ) -> bool:
         """Request permission from user to execute a tool.
 
         Args:
@@ -123,6 +127,7 @@ class PermissionManager:
 
         # Display the request - use stderr to avoid Rich console capture
         import sys
+
         sys.stderr.write("\n" + "=" * 80 + "\n")
         sys.stderr.write(f"\033[1;33m{tool_name.replace('_', ' ').title()}\033[0m\n")
         sys.stderr.write("-" * 80 + "\n")
@@ -147,13 +152,13 @@ class PermissionManager:
 
                 choice = input().strip()
 
-                if choice == '1':
+                if choice == "1":
                     return True
-                elif choice == '2':
+                elif choice == "2":
                     # Grant session-only permission (like Claude Code)
                     self._grant_permission(tool_name, persistent=False, pattern=pattern)
                     return True
-                elif choice == '3':
+                elif choice == "3":
                     sys.stderr.write("\n\033[1;31mOperation cancelled.\033[0m\n")
                     sys.stderr.flush()
                     return False
@@ -181,17 +186,19 @@ def require_permission(tool_name: str, get_description, get_pattern=None):
         def run_shell(command: str):
             ...
     """
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             # Get the permission manager from environment/global state
             # Import here to avoid circular dependency
             from pathlib import Path
+
             try:
                 # Get patchpal directory (same logic as in tools.py and cli.py)
                 repo_root = Path(".").resolve()
                 home = Path.home()
-                patchpal_root = home / '.patchpal'
+                patchpal_root = home / ".patchpal"
                 repo_name = repo_root.name
                 repo_dir = patchpal_root / repo_name
                 repo_dir.mkdir(parents=True, exist_ok=True)
@@ -206,7 +213,7 @@ def require_permission(tool_name: str, get_description, get_pattern=None):
 
                 # Request permission
                 if not manager.request_permission(tool_name, description, pattern):
-                    return f"Operation cancelled by user."
+                    return "Operation cancelled by user."
 
             except Exception as e:
                 # If permission check fails, print warning but continue
@@ -216,4 +223,5 @@ def require_permission(tool_name: str, get_description, get_pattern=None):
             return func(*args, **kwargs)
 
         return wrapper
+
     return decorator

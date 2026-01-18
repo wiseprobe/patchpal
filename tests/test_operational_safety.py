@@ -7,10 +7,10 @@ These tests cover:
 - Git state awareness
 """
 
-import pytest
-from pathlib import Path
 import tempfile
-import os
+from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -33,6 +33,7 @@ def temp_repo(monkeypatch):
 
         # Reset operation counter
         from patchpal.tools import reset_operation_counter
+
         reset_operation_counter()
 
         yield tmpdir_path
@@ -64,11 +65,11 @@ class TestAuditLogging:
 
     def test_audit_log_records_write(self, temp_repo, monkeypatch):
         """Test that write operations are logged."""
-        from patchpal.tools import apply_patch
         import patchpal.tools
+        from patchpal.tools import apply_patch
 
         # Disable permission prompts for this test
-        monkeypatch.setenv('PATCHPAL_REQUIRE_PERMISSION', 'false')
+        monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
 
         # Reset the cached permission manager so it picks up the new env var
         patchpal.tools._permission_manager = None
@@ -82,11 +83,11 @@ class TestAuditLogging:
 
     def test_audit_log_records_shell(self, temp_repo, monkeypatch):
         """Test that shell commands are logged."""
-        from patchpal.tools import run_shell
         import patchpal.tools
+        from patchpal.tools import run_shell
 
         # Disable permission prompts for this test
-        monkeypatch.setenv('PATCHPAL_REQUIRE_PERMISSION', 'false')
+        monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
 
         # Reset the cached permission manager so it picks up the new env var
         patchpal.tools._permission_manager = None
@@ -109,7 +110,9 @@ class TestAutomaticBackups:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
@@ -118,7 +121,7 @@ class TestAutomaticBackups:
         monkeypatch.setattr("patchpal.tools.BACKUP_DIR", backup_dir)
         patchpal.tools.reset_operation_counter()
 
-        result = patchpal.tools.apply_patch("test.txt", "modified content")
+        patchpal.tools.apply_patch("test.txt", "modified content")
 
         assert backup_dir.exists()
         backups = list(backup_dir.glob("test.txt.*"))
@@ -131,7 +134,9 @@ class TestAutomaticBackups:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
@@ -155,7 +160,9 @@ class TestAutomaticBackups:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
@@ -185,7 +192,9 @@ class TestAutomaticBackups:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
@@ -205,7 +214,7 @@ class TestResourceLimits:
 
     def test_operation_counter_increments(self, temp_repo):
         """Test that operation counter increments."""
-        from patchpal.tools import read_file, get_operation_count
+        from patchpal.tools import get_operation_count, read_file
 
         initial_count = get_operation_count()
         read_file("test.txt")
@@ -213,7 +222,7 @@ class TestResourceLimits:
 
     def test_operation_counter_reset(self, temp_repo):
         """Test that operation counter can be reset."""
-        from patchpal.tools import read_file, reset_operation_counter, get_operation_count
+        from patchpal.tools import get_operation_count, read_file, reset_operation_counter
 
         read_file("test.txt")
         assert get_operation_count() > 0
@@ -227,7 +236,9 @@ class TestResourceLimits:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
@@ -245,8 +256,12 @@ class TestResourceLimits:
     def test_all_operations_counted(self, temp_repo):
         """Test that all operation types are counted."""
         from patchpal.tools import (
-            read_file, list_files, apply_patch, run_shell,
-            get_operation_count, reset_operation_counter
+            apply_patch,
+            get_operation_count,
+            list_files,
+            read_file,
+            reset_operation_counter,
+            run_shell,
         )
 
         reset_operation_counter()
@@ -274,18 +289,27 @@ class TestGitStateAwareness:
 
         status = _check_git_status()
         # Will be False if not a git repo, which is fine
-        assert 'is_repo' in status
+        assert "is_repo" in status
 
     def test_uncommitted_changes_warning(self, temp_repo):
         """Test warning for files with uncommitted changes."""
         # Initialize git repo
         import subprocess
+
         try:
-            subprocess.run(['git', 'init'], cwd=temp_repo, capture_output=True, check=True)
-            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=temp_repo, capture_output=True)
-            subprocess.run(['git', 'config', 'user.email', 'test@test.com'], cwd=temp_repo, capture_output=True)
-            subprocess.run(['git', 'add', 'test.txt'], cwd=temp_repo, capture_output=True, check=True)
-            subprocess.run(['git', 'commit', '-m', 'initial'], cwd=temp_repo, capture_output=True, check=True)
+            subprocess.run(["git", "init"], cwd=temp_repo, capture_output=True, check=True)
+            subprocess.run(
+                ["git", "config", "user.name", "Test"], cwd=temp_repo, capture_output=True
+            )
+            subprocess.run(
+                ["git", "config", "user.email", "test@test.com"], cwd=temp_repo, capture_output=True
+            )
+            subprocess.run(
+                ["git", "add", "test.txt"], cwd=temp_repo, capture_output=True, check=True
+            )
+            subprocess.run(
+                ["git", "commit", "-m", "initial"], cwd=temp_repo, capture_output=True, check=True
+            )
 
             # Modify file to create uncommitted change
             (temp_repo / "test.txt").write_text("changed")
@@ -307,8 +331,12 @@ class TestIntegration:
     def test_full_workflow_with_all_features(self, temp_repo):
         """Test complete workflow with all operational safety features active."""
         from patchpal.tools import (
-            read_file, list_files, apply_patch, run_shell,
-            get_operation_count, reset_operation_counter
+            apply_patch,
+            get_operation_count,
+            list_files,
+            read_file,
+            reset_operation_counter,
+            run_shell,
         )
 
         reset_operation_counter()
@@ -352,7 +380,9 @@ class TestIntegration:
 
         # Reimport to pick up env vars
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
@@ -371,9 +401,7 @@ class TestIntegration:
 # Summary test
 def test_operational_safety_summary(temp_repo):
     """Summary test showing all operational safety features."""
-    from patchpal.tools import (
-        read_file, apply_patch, get_operation_count
-    )
+    from patchpal.tools import apply_patch, get_operation_count, read_file
 
     # All features should work together
     count_before = get_operation_count()

@@ -1,15 +1,17 @@
+import argparse
 import os
 import sys
-import argparse
 import warnings
 from pathlib import Path
-from rich.console import Console
-from rich.markdown import Markdown
+
 from prompt_toolkit import prompt as pt_prompt
 from prompt_toolkit.completion import Completer, Completion, PathCompleter, merge_completers
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.history import InMemoryHistory
+from rich.console import Console
+from rich.markdown import Markdown
+
 from patchpal.agent import create_agent
 
 
@@ -23,7 +25,7 @@ class SkillCompleter(Completer):
         text = document.text_before_cursor
 
         # Only complete if line starts with /
-        if not text.startswith('/'):
+        if not text.startswith("/"):
             return
 
         # Get the text after the /
@@ -44,7 +46,9 @@ class SkillCompleter(Completer):
                         skill_name,
                         start_position=-len(word),
                         display=skill_name,
-                        display_meta=skills[skill_name].description[:60] + "..." if len(skills[skill_name].description) > 60 else skills[skill_name].description
+                        display_meta=skills[skill_name].description[:60] + "..."
+                        if len(skills[skill_name].description) > 60
+                        else skills[skill_name].description,
                     )
         except Exception:
             # Silently fail if skills discovery fails
@@ -65,7 +69,7 @@ class SmartPathCompleter(Completer):
         import re
 
         # Find all potential path starts
-        path_pattern = r'(?:^|[\s])([.~/][\S]*?)$'
+        path_pattern = r"(?:^|[\s])([.~/][\S]*?)$"
         match = re.search(path_pattern, text)
 
         if match:
@@ -83,7 +87,7 @@ class SmartPathCompleter(Completer):
                     completion.text,
                     start_position=completion.start_position,
                     display=completion.display,
-                    display_meta=completion.display_meta
+                    display_meta=completion.display_meta,
                 )
 
 
@@ -95,7 +99,7 @@ def _get_patchpal_dir() -> Path:
     """
     repo_root = Path(".").resolve()
     home = Path.home()
-    patchpal_root = home / '.patchpal'
+    patchpal_root = home / ".patchpal"
 
     # Use repo name (last part of path) to create unique directory
     repo_name = repo_root.name
@@ -109,11 +113,11 @@ def _get_patchpal_dir() -> Path:
 
 # Enable command history with up/down arrows
 try:
-    import readline
     import atexit
+    import readline
 
     # Use repo-specific history file
-    history_file = _get_patchpal_dir() / 'history.txt'
+    history_file = _get_patchpal_dir() / "history.txt"
 
     try:
         readline.read_history_file(str(history_file))
@@ -133,7 +137,7 @@ except ImportError:
 def main():
     """Main CLI entry point for PatchPal."""
     # Suppress warnings to keep CLI clean (e.g., Pydantic, deprecation warnings from dependencies)
-    warnings.simplefilter('ignore')
+    warnings.simplefilter("ignore")
 
     # Parse command-line arguments
     parser = argparse.ArgumentParser(
@@ -152,14 +156,14 @@ Supported models: Any LiteLLM-supported model
   - OpenAI: openai/gpt-4o, openai/gpt-3.5-turbo, etc.
   - Ollama (local): ollama_chat/llama3.1, ollama_chat/codellama, ollama_chat/deepseek-coder, etc.
   - Others: See https://docs.litellm.ai/docs/providers
-        """
+        """,
     )
     parser.add_argument(
         "--model",
         type=str,
         default=None,
         help="LiteLLM model identifier (e.g., openai/gpt-4o, anthropic/claude-opus-4, ollama_chat/llama3.1). "
-             "Can also be set via PATCHPAL_MODEL environment variable."
+        "Can also be set via PATCHPAL_MODEL environment variable.",
     )
     args = parser.parse_args()
 
@@ -189,12 +193,12 @@ Supported models: Any LiteLLM-supported model
     print("PatchPal - a lightweight, flexible Claude Code clone")
     print("=" * 80)
     print(f"\nUsing model: {model_id}")
-    
+
     # Show custom prompt indicator if set
-    custom_prompt_path = os.getenv('PATCHPAL_SYSTEM_PROMPT')
+    custom_prompt_path = os.getenv("PATCHPAL_SYSTEM_PROMPT")
     if custom_prompt_path:
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
-    
+
     print("\nType 'exit' or press Ctrl-C to quit.")
     print("Use 'list skills' or /skillname to invoke skills.")
     print("Press Ctrl-C during execution to interrupt the agent.\n")
@@ -211,23 +215,20 @@ Supported models: Any LiteLLM-supported model
 
             # Use prompt_toolkit for input with autocompletion
             # FormattedText: (style, text) tuples
-            prompt_text = FormattedText([
-                ('ansibrightcyan bold', 'You:'),
-                ('', ' ')
-            ])
+            prompt_text = FormattedText([("ansibrightcyan bold", "You:"), ("", " ")])
             user_input = pt_prompt(
                 prompt_text,
                 completer=completer,
                 complete_while_typing=False,  # Only show completions on Tab
-                history=history  # In-memory history for this session only
+                history=history,  # In-memory history for this session only
             ).strip()
 
             # Replace newlines with spaces to prevent history file corruption
             # This can happen if user pastes multi-line text
-            user_input = user_input.replace('\n', ' ').replace('\r', ' ')
+            user_input = user_input.replace("\n", " ").replace("\r", " ")
 
             # Check for exit commands
-            if user_input.lower() in ['exit', 'quit', 'q']:
+            if user_input.lower() in ["exit", "quit", "q"]:
                 print("\nGoodbye!")
                 break
 
@@ -236,13 +237,14 @@ Supported models: Any LiteLLM-supported model
                 continue
 
             # Handle skill invocations (/skillname args...)
-            if user_input.startswith('/'):
+            if user_input.startswith("/"):
                 parts = user_input[1:].split(maxsplit=1)
                 skill_name = parts[0]
                 skill_args = parts[1] if len(parts) > 1 else ""
 
-                from patchpal.skills import get_skill
                 from pathlib import Path
+
+                from patchpal.skills import get_skill
 
                 skill = get_skill(skill_name, repo_root=Path(".").resolve())
 
@@ -265,7 +267,9 @@ Supported models: Any LiteLLM-supported model
                 else:
                     print(f"\n\033[1;31mSkill not found: {skill_name}\033[0m")
                     print("Ask 'list skills' to see available skills.")
-                    print("See example skills at: https://github.com/amaiya/patchpal/tree/main/examples/skills")
+                    print(
+                        "See example skills at: https://github.com/amaiya/patchpal/tree/main/examples/skills"
+                    )
 
                 continue
 
@@ -282,7 +286,9 @@ Supported models: Any LiteLLM-supported model
                 print("=" * 80)
 
             except KeyboardInterrupt:
-                print("\n\n\033[1;33mAgent interrupted.\033[0m Type your next command or 'exit' to quit.")
+                print(
+                    "\n\n\033[1;33mAgent interrupted.\033[0m Type your next command or 'exit' to quit."
+                )
                 continue
 
         except KeyboardInterrupt:

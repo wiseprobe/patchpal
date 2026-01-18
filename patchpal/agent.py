@@ -1,26 +1,40 @@
 """Custom agent implementation using LiteLLM directly."""
 
-import os
-import json
-import platform
 import inspect
+import json
+import os
+import platform
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
 import litellm
+
 from patchpal.tools import (
-    read_file, list_files, apply_patch, run_shell, grep_code,
-    web_fetch, web_search, get_file_info, edit_file,
-    git_status, git_diff, git_log, find_files, tree,
-    list_skills, use_skill
+    apply_patch,
+    edit_file,
+    find_files,
+    get_file_info,
+    git_diff,
+    git_log,
+    git_status,
+    grep_code,
+    list_files,
+    list_skills,
+    read_file,
+    run_shell,
+    tree,
+    use_skill,
+    web_fetch,
+    web_search,
 )
 
 
 def _is_bedrock_arn(model_id: str) -> bool:
     """Check if a model ID is a Bedrock ARN."""
     return (
-        model_id.startswith('arn:aws') and
-        ':bedrock:' in model_id and
-        ':inference-profile/' in model_id
+        model_id.startswith("arn:aws")
+        and ":bedrock:" in model_id
+        and ":inference-profile/" in model_id
     )
 
 
@@ -34,17 +48,19 @@ def _normalize_bedrock_model_id(model_id: str) -> str:
         Model ID with bedrock/ prefix if it's a Bedrock model
     """
     # If it already has bedrock/ prefix, return as-is
-    if model_id.startswith('bedrock/'):
+    if model_id.startswith("bedrock/"):
         return model_id
 
     # If it looks like a Bedrock ARN, add the prefix
     if _is_bedrock_arn(model_id):
-        return f'bedrock/{model_id}'
+        return f"bedrock/{model_id}"
 
     # If it's a standard Bedrock model ID (e.g., anthropic.claude-v2)
     # Check if it looks like a Bedrock model format
-    if '.' in model_id and any(provider in model_id for provider in ['anthropic', 'amazon', 'meta', 'cohere', 'ai21']):
-        return f'bedrock/{model_id}'
+    if "." in model_id and any(
+        provider in model_id for provider in ["anthropic", "amazon", "meta", "cohere", "ai21"]
+    ):
+        return f"bedrock/{model_id}"
 
     return model_id
 
@@ -56,14 +72,14 @@ def _setup_bedrock_env():
     Maps PatchPal's environment variables to LiteLLM's expected format.
     """
     # Set custom region (e.g., us-gov-east-1 for GovCloud)
-    bedrock_region = os.getenv('AWS_BEDROCK_REGION')
-    if bedrock_region and not os.getenv('AWS_REGION_NAME'):
-        os.environ['AWS_REGION_NAME'] = bedrock_region
+    bedrock_region = os.getenv("AWS_BEDROCK_REGION")
+    if bedrock_region and not os.getenv("AWS_REGION_NAME"):
+        os.environ["AWS_REGION_NAME"] = bedrock_region
 
     # Set custom endpoint URL (e.g., VPC endpoint or GovCloud endpoint)
-    bedrock_endpoint = os.getenv('AWS_BEDROCK_ENDPOINT')
-    if bedrock_endpoint and not os.getenv('AWS_BEDROCK_RUNTIME_ENDPOINT'):
-        os.environ['AWS_BEDROCK_RUNTIME_ENDPOINT'] = bedrock_endpoint
+    bedrock_endpoint = os.getenv("AWS_BEDROCK_ENDPOINT")
+    if bedrock_endpoint and not os.getenv("AWS_BEDROCK_RUNTIME_ENDPOINT"):
+        os.environ["AWS_BEDROCK_RUNTIME_ENDPOINT"] = bedrock_endpoint
 
 
 # Define tools in LiteLLM format
@@ -78,24 +94,20 @@ TOOLS = [
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Path to the file - can be relative to repository root or an absolute path (e.g., /etc/fstab, /var/log/app.log)"
+                        "description": "Path to the file - can be relative to repository root or an absolute path (e.g., /etc/fstab, /var/log/app.log)",
                     }
                 },
-                "required": ["path"]
-            }
-        }
+                "required": ["path"],
+            },
+        },
     },
     {
         "type": "function",
         "function": {
             "name": "list_files",
             "description": "List ALL files in the ENTIRE repository - no filtering by directory. This tool shows every file across all folders. To list files in a specific directory, use the 'tree' tool with a path parameter instead.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
     },
     {
         "type": "function",
@@ -107,12 +119,12 @@ TOOLS = [
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Path to file, directory, or glob pattern - can be relative or absolute (e.g., 'tests/*.txt', '/var/log/', '/etc/fstab')"
+                        "description": "Path to file, directory, or glob pattern - can be relative or absolute (e.g., 'tests/*.txt', '/var/log/', '/etc/fstab')",
                     }
                 },
-                "required": ["path"]
-            }
-        }
+                "required": ["path"],
+            },
+        },
     },
     {
         "type": "function",
@@ -124,16 +136,16 @@ TOOLS = [
                 "properties": {
                     "pattern": {
                         "type": "string",
-                        "description": "Glob pattern to match file names (e.g., '*.py' for Python files, 'test_*.py' for test files)"
+                        "description": "Glob pattern to match file names (e.g., '*.py' for Python files, 'test_*.py' for test files)",
                     },
                     "case_sensitive": {
                         "type": "boolean",
-                        "description": "Whether to match case-sensitively (default: true)"
-                    }
+                        "description": "Whether to match case-sensitively (default: true)",
+                    },
                 },
-                "required": ["pattern"]
-            }
-        }
+                "required": ["pattern"],
+            },
+        },
     },
     {
         "type": "function",
@@ -145,20 +157,20 @@ TOOLS = [
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Starting directory path - can be relative or absolute (default: current directory '.', examples: '/etc', '/var/log', 'src')"
+                        "description": "Starting directory path - can be relative or absolute (default: current directory '.', examples: '/etc', '/var/log', 'src')",
                     },
                     "max_depth": {
                         "type": "integer",
-                        "description": "Maximum depth to traverse (default: 3, max: 10)"
+                        "description": "Maximum depth to traverse (default: 3, max: 10)",
                     },
                     "show_hidden": {
                         "type": "boolean",
-                        "description": "Include hidden files/directories (default: false)"
-                    }
+                        "description": "Include hidden files/directories (default: false)",
+                    },
                 },
-                "required": []
-            }
-        }
+                "required": [],
+            },
+        },
     },
     {
         "type": "function",
@@ -170,20 +182,20 @@ TOOLS = [
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Path to the file - relative to repository root or absolute path (note: writes outside repository require permission)"
+                        "description": "Path to the file - relative to repository root or absolute path (note: writes outside repository require permission)",
                     },
                     "old_string": {
                         "type": "string",
-                        "description": "The exact string to find and replace (must appear exactly once)"
+                        "description": "The exact string to find and replace (must appear exactly once)",
                     },
                     "new_string": {
                         "type": "string",
-                        "description": "The string to replace it with"
-                    }
+                        "description": "The string to replace it with",
+                    },
                 },
-                "required": ["path", "old_string", "new_string"]
-            }
-        }
+                "required": ["path", "old_string", "new_string"],
+            },
+        },
     },
     {
         "type": "function",
@@ -195,28 +207,24 @@ TOOLS = [
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Path to the file - relative to repository root or absolute path (note: writes outside repository require permission)"
+                        "description": "Path to the file - relative to repository root or absolute path (note: writes outside repository require permission)",
                     },
                     "new_content": {
                         "type": "string",
-                        "description": "The complete new content for the file"
-                    }
+                        "description": "The complete new content for the file",
+                    },
                 },
-                "required": ["path", "new_content"]
-            }
-        }
+                "required": ["path", "new_content"],
+            },
+        },
     },
     {
         "type": "function",
         "function": {
             "name": "git_status",
             "description": "Get git repository status showing modified, staged, and untracked files. No permission required - read-only operation.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
     },
     {
         "type": "function",
@@ -228,16 +236,16 @@ TOOLS = [
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "Optional: specific file path to show diff for"
+                        "description": "Optional: specific file path to show diff for",
                     },
                     "staged": {
                         "type": "boolean",
-                        "description": "If true, show staged changes (--cached), else show unstaged changes"
-                    }
+                        "description": "If true, show staged changes (--cached), else show unstaged changes",
+                    },
                 },
-                "required": []
-            }
-        }
+                "required": [],
+            },
+        },
     },
     {
         "type": "function",
@@ -249,16 +257,16 @@ TOOLS = [
                 "properties": {
                     "max_count": {
                         "type": "integer",
-                        "description": "Maximum number of commits to show (default: 10, max: 50)"
+                        "description": "Maximum number of commits to show (default: 10, max: 50)",
                     },
                     "path": {
                         "type": "string",
-                        "description": "Optional: specific file path to show history for"
-                    }
+                        "description": "Optional: specific file path to show history for",
+                    },
                 },
-                "required": []
-            }
-        }
+                "required": [],
+            },
+        },
     },
     {
         "type": "function",
@@ -270,24 +278,24 @@ TOOLS = [
                 "properties": {
                     "pattern": {
                         "type": "string",
-                        "description": "Regular expression pattern to search for"
+                        "description": "Regular expression pattern to search for",
                     },
                     "file_glob": {
                         "type": "string",
-                        "description": "Optional glob pattern to filter files (e.g., '*.py', 'src/**/*.js')"
+                        "description": "Optional glob pattern to filter files (e.g., '*.py', 'src/**/*.js')",
                     },
                     "case_sensitive": {
                         "type": "boolean",
-                        "description": "Whether the search should be case-sensitive (default: true)"
+                        "description": "Whether the search should be case-sensitive (default: true)",
                     },
                     "max_results": {
                         "type": "integer",
-                        "description": "Maximum number of results to return (default: 100)"
-                    }
+                        "description": "Maximum number of results to return (default: 100)",
+                    },
                 },
-                "required": ["pattern"]
-            }
-        }
+                "required": ["pattern"],
+            },
+        },
     },
     {
         "type": "function",
@@ -297,18 +305,15 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query"
-                    },
+                    "query": {"type": "string", "description": "The search query"},
                     "max_results": {
                         "type": "integer",
-                        "description": "Maximum number of results to return (default: 5, max: 10)"
-                    }
+                        "description": "Maximum number of results to return (default: 5, max: 10)",
+                    },
                 },
-                "required": ["query"]
-            }
-        }
+                "required": ["query"],
+            },
+        },
     },
     {
         "type": "function",
@@ -320,28 +325,24 @@ TOOLS = [
                 "properties": {
                     "url": {
                         "type": "string",
-                        "description": "The URL to fetch (must start with http:// or https://)"
+                        "description": "The URL to fetch (must start with http:// or https://)",
                     },
                     "extract_text": {
                         "type": "boolean",
-                        "description": "If true, extract readable text from HTML (default: true)"
-                    }
+                        "description": "If true, extract readable text from HTML (default: true)",
+                    },
                 },
-                "required": ["url"]
-            }
-        }
+                "required": ["url"],
+            },
+        },
     },
     {
         "type": "function",
         "function": {
             "name": "list_skills",
             "description": "List all available skills. When telling users about skills, instruct them to use /skillname syntax (e.g., /commit).",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
     },
     {
         "type": "function",
@@ -353,16 +354,16 @@ TOOLS = [
                 "properties": {
                     "skill_name": {
                         "type": "string",
-                        "description": "Name of the skill to invoke (without / prefix)"
+                        "description": "Name of the skill to invoke (without / prefix)",
                     },
                     "args": {
                         "type": "string",
-                        "description": "Optional arguments to pass to the skill"
-                    }
+                        "description": "Optional arguments to pass to the skill",
+                    },
                 },
-                "required": ["skill_name"]
-            }
-        }
+                "required": ["skill_name"],
+            },
+        },
     },
     {
         "type": "function",
@@ -372,15 +373,12 @@ TOOLS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cmd": {
-                        "type": "string",
-                        "description": "The shell command to execute"
-                    }
+                    "cmd": {"type": "string", "description": "The shell command to execute"}
                 },
-                "required": ["cmd"]
-            }
-        }
-    }
+                "required": ["cmd"],
+            },
+        },
+    },
 ]
 
 # Map tool names to functions
@@ -404,18 +402,20 @@ TOOL_FUNCTIONS = {
 }
 
 # Check if web tools should be disabled (for air-gapped environments)
-WEB_TOOLS_ENABLED = os.getenv('PATCHPAL_ENABLE_WEB', 'true').lower() in ('true', '1', 'yes')
+WEB_TOOLS_ENABLED = os.getenv("PATCHPAL_ENABLE_WEB", "true").lower() in ("true", "1", "yes")
 
 if not WEB_TOOLS_ENABLED:
     # Remove web tools from available tools
-    TOOLS = [tool for tool in TOOLS if tool['function']['name'] not in ('web_search', 'web_fetch')]
-    TOOL_FUNCTIONS = {k: v for k, v in TOOL_FUNCTIONS.items() if k not in ('web_search', 'web_fetch')}
+    TOOLS = [tool for tool in TOOLS if tool["function"]["name"] not in ("web_search", "web_fetch")]
+    TOOL_FUNCTIONS = {
+        k: v for k, v in TOOL_FUNCTIONS.items() if k not in ("web_search", "web_fetch")
+    }
 
 
 # Detect platform and generate platform-specific guidance
 os_name = platform.system()  # 'Linux', 'Darwin', 'Windows'
 
-if os_name == 'Windows':
+if os_name == "Windows":
     PLATFORM_INFO = """## Platform: Windows
 When using run_shell, use Windows commands:
 - File operations: `dir`, `type`, `copy`, `move`, `del`, `mkdir`, `rmdir`
@@ -448,52 +448,55 @@ if WEB_TOOLS_ENABLED:
     WEB_TOOLS_SCOPE = """- **Web access**: web_search, web_fetch
 """
 
+
 def _load_system_prompt() -> str:
     """Load system prompt from markdown file and substitute dynamic values.
-    
+
     Checks PATCHPAL_SYSTEM_PROMPT environment variable for a custom prompt file path.
     If not set, uses the default system_prompt.md in the patchpal package directory.
-    
+
     Returns:
         The formatted system prompt string
     """
     # Check for custom system prompt path from environment variable
-    custom_prompt_path = os.getenv('PATCHPAL_SYSTEM_PROMPT')
-    
+    custom_prompt_path = os.getenv("PATCHPAL_SYSTEM_PROMPT")
+
     if custom_prompt_path:
         # Use custom prompt file
         prompt_path = os.path.expanduser(custom_prompt_path)
         if not os.path.isfile(prompt_path):
-            print(f"\033[1;33m⚠️  Warning: Custom system prompt file not found: {prompt_path}\033[0m")
-            print(f"\033[1;33m   Falling back to default system prompt.\033[0m\n")
+            print(
+                f"\033[1;33m⚠️  Warning: Custom system prompt file not found: {prompt_path}\033[0m"
+            )
+            print("\033[1;33m   Falling back to default system prompt.\033[0m\n")
             # Fall back to default
-            prompt_path = os.path.join(os.path.dirname(__file__), 'system_prompt.md')
+            prompt_path = os.path.join(os.path.dirname(__file__), "system_prompt.md")
     else:
         # Use default prompt from package directory
-        prompt_path = os.path.join(os.path.dirname(__file__), 'system_prompt.md')
-    
+        prompt_path = os.path.join(os.path.dirname(__file__), "system_prompt.md")
+
     # Read the prompt template
-    with open(prompt_path, 'r', encoding='utf-8') as f:
+    with open(prompt_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
-    
+
     # Get current date and time
     now = datetime.now()
     current_date = now.strftime("%A, %B %d, %Y")  # e.g., "Wednesday, January 15, 2026"
     current_time = now.strftime("%I:%M %p %Z").strip()  # e.g., "03:45 PM EST"
-    if not current_time.endswith(('EST', 'CST', 'MST', 'PST', 'UTC')):
+    if not current_time.endswith(("EST", "CST", "MST", "PST", "UTC")):
         # If no timezone abbreviation, just show time without timezone
         current_time = now.strftime("%I:%M %p").strip()
-    
+
     # Prepare template variables
     template_vars = {
-        'platform_info': PLATFORM_INFO,
-        'current_date': current_date,
-        'current_time': current_time,
-        'web_tools': WEB_TOOLS_DESC,
-        'web_usage': WEB_USAGE_DESC,
-        'web_tools_scope_desc': WEB_TOOLS_SCOPE
+        "platform_info": PLATFORM_INFO,
+        "current_date": current_date,
+        "current_time": current_time,
+        "web_tools": WEB_TOOLS_DESC,
+        "web_usage": WEB_USAGE_DESC,
+        "web_tools_scope_desc": WEB_TOOLS_SCOPE,
     }
-    
+
     # Substitute variables - gracefully handle missing variables
     # This allows custom prompts to omit variables they don't need
     try:
@@ -502,16 +505,16 @@ def _load_system_prompt() -> str:
         # Missing variable in template - warn but continue with partial substitution
         print(f"\033[1;33m⚠️  Warning: System prompt references undefined variable: {e}\033[0m")
         print(f"\033[1;33m   Available variables: {', '.join(template_vars.keys())}\033[0m")
-        print(f"\033[1;33m   Attempting partial substitution...\033[0m\n")
-        
+        print("\033[1;33m   Attempting partial substitution...\033[0m\n")
+
         # Try to substitute what we can by replacing unmatched placeholders with empty strings
         result = prompt_template
         for key, value in template_vars.items():
-            result = result.replace(f'{{{key}}}', str(value))
+            result = result.replace(f"{{{key}}}", str(value))
         return result
     except Exception as e:
         print(f"\033[1;33m⚠️  Warning: Error processing system prompt template: {e}\033[0m")
-        print(f"\033[1;33m   Using prompt as-is without variable substitution.\033[0m\n")
+        print("\033[1;33m   Using prompt as-is without variable substitution.\033[0m\n")
         return prompt_template
 
 
@@ -529,13 +532,13 @@ class PatchPalAgent:
             model_id: LiteLLM model identifier
         """
         # Convert ollama/ to ollama_chat/ for LiteLLM compatibility
-        if model_id.startswith('ollama/'):
-            model_id = model_id.replace('ollama/', 'ollama_chat/', 1)
+        if model_id.startswith("ollama/"):
+            model_id = model_id.replace("ollama/", "ollama_chat/", 1)
 
         self.model_id = _normalize_bedrock_model_id(model_id)
 
         # Set up Bedrock environment if needed
-        if self.model_id.startswith('bedrock/'):
+        if self.model_id.startswith("bedrock/"):
             _setup_bedrock_env()
 
         # Conversation history (list of message dicts)
@@ -543,14 +546,14 @@ class PatchPalAgent:
 
         # LiteLLM settings for models that need parameter dropping
         self.litellm_kwargs = {}
-        if self.model_id.startswith('bedrock/'):
-            self.litellm_kwargs['drop_params'] = True
+        if self.model_id.startswith("bedrock/"):
+            self.litellm_kwargs["drop_params"] = True
             # Configure LiteLLM to handle Bedrock's strict message alternation requirement
             # This must be set globally, not as a completion parameter
             litellm.modify_params = True
-        elif self.model_id.startswith('openai/') and os.getenv('OPENAI_API_BASE'):
+        elif self.model_id.startswith("openai/") and os.getenv("OPENAI_API_BASE"):
             # Custom OpenAI-compatible servers (vLLM, etc.) often don't support all parameters
-            self.litellm_kwargs['drop_params'] = True
+            self.litellm_kwargs["drop_params"] = True
 
     def run(self, user_message: str, max_iterations: int = 100) -> str:
         """Run the agent on a user message.
@@ -563,10 +566,7 @@ class PatchPalAgent:
             The agent's final response
         """
         # Add user message to history
-        self.messages.append({
-            "role": "user",
-            "content": user_message
-        })
+        self.messages.append({"role": "user", "content": user_message})
 
         # Agent loop
         for iteration in range(max_iterations):
@@ -580,7 +580,7 @@ class PatchPalAgent:
                     messages=[{"role": "system", "content": SYSTEM_PROMPT}] + self.messages,
                     tools=TOOLS,
                     tool_choice="auto",
-                    **self.litellm_kwargs
+                    **self.litellm_kwargs,
                 )
             except Exception as e:
                 return f"Error calling model: {e}"
@@ -589,14 +589,18 @@ class PatchPalAgent:
             assistant_message = response.choices[0].message
 
             # Add assistant message to history
-            self.messages.append({
-                "role": "assistant",
-                "content": assistant_message.content or "",
-                "tool_calls": assistant_message.tool_calls if hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls else None
-            })
+            self.messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_message.content or "",
+                    "tool_calls": assistant_message.tool_calls
+                    if hasattr(assistant_message, "tool_calls") and assistant_message.tool_calls
+                    else None,
+                }
+            )
 
             # Check if there are tool calls
-            if hasattr(assistant_message, 'tool_calls') and assistant_message.tool_calls:
+            if hasattr(assistant_message, "tool_calls") and assistant_message.tool_calls:
                 # Print explanation text before executing tools
                 if assistant_message.content and assistant_message.content.strip():
                     print(f"\n{assistant_message.content}\n", flush=True)
@@ -623,46 +627,84 @@ class PatchPalAgent:
                             print(f"\033[1;31m✗ Unknown tool: {tool_name}\033[0m")
                         else:
                             # Show tool call message
-                            tool_display = tool_name.replace('_', ' ').title()
-                            if tool_name == 'read_file':
-                                print(f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m", flush=True)
-                            elif tool_name == 'list_files':
-                                print(f"\033[2m📁 Listing files...\033[0m", flush=True)
-                            elif tool_name == 'get_file_info':
-                                print(f"\033[2m📊 Getting info: {tool_args.get('path', '')}\033[0m", flush=True)
-                            elif tool_name == 'edit_file':
-                                print(f"\033[2m✏️  Editing: {tool_args.get('path', '')}\033[0m", flush=True)
-                            elif tool_name == 'apply_patch':
-                                print(f"\033[2m📝 Patching: {tool_args.get('path', '')}\033[0m", flush=True)
-                            elif tool_name == 'git_status':
-                                print(f"\033[2m🔀 Git status...\033[0m", flush=True)
-                            elif tool_name == 'git_diff':
-                                print(f"\033[2m🔀 Git diff{': ' + tool_args.get('path', '') if tool_args.get('path') else '...'}\033[0m", flush=True)
-                            elif tool_name == 'git_log':
-                                print(f"\033[2m🔀 Git log...\033[0m", flush=True)
-                            elif tool_name == 'grep_code':
-                                print(f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m", flush=True)
-                            elif tool_name == 'find_files':
-                                print(f"\033[2m🔍 Finding: {tool_args.get('pattern', '')}\033[0m", flush=True)
-                            elif tool_name == 'tree':
-                                print(f"\033[2m🌳 Tree: {tool_args.get('path', '.')}\033[0m", flush=True)
-                            elif tool_name == 'list_skills':
-                                print(f"\033[2m📋 Listing skills...\033[0m", flush=True)
-                            elif tool_name == 'use_skill':
-                                print(f"\033[2m⚡ Using skill: {tool_args.get('skill_name', '')}\033[0m", flush=True)
-                            elif tool_name == 'web_search':
-                                print(f"\033[2m🌐 Searching web: {tool_args.get('query', '')}\033[0m", flush=True)
-                            elif tool_name == 'web_fetch':
-                                print(f"\033[2m🌐 Fetching: {tool_args.get('url', '')}\033[0m", flush=True)
-                            elif tool_name == 'run_shell':
-                                print(f"\033[2m⚡ Running: {tool_args.get('cmd', '')}\033[0m", flush=True)
+                            tool_display = tool_name.replace("_", " ").title()
+                            if tool_name == "read_file":
+                                print(
+                                    f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "list_files":
+                                print("\033[2m📁 Listing files...\033[0m", flush=True)
+                            elif tool_name == "get_file_info":
+                                print(
+                                    f"\033[2m📊 Getting info: {tool_args.get('path', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "edit_file":
+                                print(
+                                    f"\033[2m✏️  Editing: {tool_args.get('path', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "apply_patch":
+                                print(
+                                    f"\033[2m📝 Patching: {tool_args.get('path', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "git_status":
+                                print("\033[2m🔀 Git status...\033[0m", flush=True)
+                            elif tool_name == "git_diff":
+                                print(
+                                    f"\033[2m🔀 Git diff{': ' + tool_args.get('path', '') if tool_args.get('path') else '...'}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "git_log":
+                                print("\033[2m🔀 Git log...\033[0m", flush=True)
+                            elif tool_name == "grep_code":
+                                print(
+                                    f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "find_files":
+                                print(
+                                    f"\033[2m🔍 Finding: {tool_args.get('pattern', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "tree":
+                                print(
+                                    f"\033[2m🌳 Tree: {tool_args.get('path', '.')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "list_skills":
+                                print("\033[2m📋 Listing skills...\033[0m", flush=True)
+                            elif tool_name == "use_skill":
+                                print(
+                                    f"\033[2m⚡ Using skill: {tool_args.get('skill_name', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "web_search":
+                                print(
+                                    f"\033[2m🌐 Searching web: {tool_args.get('query', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "web_fetch":
+                                print(
+                                    f"\033[2m🌐 Fetching: {tool_args.get('url', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "run_shell":
+                                print(
+                                    f"\033[2m⚡ Running: {tool_args.get('cmd', '')}\033[0m",
+                                    flush=True,
+                                )
 
                             # Execute the tool (permission checks happen inside the tool)
                             try:
                                 # Filter tool_args to only include parameters the function accepts
                                 sig = inspect.signature(tool_func)
                                 valid_params = set(sig.parameters.keys())
-                                filtered_args = {k: v for k, v in tool_args.items() if k in valid_params}
+                                filtered_args = {
+                                    k: v for k, v in tool_args.items() if k in valid_params
+                                }
 
                                 # Coerce types for parameters (Ollama sometimes passes strings)
                                 for param_name, param in sig.parameters.items():
@@ -671,10 +713,16 @@ class PatchPalAgent:
                                         actual_value = filtered_args[param_name]
 
                                         # Convert strings to expected types
-                                        if expected_type == int and isinstance(actual_value, str):
+                                        if expected_type is int and isinstance(actual_value, str):
                                             filtered_args[param_name] = int(actual_value)
-                                        elif expected_type == bool and isinstance(actual_value, str):
-                                            filtered_args[param_name] = actual_value.lower() in ('true', '1', 'yes')
+                                        elif expected_type is bool and isinstance(
+                                            actual_value, str
+                                        ):
+                                            filtered_args[param_name] = actual_value.lower() in (
+                                                "true",
+                                                "1",
+                                                "yes",
+                                            )
 
                                 # Silently filter out invalid args (models sometimes hallucinate parameters)
 
@@ -684,12 +732,14 @@ class PatchPalAgent:
                                 print(f"\033[1;31m✗ {tool_display}: {e}\033[0m")
 
                     # Add tool result to messages
-                    self.messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_name,
-                        "content": str(tool_result)
-                    })
+                    self.messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": tool_name,
+                            "content": str(tool_result),
+                        }
+                    )
 
                     # Check if operation was cancelled by user
                     # Use exact match to avoid false positives from file contents

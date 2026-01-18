@@ -4,11 +4,10 @@ These tests demonstrate the additional safety features in tools.py.
 Run with: pytest tests/test_enhanced_guardrails.py
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import patch
 import tempfile
-import os
+from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -28,6 +27,7 @@ def temp_repo(monkeypatch):
 
         # Monkey-patch REPO_ROOT
         import patchpal.tools as tools_enhanced
+
         monkeypatch.setattr(tools_enhanced, "REPO_ROOT", tmpdir_path)
 
         # Disable permission prompts during tests
@@ -61,7 +61,9 @@ class TestSensitiveFileProtection:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-monkeypatch REPO_ROOT after reload
@@ -144,7 +146,9 @@ class TestReadOnlyMode:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         with pytest.raises(ValueError, match="read-only mode"):
@@ -156,7 +160,9 @@ class TestReadOnlyMode:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-monkeypatch REPO_ROOT after reload
@@ -195,17 +201,20 @@ class TestCommandSafety:
         """Test that long-running commands timeout."""
         # Set a short timeout for faster testing
         monkeypatch.setenv("PATCHPAL_SHELL_TIMEOUT", "2")
-        
+
         # Reload module to pick up new timeout
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
-        
+
         # Re-monkeypatch REPO_ROOT after reload
         monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
-        
-        from patchpal.tools import run_shell
+
         import subprocess
+
+        from patchpal.tools import run_shell
 
         with pytest.raises(subprocess.TimeoutExpired):
             run_shell("sleep 10")
@@ -235,11 +244,12 @@ class TestPathTraversal:
 
     def test_allows_reading_absolute_paths(self, temp_repo):
         """Test that read operations can access absolute paths."""
-        from patchpal.tools import read_file
-
         # Create a temp file with absolute path
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+
+        from patchpal.tools import read_file
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as f:
             f.write("absolute path content")
             temp_path = f.name
 
@@ -257,8 +267,10 @@ class TestPathTraversal:
 
         # Reload module to pick up new env vars
         import importlib
-        import patchpal.tools
+
         import patchpal.permissions
+        import patchpal.tools
+
         importlib.reload(patchpal.permissions)
         importlib.reload(patchpal.tools)
 
@@ -269,7 +281,9 @@ class TestPathTraversal:
         def mock_request_permission(self, tool_name, description, pattern=None):
             return False  # Deny permission
 
-        monkeypatch.setattr("patchpal.permissions.PermissionManager.request_permission", mock_request_permission)
+        monkeypatch.setattr(
+            "patchpal.permissions.PermissionManager.request_permission", mock_request_permission
+        )
 
         from patchpal.tools import apply_patch
 
@@ -288,8 +302,10 @@ class TestPathTraversal:
 
         # Reload module to pick up new env vars
         import importlib
-        import patchpal.tools
+
         import patchpal.permissions
+        import patchpal.tools
+
         importlib.reload(patchpal.permissions)
         importlib.reload(patchpal.tools)
 
@@ -300,7 +316,9 @@ class TestPathTraversal:
         def mock_request_permission(self, tool_name, description, pattern=None):
             return False  # Deny permission
 
-        monkeypatch.setattr("patchpal.permissions.PermissionManager.request_permission", mock_request_permission)
+        monkeypatch.setattr(
+            "patchpal.permissions.PermissionManager.request_permission", mock_request_permission
+        )
 
         from patchpal.tools import edit_file
 
@@ -345,7 +363,9 @@ class TestConfigurability:
 
         # Reimport to pick up env var
         import importlib
+
         import patchpal.tools
+
         importlib.reload(patchpal.tools)
 
         # Re-monkeypatch REPO_ROOT after reload
@@ -362,13 +382,13 @@ class TestConfigurability:
 def test_comprehensive_security_demo(temp_repo, monkeypatch):
     """Comprehensive test showing all security features."""
     # Mock permission request to deny only for outside-repo writes
-    original_perm_mgr = None
 
     def mock_request_permission(self, tool_name, description, pattern=None):
         # Only deny write operations (apply_patch/edit_file) for paths outside repo
-        if tool_name in ('apply_patch', 'edit_file') and pattern:
+        if tool_name in ("apply_patch", "edit_file") and pattern:
             # Convert pattern to Path to handle both relative and absolute paths
             from pathlib import Path
+
             pattern_path = Path(pattern)
             # If it's not absolute, it's relative to repo, so it's inside repo
             if not pattern_path.is_absolute():
@@ -382,13 +402,13 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     # Enable permissions but set up mock
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "true")
 
-    from patchpal.tools import (
-        read_file, apply_patch, run_shell, list_files
-    )
     import patchpal.permissions
+    from patchpal.tools import apply_patch, list_files, read_file, run_shell
 
     # Mock the request_permission method
-    monkeypatch.setattr(patchpal.permissions.PermissionManager, "request_permission", mock_request_permission)
+    monkeypatch.setattr(
+        patchpal.permissions.PermissionManager, "request_permission", mock_request_permission
+    )
 
     # 1. Normal operations work
     content = read_file("normal.txt")

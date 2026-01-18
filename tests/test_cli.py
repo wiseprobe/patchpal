@@ -1,9 +1,7 @@
 """Tests for patchpal.cli module."""
 
-import pytest
-from unittest.mock import patch, MagicMock
 import sys
-from io import StringIO
+from unittest.mock import MagicMock, patch
 
 
 def test_main_uses_default_model(monkeypatch):
@@ -11,9 +9,10 @@ def test_main_uses_default_model(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["exit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -30,9 +29,10 @@ def test_main_uses_cli_model_arg(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal", "--model", "openai/gpt-4o"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["exit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -50,9 +50,10 @@ def test_main_uses_env_var_model(monkeypatch):
     monkeypatch.setenv("PATCHPAL_MODEL", "ollama_chat/llama3.1")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["exit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -70,9 +71,10 @@ def test_main_cli_arg_overrides_env_var(monkeypatch):
     monkeypatch.setenv("PATCHPAL_MODEL", "ollama_chat/llama3.1")
     monkeypatch.setattr(sys, "argv", ["patchpal", "--model", "openai/gpt-4o"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["exit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -89,9 +91,10 @@ def test_main_handles_quit_command(monkeypatch, capsys):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["quit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["quit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -108,9 +111,10 @@ def test_main_handles_exit_command(monkeypatch, capsys):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["exit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -127,9 +131,10 @@ def test_main_handles_keyboard_interrupt(monkeypatch, capsys):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=KeyboardInterrupt):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=KeyboardInterrupt),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -146,9 +151,10 @@ def test_main_handles_keyboard_interrupt_during_agent_run(monkeypatch, capsys):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["test query", "exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["test query", "exit"]),
+    ):
         mock_agent = MagicMock()
         # Agent raises KeyboardInterrupt during execution
         mock_agent.run.side_effect = KeyboardInterrupt
@@ -169,9 +175,10 @@ def test_main_handles_agent_error(monkeypatch, capsys):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["test query", "exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["test query", "exit"]),
+    ):
         mock_agent = MagicMock()
         mock_agent.run.side_effect = Exception("Test error")
         mock_create.return_value = mock_agent
@@ -190,9 +197,10 @@ def test_main_runs_agent_with_user_input(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["What files are here?", "exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["What files are here?", "exit"]),
+    ):
         mock_agent = MagicMock()
         mock_agent.run.return_value = "Here are the files..."
         mock_create.return_value = mock_agent
@@ -210,9 +218,10 @@ def test_main_skips_empty_input(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["", "   ", "exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["", "   ", "exit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
@@ -230,9 +239,10 @@ def test_main_respects_max_iterations_env_var(monkeypatch):
     monkeypatch.setenv("PATCHPAL_MAX_ITERATIONS", "150")
     monkeypatch.setattr(sys, "argv", ["patchpal"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["Test task", "exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["Test task", "exit"]),
+    ):
         mock_agent = MagicMock()
         mock_agent.run.return_value = "Done"
         mock_create.return_value = mock_agent
@@ -250,9 +260,10 @@ def test_main_displays_model_name(monkeypatch, capsys):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setattr(sys, "argv", ["patchpal", "--model", "openai/gpt-4o"])
 
-    with patch("patchpal.cli.create_agent") as mock_create, \
-         patch("patchpal.cli.pt_prompt", side_effect=["exit"]):
-
+    with (
+        patch("patchpal.cli.create_agent") as mock_create,
+        patch("patchpal.cli.pt_prompt", side_effect=["exit"]),
+    ):
         mock_agent = MagicMock()
         mock_create.return_value = mock_agent
 
