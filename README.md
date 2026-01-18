@@ -1,6 +1,7 @@
 # PatchPal - A Lean Claude Code Clone in Python
 
-![PatchPal Screenshot](patchpal_screenshot.png)
+<!--![PatchPal Screenshot](patchpal_screenshot.png)-->
+<img src="patchpal_screenshot.png" alt="PatchPal Screenshot" width="200"/>
 
 > A lightweight clone of Claude Code in Python -- supports both local and cloud LLMs.
 
