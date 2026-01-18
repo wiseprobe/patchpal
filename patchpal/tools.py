@@ -537,10 +537,24 @@ def get_file_info(path: str) -> str:
 
     # Format file information
     results = []
-    for path in sorted(files):
+    for file_path in sorted(files):
         try:
-            stat = path.stat()
-            relative_path = path.relative_to(REPO_ROOT)
+            stat = file_path.stat()
+
+            # Try to get relative path; if it fails (e.g., Windows short names),
+            # use the file name or absolute path
+            try:
+                relative_path = file_path.relative_to(REPO_ROOT)
+            except ValueError:
+                # Can't compute relative path (e.g., Windows short name mismatch)
+                # Try to compute it manually by resolving both paths
+                try:
+                    resolved_file = file_path.resolve()
+                    resolved_repo = REPO_ROOT.resolve()
+                    relative_path = resolved_file.relative_to(resolved_repo)
+                except (ValueError, OSError):
+                    # Last resort: just use the file name
+                    relative_path = file_path.name
 
             # Format size
             size = stat.st_size
@@ -557,10 +571,10 @@ def get_file_info(path: str) -> str:
             mtime = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
 
             # Detect file type
-            if _is_binary_file(path):
+            if _is_binary_file(file_path):
                 file_type = "binary"
             else:
-                mime_type, _ = mimetypes.guess_type(str(path))
+                mime_type, _ = mimetypes.guess_type(str(file_path))
                 file_type = mime_type or "text"
 
             results.append(f"{str(relative_path):<50} {size_str:>10}  {mtime}  {file_type}")
@@ -568,9 +582,14 @@ def get_file_info(path: str) -> str:
         except Exception as e:
             # Get relative path for error message (may fail if path is invalid)
             try:
-                relative_path = path.relative_to(REPO_ROOT)
+                relative_path = file_path.relative_to(REPO_ROOT)
             except Exception:
-                relative_path = path
+                try:
+                    resolved_file = file_path.resolve()
+                    resolved_repo = REPO_ROOT.resolve()
+                    relative_path = resolved_file.relative_to(resolved_repo)
+                except Exception:
+                    relative_path = file_path.name
             results.append(f"{str(relative_path):<50} ERROR: {e}")
 
     header = f"{'Path':<50} {'Size':>10}  {'Modified'}            {'Type'}"

@@ -11,7 +11,8 @@ import pytest
 def temp_repo(monkeypatch):
     """Create a temporary repository for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir_path = Path(tmpdir)
+        # Resolve path to handle Windows short names (RUNNER~1) and macOS symlinks (/private)
+        tmpdir_path = Path(tmpdir).resolve()
 
         # Create test files
         (tmpdir_path / "test.txt").write_text("Hello, World!")
@@ -61,8 +62,10 @@ def test_list_files(temp_repo):
     from patchpal.tools import list_files
 
     files = list_files()
-    assert "test.txt" in files
-    assert "subdir/file.py" in files
+    # Normalize paths to use forward slashes for cross-platform compatibility
+    files_normalized = [f.replace("\\", "/") for f in files]
+    assert "test.txt" in files_normalized
+    assert "subdir/file.py" in files_normalized
     assert len(files) == 2  # Should only list files, not directories
 
 
@@ -76,8 +79,10 @@ def test_list_files_ignores_hidden(temp_repo):
     (temp_repo / ".git" / "config").write_text("config")
 
     files = list_files()
-    assert ".hidden" not in files
-    assert ".git/config" not in files
+    # Normalize paths for cross-platform compatibility
+    files_normalized = [f.replace("\\", "/") for f in files]
+    assert ".hidden" not in files_normalized
+    assert ".git/config" not in files_normalized
 
 
 def test_apply_patch_existing_file(temp_repo):
