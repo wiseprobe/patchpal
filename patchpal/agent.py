@@ -600,6 +600,10 @@ class PatchPalAgent:
                 # Print explanation text before executing tools
                 if assistant_message.content and assistant_message.content.strip():
                     print(f"\n{assistant_message.content}\n", flush=True)
+
+                # Track if any operation was cancelled
+                operation_cancelled = False
+
                 # Execute each tool call
                 for tool_call in assistant_message.tool_calls:
                     tool_name = tool_call.function.name
@@ -690,8 +694,12 @@ class PatchPalAgent:
                     # Check if operation was cancelled by user
                     # Use exact match to avoid false positives from file contents
                     if str(tool_result).strip() == "Operation cancelled by user.":
-                        # Return immediately - don't continue agent loop
-                        return str(tool_result)
+                        operation_cancelled = True
+
+                # If any operation was cancelled, return now (after all tool results are added)
+                # This ensures Bedrock gets all expected tool results before we exit
+                if operation_cancelled:
+                    return "Operation cancelled by user."
 
                 # Continue loop to let agent process tool results
                 continue
