@@ -27,7 +27,7 @@ pip install patchpal
 ## Setup
 
 
-1. **Get an API key** (or use local models):
+1. **Get an API key or a Local LLM Engine**:
    - **[Cloud]** For Anthropic models (default): Sign up at https://console.anthropic.com/
    - **[Cloud]** For OpenAI models: Get a key from https://platform.openai.com/
    - **[Local]** For vLLM: Install from https://docs.vllm.ai/ (free - no API charges) **Recommended for Local Use**
@@ -43,7 +43,7 @@ export ANTHROPIC_API_KEY=your_api_key_here
 # For OpenAI
 export OPENAI_API_KEY=your_api_key_here
 
-# For vLLM - no API key needed (unless configured)!
+# For vLLM - API key required only if configured
 export HOSTED_VLLM_API_BASE=http://localhost:8000 # depends on your vLLM setup
 export HOSTED_VLLM_API_KEY=token-abc123           # optional depending on your vLLM setup
 
@@ -56,7 +56,7 @@ export HOSTED_VLLM_API_KEY=token-abc123           # optional depending on your v
 patchpal
 
 # Use a specific model via command-line argument
-patchpal --model openai/gpt-5
+patchpal --model openai/gpt-5  # or openai/gpt-4o, anthropic/claude-opus-4-5 etc.
 
 # Use vLLM (local)
 # Note: vLLM server must be started with --tool-call-parser and --enable-auto-tool-choice
@@ -363,7 +363,7 @@ Different models require different parsers. Common parsers include: `qwen3_xml`,
 
 #### Ollama
 
-We find that models in Ollama models do not work well in agentic settings. For instance, while `gpt-oss-20b` works well in vLLM, it performs poorly in Ollama. vLLM is recommended for local deployments.
+We find that Ollama models do not work well in agentic settings. For instance, while [gpt-oss-20b](https://huggingface.co/openai/gpt-oss-20b) works well in vLLM, the [Ollama versison](https://ollama.com/library/gpt-oss) of the same model performs poorly. vLLM is recommended for local deployments.
 
 **Examples:**
 
