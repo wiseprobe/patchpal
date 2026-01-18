@@ -181,63 +181,68 @@ def _format_colored_diff(old_text: str, new_text: str, max_lines: int = 50, file
     old_lines = old_text.splitlines(keepends=True)
     new_lines = new_text.splitlines(keepends=True)
 
-    # Generate unified diff
-    diff = difflib.unified_diff(
-        old_lines,
-        new_lines,
-        lineterm='',
-        n=3  # Show 3 lines of context around changes
-    )
-
+    # Use SequenceMatcher for a cleaner diff that shows true changes
+    # instead of unified diff which can be confusing with context lines
+    matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
+    
     result = []
     line_count = 0
     old_line_num = start_line if start_line else 1
     new_line_num = start_line if start_line else 1
-
-    for line in diff:
-        # Skip the file headers (--- and +++)
-        if line.startswith('---') or line.startswith('+++'):
-            continue
-
-        # Parse hunk headers to track line numbers
-        if line.startswith('@@'):
-            if line_count >= max_lines:
-                result.append("   \033[90m... (truncated)\033[0m")
-                break
-            
-            # Extract line numbers from hunk header: @@ -old_start,old_count +new_start,new_count @@
-            match = re.match(r'@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@', line)
-            if match and not start_line:
-                # Only use hunk header line numbers if we don't have a specific start_line
-                old_line_num = int(match.group(1))
-                new_line_num = int(match.group(2))
-            
-            # Don't show the hunk header for small diffs if we have start_line
-            if not start_line or len(old_lines) > 10:
-                result.append(f"   \033[36m{line}\033[0m")  # Cyan for hunk headers
-                line_count += 1
-            continue
-
-        # Check line limit
+    
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if line_count >= max_lines:
             result.append("   \033[90m... (truncated)\033[0m")
             break
-
-        # Color and number the diff lines
-        if line.startswith('-'):
-            result.append(f"   \033[31m{old_line_num:4d} {line}\033[0m")  # Red for removed
-            old_line_num += 1
-        elif line.startswith('+'):
-            result.append(f"   \033[32m{new_line_num:4d} {line}\033[0m")  # Green for added
-            new_line_num += 1
-        else:
-            # Context lines (start with space in unified diff format)
-            # Show the old line number for context (both old and new have same content)
-            result.append(f"   \033[90m{old_line_num:4d} {line}\033[0m")  # Gray for context
-            old_line_num += 1
-            new_line_num += 1
-
-        line_count += 1
+            
+        if tag == 'equal':
+            # Show context lines in gray (only once, not as -/+)
+            for i in range(i1, i2):
+                if line_count >= max_lines:
+                    break
+                # Only show a few context lines at boundaries
+                if i < i1 + 2 or i >= i2 - 2:
+                    result.append(f"   \033[90m{old_line_num:4d}  {old_lines[i].rstrip()}\033[0m")
+                    line_count += 1
+                elif i == i1 + 2:
+                    # Show ellipsis for skipped context
+                    result.append("   \033[90m     ...\033[0m")
+                    line_count += 1
+                old_line_num += 1
+                new_line_num += 1
+                
+        elif tag == 'delete':
+            # Lines only in old (removed)
+            for i in range(i1, i2):
+                if line_count >= max_lines:
+                    break
+                result.append(f"   \033[31m{old_line_num:4d} -{old_lines[i].rstrip()}\033[0m")
+                old_line_num += 1
+                line_count += 1
+                
+        elif tag == 'insert':
+            # Lines only in new (added)
+            for j in range(j1, j2):
+                if line_count >= max_lines:
+                    break
+                result.append(f"   \033[32m{new_line_num:4d} +{new_lines[j].rstrip()}\033[0m")
+                new_line_num += 1
+                line_count += 1
+                
+        elif tag == 'replace':
+            # Lines changed (show old then new)
+            for i in range(i1, i2):
+                if line_count >= max_lines:
+                    break
+                result.append(f"   \033[31m{old_line_num:4d} -{old_lines[i].rstrip()}\033[0m")
+                old_line_num += 1
+                line_count += 1
+            for j in range(j1, j2):
+                if line_count >= max_lines:
+                    break
+                result.append(f"   \033[32m{new_line_num:4d} +{new_lines[j].rstrip()}\033[0m")
+                new_line_num += 1
+                line_count += 1
 
     # If no diff output (identical content), show a message
     if not result:
