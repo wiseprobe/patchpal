@@ -22,9 +22,9 @@ pip install patchpal
 ## Setup
 
 1. **Get an API key** (or use local models):
-   - [Cloud] For Anthropic models (default): Sign up at https://console.anthropic.com/
-   - [Cloud] For OpenAI models: Get a key from https://platform.openai.com/
-   - [Local] For vLLM (**local**): Install from https://docs.vllm.ai/ (free - no API charges)
+   - **[Cloud]** For Anthropic models (default): Sign up at https://console.anthropic.com/
+   - **[Cloud]** For OpenAI models: Get a key from https://platform.openai.com/
+   - **[Local]** For vLLM: Install from https://docs.vllm.ai/ (free - no API charges)
    - For other providers: Check the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
 
 2. **Set up your API key**:
