@@ -407,9 +407,9 @@ PatchPal - Claude Code Clone
 
 Using model: anthropic/claude-sonnet-4-5
 
-Type 'exit' or 'quit' to exit the program.
-Ask 'list skills' to see available skills, or use /skillname to invoke one
-Press Ctrl-C during agent execution to interrupt the agent.
+Type 'exit' or press Ctrl-C to quit.
+Use 'list skills' or /skillname to invoke skills.
+Press Ctrl-C during execution to interrupt the agent.
 
 You: Add type hints and basic logging to my_module.py
 ```

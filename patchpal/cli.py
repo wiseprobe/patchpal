@@ -195,9 +195,9 @@ Supported models: Any LiteLLM-supported model
     if custom_prompt_path:
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
     
-    print("\nType 'exit' or 'quit' to exit the program.")
-    print("Ask 'list skills' to see available skills, or use /skillname to invoke one.")
-    print("Press Ctrl-C during agent execution to interrupt the agent.\n")
+    print("\nType 'exit' or press Ctrl-C to quit.")
+    print("Use 'list skills' or /skillname to invoke skills.")
+    print("Press Ctrl-C during execution to interrupt the agent.\n")
 
     while True:
         try:
