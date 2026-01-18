@@ -271,12 +271,12 @@ def test_web_tools_disabled_with_various_values(monkeypatch):
 
         # Verify web tools are not present
         tool_names = [tool["function"]["name"] for tool in TOOLS]
-        assert (
-            "web_search" not in tool_names
-        ), f"web_search should be disabled with value '{false_value}'"
-        assert (
-            "web_fetch" not in tool_names
-        ), f"web_fetch should be disabled with value '{false_value}'"
+        assert "web_search" not in tool_names, (
+            f"web_search should be disabled with value '{false_value}'"
+        )
+        assert "web_fetch" not in tool_names, (
+            f"web_fetch should be disabled with value '{false_value}'"
+        )
 
         # Clean up
         del sys.modules["patchpal.agent"]
