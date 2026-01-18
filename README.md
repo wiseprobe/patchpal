@@ -19,8 +19,7 @@ Install PatchPal from PyPI:
 pip install patchpal
 ```
 
-Linux, Windows Subsystem for Linux ([WSL](https://learn.microsoft.com/en-us/windows/wsl/install)), and MacOS are the recommended OS environments.
-Running PatchPal direcly on a Windows 11 OS should work but is not officially supported or tested.
+**Recommended Operating Systems:** Linux, Windows Subsystem for Linux ([WSL](https://learn.microsoft.com/en-us/windows/wsl/install)), and MacOS are the recommended OS environments. Running PatchPal direcly on a Windows 11 OS should also work but is not thoroughly tested.
 
 
 ## Setup
@@ -42,10 +41,10 @@ export ANTHROPIC_API_KEY=your_api_key_here
 export OPENAI_API_KEY=your_api_key_here
 
 # For vLLM - no API key needed (unless configured)!
-export HOSTED_VLLM_API_BASE=http://localhost:8000 # changeme
+export HOSTED_VLLM_API_BASE=http://localhost:8000 # depends on your vLLM setup
 export HOSTED_VLLM_API_KEY=token-abc123           # optional depending on your vLLM setup
 
-# For other providers, check LiteLLM docs.
+# For other providers, check LiteLLM docs
 ```
 
 3. **Run PatchPal**:
@@ -54,7 +53,7 @@ export HOSTED_VLLM_API_KEY=token-abc123           # optional depending on your v
 patchpal
 
 # Use a specific model via command-line argument
-patchpal --model openai/gpt-4o
+patchpal --model openai/gpt-5
 
 # Use vLLM (local)
 # Note: vLLM server must be started with --tool-call-parser and --enable-auto-tool-choice
@@ -67,7 +66,7 @@ patchpal --model hosted_vllm/openai/gpt-oss-20b
 patchpal --model ollama/llama3.1
 
 # Or set the model via environment variable
-export PATCHPAL_MODEL=openai/gpt-4o
+export PATCHPAL_MODEL=openai/gpt-5
 patchpal
 ```
 
@@ -215,14 +214,14 @@ PatchPal supports any LiteLLM-compatible model. You can configure the model in t
 
 ### 1. Command-line Argument
 ```bash
-patchpal --model openai/gpt-4o
+patchpal --model openai/gpt-5
 patchpal --model anthropic/claude-sonnet-4-5
 patchpal --model hosted_vllm/openai/gpt-oss-20b # local model - no API charges
 ```
 
 ### 2. Environment Variable
 ```bash
-export PATCHPAL_MODEL=openai/gpt-4o
+export PATCHPAL_MODEL=openai/gpt-5
 patchpal
 ```
 
@@ -234,7 +233,7 @@ If no model is specified, PatchPal uses `anthropic/claude-sonnet-4-5` (Claude So
 PatchPal works with any model supported by LiteLLM, including:
 
 - **Anthropic** (Recommended): `anthropic/claude-sonnet-4-5`, `anthropic/claude-opus-4-5`, `anthropic/claude-3-7-sonnet-latest`
-- **OpenAI**: `openai/gpt-4o`, `openai/gpt-4-turbo`, `openai/gpt-3.5-turbo`
+- **OpenAI**: `openai/gpt-5`, `openai/gpt-4o`
 - **AWS Bedrock**: `bedrock/anthropic.claude-sonnet-4-5-v1:0`, or full ARNs for GovCloud/VPC endpoints
 - **vLLM (Local)** (Recommended for local): See vLLM section for setup
 - **Google**: `gemini/gemini-pro`, `vertex_ai/gemini-pro`
