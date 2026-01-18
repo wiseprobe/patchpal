@@ -19,17 +19,21 @@ Install PatchPal from PyPI:
 pip install patchpal
 ```
 
+Linux, Windows Subsystem for Linux ([WSL](https://learn.microsoft.com/en-us/windows/wsl/install)), and MacOS are the recommended OS environments.
+Running PatchPal direcly on a Windows 11 OS should work but is not officially supported or tested.
+
+
 ## Setup
+
 
 1. **Get an API key** (or use local models):
    - **[Cloud]** For Anthropic models (default): Sign up at https://console.anthropic.com/
    - **[Cloud]** For OpenAI models: Get a key from https://platform.openai.com/
-   - **[Local]** For vLLM: Install from https://docs.vllm.ai/ (free - no API charges)
+   - **[Local]** For vLLM: Install from https://docs.vllm.ai/ (free - no API charges) **Recommended for Local/Private Use**
    - For other providers: Check the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
 
 2. **Set up your API key as environment variable**:
 ```bash
-# Linux/MacOS examples of setting environment variable
 
 # For Anthropic (default)
 export ANTHROPIC_API_KEY=your_api_key_here
@@ -41,7 +45,7 @@ export OPENAI_API_KEY=your_api_key_here
 export HOSTED_VLLM_API_BASE=http://localhost:8000 # changeme
 export HOSTED_VLLM_API_KEY=token-abc123           # optional depending on your vLLM setup
 
-# For other providers, check LiteLLM docs
+# For other providers, check LiteLLM docs.
 ```
 
 3. **Run PatchPal**:
@@ -68,14 +72,6 @@ patchpal
 ```
 
 ## Features
-
-### Context Awareness
-
-The agent is context-aware and knows:
-- **Current date and time**: The agent always knows today's date and current time, useful for:
-  - Searching for recent information (e.g., "latest React 2026 documentation")
-  - Understanding file timestamps relative to "now"
-  - Date-based queries (e.g., "what was released this month?")
 
 ### Tools
 
@@ -160,7 +156,7 @@ description: One-line description
 
 **Example Skills:**
 
-The PatchPal repository includes example skills you can use as templates:
+The PatchPal repository includes [example skills](https://github.com/amaiya/patchpal/tree/main/examples) you can use as templates:
 - **commit**: Best practices for creating git commits
 - **review**: Comprehensive code review checklist
 - **add-tests**: Add comprehensive pytest tests (includes code block templates)
@@ -243,6 +239,8 @@ PatchPal works with any model supported by LiteLLM, including:
 - **vLLM (Local)** (Recommended for local): See vLLM section for setup
 - **Google**: `gemini/gemini-pro`, `vertex_ai/gemini-pro`
 - **Others**: Cohere, Azure OpenAI, and many more
+
+Ollama models do not typically work well due to issues with tool-calling.
 
 See the [LiteLLM providers documentation](https://docs.litellm.ai/docs/providers) for the complete list.
 
