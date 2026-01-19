@@ -1,5 +1,6 @@
 """Context window management and token estimation."""
 
+import os
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -110,10 +111,16 @@ class TokenEstimator:
 class ContextManager:
     """Manage context window with auto-compaction and pruning."""
 
-    # OpenCode-inspired thresholds
-    PRUNE_PROTECT = 40_000  # Keep last 40k tokens of tool outputs
-    PRUNE_MINIMUM = 20_000  # Minimum tokens to prune to make it worthwhile
-    COMPACT_THRESHOLD = 0.85  # Compact at 85% capacity
+    # OpenCode-inspired thresholds - configurable via environment variables
+    PRUNE_PROTECT = int(
+        os.getenv("PATCHPAL_PRUNE_PROTECT", "40000")
+    )  # Keep last 40k tokens of tool outputs
+    PRUNE_MINIMUM = int(
+        os.getenv("PATCHPAL_PRUNE_MINIMUM", "20000")
+    )  # Minimum tokens to prune to make it worthwhile
+    COMPACT_THRESHOLD = float(
+        os.getenv("PATCHPAL_COMPACT_THRESHOLD", "0.85")
+    )  # Compact at 85% capacity
 
     # Model context limits (tokens)
     # Conservative estimates to account for model-specific formatting
@@ -163,9 +170,19 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
     def _get_context_limit(self) -> int:
         """Get context limit for model.
 
+        Can be overridden with PATCHPAL_CONTEXT_LIMIT env var for testing.
+
         Returns:
             Context window size in tokens
         """
+        # Allow override for testing
+        override = os.getenv("PATCHPAL_CONTEXT_LIMIT")
+        if override:
+            try:
+                return int(override)
+            except ValueError:
+                pass  # Fall through to normal detection
+
         model_lower = self.model_id.lower()
 
         # Try exact matches first

@@ -555,6 +555,9 @@ class PatchPalAgent:
             os.getenv("PATCHPAL_DISABLE_AUTOCOMPACT", "false").lower() != "true"
         )
 
+        # Track last compaction to prevent compaction loops
+        self._last_compaction_message_count = 0
+
         # LiteLLM settings for models that need parameter dropping
         self.litellm_kwargs = {}
         if self.model_id.startswith("bedrock/"):
@@ -572,10 +575,31 @@ class PatchPalAgent:
         This method is called when the context window reaches 85% capacity.
         It attempts pruning first, then full compaction if needed.
         """
+        # Don't compact if we have very few messages - compaction summary
+        # could be longer than the messages being removed
+        if len(self.messages) < 5:
+            print(
+                f"\033[2m   Skipping compaction - only {len(self.messages)} messages (need at least 5 for effective compaction)\033[0m"
+            )
+            return
+
+        # Prevent compaction loops - don't compact again if we just did
+        # and haven't added significant new messages
+        messages_since_last_compact = len(self.messages) - self._last_compaction_message_count
+        if self._last_compaction_message_count > 0 and messages_since_last_compact < 3:
+            # Just compacted recently and haven't added enough new context
+            print(
+                f"\033[2m   Skipping compaction - only {messages_since_last_compact} messages since last compact\033[0m"
+            )
+            return
+
         stats_before = self.context_manager.get_usage_stats(self.messages)
 
         print(
             f"\n\033[1;33m⚠️  Context window at {stats_before['usage_percent']}% capacity. Compacting...\033[0m"
+        )
+        print(
+            f"\033[2m   Current messages: {len(self.messages)}, Last compaction at: {self._last_compaction_message_count}\033[0m"
         )
 
         # Phase 1: Try pruning old tool outputs first
@@ -611,26 +635,47 @@ class PatchPalAgent:
             )
 
             # Replace message history with compacted version
-            # Keep: first user message + summary + last 2 messages (for continuity)
-            original_count = len(self.messages)
-            if len(self.messages) >= 3:
-                self.messages = [
-                    self.messages[0],  # Original user request
-                    summary_msg,  # Compaction summary
-                    *self.messages[-2:],  # Last 2 messages for continuity
-                ]
+            # Strategy: Keep summary + recent complete turns (preserve tool call/result pairs)
+            # This ensures Bedrock's strict message structure requirements are met
+
+            # Find complete assistant turns (assistant message + all its tool results)
+            # Walk backwards and keep complete turns
+            preserved_messages = []
+            i = len(self.messages) - 1
+            turns_kept = 0
+            max_turns_to_keep = 2  # Keep last 2 complete turns
+
+            while i >= 0 and turns_kept < max_turns_to_keep:
+                msg = self.messages[i]
+
+                if msg.get("role") == "user":
+                    # Found start of a turn, keep it and everything after
+                    preserved_messages = self.messages[i:]
+                    turns_kept += 1
+                    i -= 1
+                elif msg.get("role") == "assistant":
+                    # Keep going back to find all tool results for this assistant message
+                    i -= 1
+                elif msg.get("role") == "tool":
+                    # Part of current turn, keep going back
+                    i -= 1
+                else:
+                    i -= 1
+
+            if preserved_messages:
+                self.messages = [summary_msg] + preserved_messages
             else:
-                # Very short conversation - just add summary
+                # Fallback: keep all messages plus summary
                 self.messages = [summary_msg] + self.messages
 
             # Show results
             stats_after = self.context_manager.get_usage_stats(self.messages)
             print(
-                f"\033[1;32m✓ Context compacted: {original_count} messages → {len(self.messages)} messages\033[0m"
+                f"\033[1;32m✓ Compaction complete. Saved {stats_before['total_tokens'] - stats_after['total_tokens']:,} tokens ({stats_before['usage_percent']}% → {stats_after['usage_percent']}%)\033[0m\n"
             )
-            print(
-                f"\033[1;32m✓ Usage reduced: {stats_before['usage_percent']}% → {stats_after['usage_percent']}%\033[0m\n"
-            )
+
+            # Update last compaction tracker
+            self._last_compaction_message_count = len(self.messages)
 
         except Exception as e:
             # Compaction failed - warn but continue
@@ -651,6 +696,11 @@ class PatchPalAgent:
         """
         # Add user message to history
         self.messages.append({"role": "user", "content": user_message})
+
+        # Check for compaction BEFORE starting work
+        # This ensures we never compact mid-execution and lose tool results
+        if self.enable_auto_compact and self.context_manager.needs_compaction(self.messages):
+            self._perform_auto_compaction()
 
         # Agent loop
         for iteration in range(max_iterations):
@@ -838,22 +888,12 @@ class PatchPalAgent:
                 if operation_cancelled:
                     return "Operation cancelled by user."
 
-                # Check if context window needs compaction (after tools have been executed)
-                if self.enable_auto_compact and self.context_manager.needs_compaction(
-                    self.messages
-                ):
-                    self._perform_auto_compaction()
-
                 # Continue loop to let agent process tool results
+                # Compaction is handled at the start of the next user turn
                 continue
             else:
                 # No tool calls, agent is done
-                # Check if we need compaction before returning (final response might be large)
-                if self.enable_auto_compact and self.context_manager.needs_compaction(
-                    self.messages
-                ):
-                    self._perform_auto_compaction()
-
+                # Return immediately - compaction will happen at start of next user turn
                 return assistant_message.content or "Task completed"
 
         # Max iterations reached

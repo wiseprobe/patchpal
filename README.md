@@ -597,6 +597,32 @@ export PATCHPAL_COMPACT_THRESHOLD=0.90
 # Adjust pruning thresholds
 export PATCHPAL_PRUNE_PROTECT=40000   # Keep last 40k tokens (default)
 export PATCHPAL_PRUNE_MINIMUM=20000   # Min tokens to prune (default)
+
+# Override context limit for testing (useful for testing compaction with small values)
+export PATCHPAL_CONTEXT_LIMIT=10000   # Force 10k token limit instead of model default
+```
+
+**Testing Context Management:**
+
+You can test the context management system with small values to trigger compaction quickly:
+
+```bash
+# Set up small context window for testing
+export PATCHPAL_CONTEXT_LIMIT=10000      # Force 10k token limit (instead of 200k for Claude)
+export PATCHPAL_COMPACT_THRESHOLD=0.10   # Trigger at 10% (instead of 85%)
+export PATCHPAL_PRUNE_PROTECT=1000       # Keep only last 1k tokens
+export PATCHPAL_PRUNE_MINIMUM=500        # Prune if we can save 500+ tokens
+
+# Start PatchPal and watch it compact quickly
+patchpal
+
+# Generate context with tool calls
+You: list all python files
+You: read the main file
+You: search for "context" in all files
+
+# Check status - should show compaction happening
+You: /status
 ```
 
 **How It Works:**
