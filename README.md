@@ -1,4 +1,4 @@
-# PatchPal — A Lean Claude Code–Style Agent in Python
+# PatchPal — A Claude Code–Style Agent in Python
 
 <!--![PatchPal Screenshot](patchpal_screenshot.png)-->
 <img src="patchpal_screenshot.png" alt="PatchPal Screenshot" width="650"/>
