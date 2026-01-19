@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 import litellm
+from rich.console import Console
+from rich.markdown import Markdown
 
 from patchpal.tools import (
     apply_patch,
@@ -601,9 +603,12 @@ class PatchPalAgent:
 
             # Check if there are tool calls
             if hasattr(assistant_message, "tool_calls") and assistant_message.tool_calls:
-                # Print explanation text before executing tools
+                # Print explanation text before executing tools (render as markdown)
                 if assistant_message.content and assistant_message.content.strip():
-                    print(f"\n{assistant_message.content}\n", flush=True)
+                    console = Console()
+                    print()  # Blank line before markdown
+                    console.print(Markdown(assistant_message.content))
+                    print()  # Blank line after markdown
 
                 # Track if any operation was cancelled
                 operation_cancelled = False

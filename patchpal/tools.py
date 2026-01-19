@@ -87,8 +87,8 @@ MAX_WEB_CONTENT_SIZE = int(
     os.getenv("PATCHPAL_MAX_WEB_SIZE", 5 * 1024 * 1024)
 )  # 5MB download limit
 MAX_WEB_CONTENT_CHARS = int(
-    os.getenv("PATCHPAL_MAX_WEB_CHARS", 500_000)
-)  # 500k chars (~125k tokens)
+    os.getenv("PATCHPAL_MAX_WEB_CHARS", 100_000)
+)  # 100k chars (~25k tokens) - reduced to prevent context overflow
 WEB_USER_AGENT = f"PatchPal/{__version__} (AI Code Assistant)"
 
 # Shell command configuration
