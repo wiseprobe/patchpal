@@ -5,7 +5,7 @@
 
 > A lightweight clone of Claude Code in Python -- supports both local and cloud LLMs.
 
-PatchPal is an AI coding assistant that helps you build software, debug issues, and automate tasks. Beyond code editing, it can generate and execute Python code for general problem-solving—from data analysis and visualization to web scraping and API interactions.
+PatchPal is an AI coding assistant that helps you build software, debug issues, and automate tasks. It goes beyond code editing—using built-in tools and generating executable Python code to solve problems ranging from data analysis and visualization to web scraping and API interactions.
 
 A key goal of this project is to approximate Claude Code's core functionality while remaining lightweight, accessible, and configurable, enabling learning, experimentation, and broad applicability across use cases.
 
