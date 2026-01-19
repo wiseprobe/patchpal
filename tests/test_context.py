@@ -1,5 +1,6 @@
 """Tests for context management and token estimation."""
 
+from patchpal.agent import create_agent
 from patchpal.context import ContextManager, TokenEstimator
 
 
@@ -262,3 +263,52 @@ class TestContextManagerIntegration:
         # Pruning should work
         pruned, saved = manager.prune_tool_outputs(messages)
         assert len(pruned) == len(messages)
+
+
+class TestAutoCompaction:
+    """Tests for auto-compaction in the agent."""
+
+    def test_agent_has_context_manager(self):
+        """Test that agent initializes with context manager."""
+        agent = create_agent("gpt-4")
+        assert agent.context_manager is not None
+        assert agent.enable_auto_compact is True
+
+    def test_agent_auto_compact_can_be_disabled(self):
+        """Test that auto-compaction can be disabled via env var."""
+        import os
+
+        original = os.environ.get("PATCHPAL_DISABLE_AUTOCOMPACT")
+        try:
+            os.environ["PATCHPAL_DISABLE_AUTOCOMPACT"] = "true"
+            agent = create_agent("gpt-4")
+            assert agent.enable_auto_compact is False
+        finally:
+            if original is None:
+                os.environ.pop("PATCHPAL_DISABLE_AUTOCOMPACT", None)
+            else:
+                os.environ["PATCHPAL_DISABLE_AUTOCOMPACT"] = original
+
+    def test_perform_auto_compaction_method_exists(self):
+        """Test that agent has _perform_auto_compaction method."""
+        agent = create_agent("gpt-4")
+        assert hasattr(agent, "_perform_auto_compaction")
+        assert callable(agent._perform_auto_compaction)
+
+    def test_compaction_preserves_message_structure(self):
+        """Test that compaction maintains valid message structure."""
+        manager = ContextManager("gpt-4", "System prompt")
+
+        # Create messages that would trigger compaction
+        messages = [
+            {"role": "user", "content": "Start"},
+            {"role": "assistant", "content": "Response"},
+            {"role": "user", "content": "Continue"},
+            {"role": "assistant", "content": "Another response"},
+        ]
+
+        # Test that pruning preserves structure
+        pruned, _ = manager.prune_tool_outputs(messages)
+        assert len(pruned) == len(messages)
+        assert all("role" in msg for msg in pruned)
+        assert all("content" in msg for msg in pruned)

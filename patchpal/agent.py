@@ -566,6 +566,79 @@ class PatchPalAgent:
             # Custom OpenAI-compatible servers (vLLM, etc.) often don't support all parameters
             self.litellm_kwargs["drop_params"] = True
 
+    def _perform_auto_compaction(self):
+        """Perform automatic context window compaction.
+
+        This method is called when the context window reaches 85% capacity.
+        It attempts pruning first, then full compaction if needed.
+        """
+        stats_before = self.context_manager.get_usage_stats(self.messages)
+
+        print(
+            f"\n\033[1;33m⚠️  Context window at {stats_before['usage_percent']}% capacity. Compacting...\033[0m"
+        )
+
+        # Phase 1: Try pruning old tool outputs first
+        pruned_messages, tokens_saved = self.context_manager.prune_tool_outputs(self.messages)
+
+        if tokens_saved > 0:
+            self.messages = pruned_messages
+            print(
+                f"\033[2m   Pruned old tool outputs (saved ~{tokens_saved:,} tokens)\033[0m",
+                flush=True,
+            )
+
+            # Check if pruning was enough
+            if not self.context_manager.needs_compaction(self.messages):
+                stats_after = self.context_manager.get_usage_stats(self.messages)
+                print(
+                    f"\033[1;32m✓ Context reduced to {stats_after['usage_percent']}% through pruning\033[0m\n"
+                )
+                return
+
+        # Phase 2: Full compaction needed
+        print("\033[2m   Generating conversation summary...\033[0m", flush=True)
+
+        try:
+            # Create compaction using the LLM
+            summary_msg, summary_text = self.context_manager.create_compaction(
+                self.messages,
+                lambda msgs: litellm.completion(
+                    model=self.model_id,
+                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + msgs,
+                    **self.litellm_kwargs,
+                ),
+            )
+
+            # Replace message history with compacted version
+            # Keep: first user message + summary + last 2 messages (for continuity)
+            original_count = len(self.messages)
+            if len(self.messages) >= 3:
+                self.messages = [
+                    self.messages[0],  # Original user request
+                    summary_msg,  # Compaction summary
+                    *self.messages[-2:],  # Last 2 messages for continuity
+                ]
+            else:
+                # Very short conversation - just add summary
+                self.messages = [summary_msg] + self.messages
+
+            # Show results
+            stats_after = self.context_manager.get_usage_stats(self.messages)
+            print(
+                f"\033[1;32m✓ Context compacted: {original_count} messages → {len(self.messages)} messages\033[0m"
+            )
+            print(
+                f"\033[1;32m✓ Usage reduced: {stats_before['usage_percent']}% → {stats_after['usage_percent']}%\033[0m\n"
+            )
+
+        except Exception as e:
+            # Compaction failed - warn but continue
+            print(f"\033[1;31m✗ Compaction failed: {e}\033[0m")
+            print(
+                "\033[1;33m   Continuing without compaction. Consider starting a new session.\033[0m\n"
+            )
+
     def run(self, user_message: str, max_iterations: int = 100) -> str:
         """Run the agent on a user message.
 
@@ -765,10 +838,22 @@ class PatchPalAgent:
                 if operation_cancelled:
                     return "Operation cancelled by user."
 
+                # Check if context window needs compaction (after tools have been executed)
+                if self.enable_auto_compact and self.context_manager.needs_compaction(
+                    self.messages
+                ):
+                    self._perform_auto_compaction()
+
                 # Continue loop to let agent process tool results
                 continue
             else:
                 # No tool calls, agent is done
+                # Check if we need compaction before returning (final response might be large)
+                if self.enable_auto_compact and self.context_manager.needs_compaction(
+                    self.messages
+                ):
+                    self._perform_auto_compaction()
+
                 return assistant_message.content or "Task completed"
 
         # Max iterations reached
