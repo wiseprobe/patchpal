@@ -599,7 +599,12 @@ class PatchPalAgent:
             f"\n\033[1;33m⚠️  Context window at {stats_before['usage_percent']}% capacity. Compacting...\033[0m"
         )
         print(
-            f"\033[2m   Current messages: {len(self.messages)}, Last compaction at: {self._last_compaction_message_count}\033[0m"
+            f"\033[2m   Current: {stats_before['total_tokens']:,} / {stats_before['context_limit']:,} tokens "
+            f"(system: {stats_before['system_tokens']:,}, messages: {stats_before['message_tokens']:,}, "
+            f"output reserve: {stats_before['output_reserve']:,})\033[0m"
+        )
+        print(
+            f"\033[2m   Messages: {len(self.messages)} total, last compaction at message {self._last_compaction_message_count}\033[0m"
         )
 
         # Phase 1: Try pruning old tool outputs first
@@ -616,7 +621,8 @@ class PatchPalAgent:
             if not self.context_manager.needs_compaction(self.messages):
                 stats_after = self.context_manager.get_usage_stats(self.messages)
                 print(
-                    f"\033[1;32m✓ Context reduced to {stats_after['usage_percent']}% through pruning\033[0m\n"
+                    f"\033[1;32m✓ Context reduced to {stats_after['usage_percent']}% through pruning "
+                    f"({stats_after['total_tokens']:,} tokens)\033[0m\n"
                 )
                 return
 
