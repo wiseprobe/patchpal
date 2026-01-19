@@ -199,10 +199,10 @@ Supported models: Any LiteLLM-supported model
     if custom_prompt_path:
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
 
-    print("\nType 'exit' or press Ctrl-C to quit.")
+    print("\nType 'exit' to quit.")
     print("Use '/status' to check context window usage.")
     print("Use 'list skills' or /skillname to invoke skills.")
-    print("Press Ctrl-C during execution to interrupt the agent.\n")
+    print("Press Ctrl-C during agent execution to interrupt the agent.\n")
 
     while True:
         try:
@@ -369,9 +369,12 @@ Supported models: Any LiteLLM-supported model
                 continue
 
         except KeyboardInterrupt:
-            # Ctrl-C during input prompt - exit the program
-            print("\n\nGoodbye!")
-            break
+            # Ctrl-C during input prompt - show message instead of exiting
+            print("\n\n\033[1;33mUse 'exit' to quit PatchPal.\033[0m")
+            print(
+                "\033[2m(Ctrl-C is reserved for interrupting the agent during execution)\033[0m\n"
+            )
+            continue
         except Exception as e:
             print(f"\n\033[1;31mError:\033[0m {e}")
             print("Please try again or type 'exit' to quit.")
