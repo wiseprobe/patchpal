@@ -76,21 +76,36 @@ class TestContextManager:
 
     def test_get_context_limit(self):
         """Test context limit detection for different models."""
-        # Claude models
-        manager = ContextManager("anthropic/claude-sonnet-4", "test")
-        assert manager.context_limit == 200_000
+        import os
 
-        # GPT-4 models
-        manager = ContextManager("openai/gpt-4o", "test")
-        assert manager.context_limit == 128_000
+        # Save original env var
+        original_limit = os.environ.get("PATCHPAL_CONTEXT_LIMIT")
 
-        # GPT-3.5
-        manager = ContextManager("openai/gpt-3.5-turbo", "test")
-        assert manager.context_limit == 16_385
+        try:
+            # Clear any test override
+            if "PATCHPAL_CONTEXT_LIMIT" in os.environ:
+                del os.environ["PATCHPAL_CONTEXT_LIMIT"]
 
-        # Unknown model - should use conservative default
-        manager = ContextManager("unknown/model", "test")
-        assert manager.context_limit == 128_000
+            # Claude models
+            manager = ContextManager("anthropic/claude-sonnet-4", "test")
+            assert manager.context_limit == 200_000
+
+            # GPT-4 models
+            manager = ContextManager("openai/gpt-4o", "test")
+            assert manager.context_limit == 128_000
+
+            # GPT-3.5
+            manager = ContextManager("openai/gpt-3.5-turbo", "test")
+            assert manager.context_limit == 16_385
+
+            # Unknown model - should use conservative default
+            manager = ContextManager("unknown/model", "test")
+            assert manager.context_limit == 128_000
+
+        finally:
+            # Restore original env var
+            if original_limit is not None:
+                os.environ["PATCHPAL_CONTEXT_LIMIT"] = original_limit
 
     def test_get_usage_stats(self):
         """Test getting usage statistics."""
