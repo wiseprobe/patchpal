@@ -363,7 +363,7 @@ Different models require different parsers. Common parsers include: `qwen3_xml`,
 
 #### Ollama
 
-We find that Ollama models do not work well in agentic settings. For instance, while [gpt-oss-20b](https://huggingface.co/openai/gpt-oss-20b) works well in vLLM, the [Ollama versison](https://ollama.com/library/gpt-oss) of the same model performs poorly. vLLM is recommended for local deployments.
+We find that Ollama models do not work well in agentic settings. For instance, while [gpt-oss-20b](https://huggingface.co/openai/gpt-oss-20b) works well in vLLM, the [Ollama version](https://ollama.com/library/gpt-oss) of the same model performs poorly. vLLM is recommended for local deployments.
 
 **Examples:**
 
@@ -391,7 +391,7 @@ patchpal --model hosted_vllm/openai/gpt-oss-20b
 
 When web tools are disabled:
 - `web_search` and `web_fetch` are removed from available tools
-- The agent won't attempt any network requests
+- With a local model, the agent won't attempt any network requests
 - Perfect for secure, isolated, or offline development environments
 
 ### Viewing Help
@@ -430,12 +430,13 @@ The agent will process your request and show you the results. You can continue w
 ## Example Tasks
 
 ```
+Add GitHub CI/CD for this project
+Build a streamlit app to ...
 Add type hints and basic logging to app.py
-Fix the divide by zero error in calculator.py
 Create unit tests for the utils module
 Refactor the authentication code for better security
 Add error handling to all API calls
-Search for solutions to this error message: "ModuleNotFoundError: requests"
+Search for solutions to this error message: "UnicodeDecodeError: 'charmap' codec can't decode"
 Find and implement best practices for async/await in Python
 Look up the latest FastAPI documentation and add dependency injection
 ```
@@ -454,7 +455,7 @@ The agent operates with a security model inspired by Claude Code:
 - **Dangerous pattern detection**: Blocks patterns like `> /dev/`, `rm -rf /`, `| dd`, `--force`
 - **Timeout protection**: Shell commands timeout after 30 seconds
 
-### Enhanced Security Guardrails ✅ FULLY ENABLED
+### Security Guardrails ✅ FULLY ENABLED
 
 PatchPal includes comprehensive security protections enabled by default:
 
@@ -550,104 +551,6 @@ Format:
 
 <!--**Test coverage:** 131 tests including 38 dedicated security tests and 11 skills tests-->
 
-## Development
-
-### Quick Start
-
-Install in development mode with dev dependencies:
-
-```bash
-# Clone the repository
-git clone https://github.com/amaiya/patchpal.git
-cd patchpal
-
-# Install in development mode
-pip install -e ".[dev]"
-
-# Set up pre-commit hooks (recommended)
-pip install pre-commit
-pre-commit install
-```
-
-### Pre-commit Hooks
-
-Pre-commit hooks automatically check your code before each commit:
-
-- **Black** - Auto-formats code to maintain consistent style
-- **Ruff** - Lints and auto-fixes common issues
-- **Trailing whitespace** - Removes trailing whitespace
-- **End of file fixer** - Ensures files end with a newline
-- **YAML validation** - Checks YAML syntax
-- **Merge conflict detection** - Prevents committing merge conflicts
-
-**Run pre-commit manually:**
-```bash
-# Run on all files
-pre-commit run --all-files
-
-# Run on staged files only
-pre-commit run
-```
-
-**Skip pre-commit (not recommended):**
-```bash
-git commit --no-verify
-```
-
-### Code Quality Tools
-
-**Format code with Black:**
-```bash
-# Auto-format
-black patchpal tests
-
-# Check without modifying
-black --check patchpal tests
-```
-
-**Lint with Ruff:**
-```bash
-# Auto-fix issues
-ruff check --fix patchpal tests
-
-# Check without fixing
-ruff check patchpal tests
-```
-
-### Running Tests
-
-PatchPal includes a test suite that runs fairly quickly:
-
-```bash
-# Run all tests
-pytest
-
-# Run with verbose output
-pytest -v
-
-# Run specific test file
-pytest tests/test_tools.py
-
-# Run with coverage report
-pytest --cov=patchpal --cov-report=term-missing
-```
-
-```
-patchpal/
-├── __init__.py       - Package exports
-├── tools.py          - Tool implementations (file ops, grep, web, shell)
-├── agent.py          - Agent configuration and tool orchestration
-├── permissions.py    - Permission management system
-└── cli.py            - CLI entry point
-
-tests/
-├── __init__.py                   - Test package
-├── test_tools.py                 - Tests for tools module (42 tests)
-├── test_agent.py                 - Tests for agent module (15 tests)
-├── test_cli.py                   - Tests for CLI module (14 tests)
-├── test_guardrails.py            - Security guardrail tests (20 tests)
-└── test_operational_safety.py    - Operational safety tests (18 tests)
-```
 
 ## Troubleshooting
 
