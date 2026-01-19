@@ -190,7 +190,7 @@ Supported models: Any LiteLLM-supported model
     history = InMemoryHistory()
 
     print("=" * 80)
-    print("PatchPal - a lightweight, flexible Claude Code clone")
+    print("PatchPal - Claude Code–inspired coding and automation assistant")
     print("=" * 80)
     print(f"\nUsing model: {model_id}")
 

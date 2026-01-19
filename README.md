@@ -3,7 +3,7 @@
 <!--![PatchPal Screenshot](patchpal_screenshot.png)-->
 <img src="patchpal_screenshot.png" alt="PatchPal Screenshot" width="650"/>
 
-> A lightweight clone of Claude Code in Python -- supports both local and cloud LLMs.
+> A lightweight Claude Code–inspired coding and automation assistant -- supports both local and cloud LLMs.
 
 PatchPal is an AI coding assistant that helps you build software, debug issues, and automate tasks. It goes beyond code editing—using built-in tools and generating executable Python code to solve problems ranging from data analysis and visualization to web scraping and API interactions.
 
