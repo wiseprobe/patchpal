@@ -200,6 +200,7 @@ Supported models: Any LiteLLM-supported model
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
 
     print("\nType 'exit' or press Ctrl-C to quit.")
+    print("Use '/status' to check context window usage.")
     print("Use 'list skills' or /skillname to invoke skills.")
     print("Press Ctrl-C during execution to interrupt the agent.\n")
 
@@ -231,6 +232,48 @@ Supported models: Any LiteLLM-supported model
             if user_input.lower() in ["exit", "quit", "q"]:
                 print("\nGoodbye!")
                 break
+
+            # Handle /status command - show context window usage
+            if user_input.lower() in ["status", "/status"]:
+                stats = agent.context_manager.get_usage_stats(agent.messages)
+
+                print("\n" + "=" * 70)
+                print("\033[1;36mContext Window Status\033[0m")
+                print("=" * 70)
+                print(f"  Model: {model_id}")
+                print(f"  Messages in history: {len(agent.messages)}")
+                print(f"  System prompt: {stats['system_tokens']:,} tokens")
+                print(f"  Conversation: {stats['message_tokens']:,} tokens")
+                print(f"  Output reserve: {stats['output_reserve']:,} tokens")
+                print(f"  Total: {stats['total_tokens']:,} / {stats['context_limit']:,} tokens")
+                print(f"  Usage: {stats['usage_percent']}%")
+
+                # Visual progress bar
+                bar_width = 50
+                filled = int(bar_width * stats["usage_ratio"])
+                empty = bar_width - filled
+                bar = "█" * filled + "░" * empty
+
+                # Color based on usage
+                if stats["usage_ratio"] < 0.7:
+                    color = "\033[32m"  # Green
+                elif stats["usage_ratio"] < 0.85:
+                    color = "\033[33m"  # Yellow
+                else:
+                    color = "\033[31m"  # Red
+
+                print(f"  {color}[{bar}]\033[0m")
+
+                # Show auto-compaction status
+                if agent.enable_auto_compact:
+                    print("\n  Auto-compaction: \033[32mEnabled\033[0m (triggers at 85%)")
+                else:
+                    print(
+                        "\n  Auto-compaction: \033[33mDisabled\033[0m (set PATCHPAL_DISABLE_AUTOCOMPACT=false to enable)"
+                    )
+
+                print("=" * 70 + "\n")
+                continue
 
             # Skip empty input
             if not user_input:

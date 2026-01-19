@@ -557,3 +557,75 @@ Format:
 **Error: "maximum iterations reached"**
 - The default number of iterations is 100.
 - You can increase by setting the environment variable, `export PATCHPAL_MAX_ITERATIONS`
+
+**Error: "Context Window Error - Input is too long"**
+- PatchPal includes automatic context management (compaction) to prevent this error.
+- Use `/status` to check your context window usage.
+- If auto-compaction is disabled, re-enable it: `unset PATCHPAL_DISABLE_AUTOCOMPACT`
+- Context is automatically managed at 85% capacity through pruning and compaction.
+
+## Context Management
+
+PatchPal automatically manages the context window to prevent "input too long" errors during long coding sessions.
+
+**Features:**
+- **Automatic token tracking**: Monitors context usage in real-time
+- **Smart pruning**: Removes old tool outputs (keeps last 40k tokens) before resorting to full compaction
+- **Auto-compaction**: Summarizes conversation history when approaching 85% capacity
+- **Manual control**: Check status with `/status`, disable with environment variable
+
+**Commands:**
+```bash
+# Check context window usage
+You: /status
+
+# Output shows:
+# - Messages in history
+# - Token usage breakdown
+# - Visual progress bar
+# - Auto-compaction status
+```
+
+**Configuration:**
+```bash
+# Disable auto-compaction (not recommended for long sessions)
+export PATCHPAL_DISABLE_AUTOCOMPACT=true
+
+# Adjust compaction threshold (default: 0.85 = 85%)
+export PATCHPAL_COMPACT_THRESHOLD=0.90
+
+# Adjust pruning thresholds
+export PATCHPAL_PRUNE_PROTECT=40000   # Keep last 40k tokens (default)
+export PATCHPAL_PRUNE_MINIMUM=20000   # Min tokens to prune (default)
+```
+
+**How It Works:**
+
+1. **Phase 1 - Pruning**: When context fills up, old tool outputs are pruned first
+   - Keeps last 40k tokens of tool outputs protected
+   - Only prunes if it saves >20k tokens
+   - Pruning is transparent and fast
+
+2. **Phase 2 - Compaction**: If pruning isn't enough, full compaction occurs
+   - LLM summarizes the entire conversation
+   - Summary replaces old messages
+   - Work continues seamlessly from the summary
+
+**Example:**
+```
+Context Window Status
+======================================================================
+  Model: anthropic/claude-sonnet-4-5
+  Messages in history: 47
+  System prompt: 15,234 tokens
+  Conversation: 142,567 tokens
+  Output reserve: 4,096 tokens
+  Total: 161,897 / 200,000 tokens
+  Usage: 80%
+  [████████████████████████████████████████░░░░░░░░░]
+
+  Auto-compaction: Enabled (triggers at 85%)
+======================================================================
+```
+
+The system ensures you can work for extended periods without hitting context limits.

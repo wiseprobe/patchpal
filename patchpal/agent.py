@@ -11,6 +11,7 @@ import litellm
 from rich.console import Console
 from rich.markdown import Markdown
 
+from patchpal.context import ContextManager
 from patchpal.tools import (
     apply_patch,
     edit_file,
@@ -545,6 +546,14 @@ class PatchPalAgent:
 
         # Conversation history (list of message dicts)
         self.messages: List[Dict[str, Any]] = []
+
+        # Initialize context manager
+        self.context_manager = ContextManager(self.model_id, SYSTEM_PROMPT)
+
+        # Check if auto-compaction is enabled (default: True)
+        self.enable_auto_compact = (
+            os.getenv("PATCHPAL_DISABLE_AUTOCOMPACT", "false").lower() != "true"
+        )
 
         # LiteLLM settings for models that need parameter dropping
         self.litellm_kwargs = {}
