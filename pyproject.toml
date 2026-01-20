@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "patchpal"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A lean Claude Code clone in pure  Python"
 readme = "README.md"
 authors = [
@@ -53,6 +53,9 @@ patchpal = "patchpal.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["patchpal*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "patchpal.__version__"}
 
 [tool.ruff]
 line-length = 100
