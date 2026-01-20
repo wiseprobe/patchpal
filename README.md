@@ -33,7 +33,7 @@ pip install patchpal
    - **[Cloud]** For Anthropic models (default): Sign up at https://console.anthropic.com/
    - **[Cloud]** For OpenAI models: Get a key from https://platform.openai.com/
    - **[Local]** For vLLM: Install from https://docs.vllm.ai/ (free - no API charges) **Recommended for Local Use**
-   - **[Local]** For Ollama: Install from https://ollama.com/ (⚠️ not well-suited for agents - use vLLM)
+   - **[Local]** For Ollama: Install from https://ollama.com/ (⚠️ requires `OLLAMA_CONTEXT_LENGTH=32768` - see Ollama section below)
    - For other providers: Check the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
 
 2. **Set up your API key as environment variable**:
@@ -67,8 +67,9 @@ export HOSTED_VLLM_API_BASE=http://localhost:8000
 export HOSTED_VLLM_API_KEY=token-abc123
 patchpal --model hosted_vllm/openai/gpt-oss-20b
 
-# Use Ollama (local, ⚠️ not recommended - use vLLM)
-patchpal --model ollama_chat/qwen3:32b # vLLM is better for agents
+# Use Ollama (local - requires OLLAMA_CONTEXT_LENGTH=32768)
+export OLLAMA_CONTEXT_LENGTH=32768
+patchpal --model ollama_chat/qwen3:32b
 
 # Or set the model via environment variable
 export PATCHPAL_MODEL=openai/gpt-5
@@ -365,14 +366,86 @@ Different models require different parsers. Common parsers include: `qwen3_xml`,
 
 #### Ollama
 
-We find that Ollama models do not work well in agentic settings. For instance, while [gpt-oss-20b](https://huggingface.co/openai/gpt-oss-20b) works well in vLLM, the [Ollama version](https://ollama.com/library/gpt-oss) of the same model performs poorly. vLLM is recommended for local deployments.
+Ollama v0.14+ supports tool calling for agentic workflows. However, proper configuration is **critical** for reliable operation.
+
+**Requirements:**
+
+1. **Ollama v0.14.0 or later** - Required for tool calling support
+2. **Sufficient context window** - Default 4096 tokens is too small; increase to at least 32K
+
+**Setup Instructions:**
+
+**For Native Ollama Installation:**
+
+```bash
+# Set context window size (required!)
+export OLLAMA_CONTEXT_LENGTH=32768
+
+# Start Ollama server
+ollama serve
+
+# In another terminal, use with PatchPal
+patchpal --model ollama_chat/gpt-oss:20b
+```
+
+**For Docker:**
+
+```bash
+# Stop existing container (if running)
+docker stop ollama
+docker rm ollama
+
+# Start with proper configuration
+docker run -d \
+  -e OLLAMA_CONTEXT_LENGTH=32768 \
+  -v ollama:/root/.ollama \
+  -p 11434:11434 \
+  --name ollama \
+  ollama/ollama
+
+# Verify configuration
+docker exec -it ollama ollama run gpt-oss:20b
+# In the Ollama prompt, type: /show parameters
+# Should show num_ctx much larger than default 4096
+
+# Use with PatchPal
+patchpal --model ollama_chat/gpt-oss:20b
+```
+
+**Verifying Context Window Size:**
+
+```bash
+# Check your Ollama container configuration
+docker inspect ollama | grep OLLAMA_CONTEXT_LENGTH
+
+# Or run a model and check parameters
+docker exec -it ollama ollama run gpt-oss:20b
+>>> /show parameters
+```
+
+**Recommended Models for Tool Calling:**
+
+- `gpt-oss:20b` - OpenAI's open-source model, excellent tool calling
+- `qwen3:32b` - Qwen3 model with good agentic capabilities
+- `qwen3-coder` - Specialized for coding tasks
+
+**Performance Note:**
+
+While Ollama now works with proper configuration, vLLM is still recommended for production use due to:
+- 3-10x faster inference
+- More robust tool calling implementation
+- Better memory management
 
 **Examples:**
 
 ```bash
-patchpal --model ollama_chat/qwen3:32b          # local model: performs poorly
-patchpal --model ollama_chat/gpt-oss:20b        # local model: performs poorly
-patchpal --model hosted_vllm/openai/gpt-oss-20b # local model: performs well
+# Ollama (works with proper configuration)
+export OLLAMA_CONTEXT_LENGTH=32768
+patchpal --model ollama_chat/qwen3:32b
+patchpal --model ollama_chat/gpt-oss:20b
+
+# vLLM (recommended for production)
+patchpal --model hosted_vllm/openai/gpt-oss-20b
 ```
 
 ### Air-Gapped and Offline Environments

@@ -540,6 +540,22 @@ class PatchPalAgent:
 
         self.model_id = _normalize_bedrock_model_id(model_id)
 
+        # Register Ollama models as supporting native function calling
+        # LiteLLM defaults to JSON mode if not explicitly registered
+        if self.model_id.startswith("ollama_chat/"):
+            # Suppress verbose output from register_model
+            import sys
+            from io import StringIO
+
+            old_stdout = sys.stdout
+            sys.stdout = StringIO()
+            try:
+                litellm.register_model(
+                    {"model_cost": {self.model_id: {"supports_function_calling": True}}}
+                )
+            finally:
+                sys.stdout = old_stdout
+
         # Set up Bedrock environment if needed
         if self.model_id.startswith("bedrock/"):
             _setup_bedrock_env()
