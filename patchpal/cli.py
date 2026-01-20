@@ -200,7 +200,7 @@ Supported models: Any LiteLLM-supported model
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
 
     print("\nType 'exit' to quit.")
-    print("Use '/status' to check context window usage.")
+    print("Use '/status' to check context window usage, '/compact' to manually compact.")
     print("Use 'list skills' or /skillname to invoke skills.")
     print("Press Ctrl-C during agent execution to interrupt the agent.\n")
 
@@ -304,6 +304,72 @@ Supported models: Any LiteLLM-supported model
                 else:
                     print(
                         "\n  Auto-compaction: \033[33mDisabled\033[0m (set PATCHPAL_DISABLE_AUTOCOMPACT=false to enable)"
+                    )
+
+                print("=" * 70 + "\n")
+                continue
+
+            # Handle /compact command - manually trigger compaction
+            if user_input.lower() in ["compact", "/compact"]:
+                print("\n" + "=" * 70)
+                print("\033[1;36mManual Compaction\033[0m")
+                print("=" * 70)
+
+                # Check if auto-compaction is disabled
+                if not agent.enable_auto_compact:
+                    print(
+                        "\033[1;33m⚠️  Auto-compaction is disabled (PATCHPAL_DISABLE_AUTOCOMPACT=true)\033[0m"
+                    )
+                    print("\033[1;33m   Manual compaction will still work.\033[0m\n")
+
+                # Check current status
+                stats_before = agent.context_manager.get_usage_stats(agent.messages)
+                print(
+                    f"  Current usage: {stats_before['usage_percent']}% "
+                    f"({stats_before['total_tokens']:,} / {stats_before['context_limit']:,} tokens)"
+                )
+                print(f"  Messages: {len(agent.messages)} in history")
+
+                # Check if compaction is needed
+                if len(agent.messages) < 5:
+                    print("\n\033[1;33m⚠️  Not enough messages to compact (need at least 5)\033[0m")
+                    print("=" * 70 + "\n")
+                    continue
+
+                if stats_before["usage_ratio"] < 0.5:
+                    print(
+                        "\n\033[1;33m⚠️  Context usage is below 50% - compaction not recommended\033[0m"
+                    )
+                    print("\033[2m   Compaction works best when context is >50% full.\033[0m")
+                    # Ask for confirmation
+                    try:
+                        confirm = pt_prompt(
+                            FormattedText([("ansiyellow", "   Compact anyway? (y/n): "), ("", "")])
+                        ).strip()
+                        if confirm.lower() not in ["y", "yes"]:
+                            print("=" * 70 + "\n")
+                            continue
+                    except KeyboardInterrupt:
+                        print("\n  Cancelled.")
+                        print("=" * 70 + "\n")
+                        continue
+
+                print("\n  Compacting conversation history...")
+                agent._perform_auto_compaction()
+
+                # Show results
+                stats_after = agent.context_manager.get_usage_stats(agent.messages)
+                if stats_after["total_tokens"] < stats_before["total_tokens"]:
+                    saved = stats_before["total_tokens"] - stats_after["total_tokens"]
+                    print("\n\033[1;32m✓ Compaction successful!\033[0m")
+                    print(
+                        f"  Saved {saved:,} tokens "
+                        f"({stats_before['usage_percent']}% → {stats_after['usage_percent']}%)"
+                    )
+                    print(f"  Messages: {len(agent.messages)} in history")
+                else:
+                    print(
+                        "\n\033[1;33m⚠️  No tokens saved - compaction may not have been effective\033[0m"
                     )
 
                 print("=" * 70 + "\n")

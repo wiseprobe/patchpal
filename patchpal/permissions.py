@@ -141,7 +141,7 @@ class PermissionManager:
             sys.stderr.write(f"  2. Yes, and don't ask again this session for '{pattern}'\n")
         else:
             sys.stderr.write(f"  2. Yes, and don't ask again this session for {tool_name}\n")
-        sys.stderr.write("  3. No\n")
+        sys.stderr.write("  3. No, and tell me what to do differently\n")
         sys.stderr.flush()
 
         while True:

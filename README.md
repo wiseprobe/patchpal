@@ -413,9 +413,10 @@ PatchPal - Claude Code Clone
 
 Using model: anthropic/claude-sonnet-4-5
 
-Type 'exit' or press Ctrl-C to quit.
+Type 'exit' to quit.
+Use '/status' to check context window usage, '/compact' to manually compact.
 Use 'list skills' or /skillname to invoke skills.
-Press Ctrl-C during execution to interrupt the agent.
+Press Ctrl-C during agent execution to interrupt the agent.
 
 You: Add type hints and basic logging to my_module.py
 ```
@@ -536,7 +537,7 @@ Run Shell
 Do you want to proceed?
   1. Yes
   2. Yes, and don't ask again this session for 'pytest'
-  3. No
+  3. No, and tell me what to do differently
 
 Choice [1-3]:
 ```
@@ -584,6 +585,15 @@ You: /status
 # - Token usage breakdown
 # - Visual progress bar
 # - Auto-compaction status
+
+# Manually trigger compaction
+You: /compact
+
+# Useful when:
+# - You want to free up context space before a large operation
+# - Testing compaction behavior
+# - Context is getting full but hasn't auto-compacted yet
+# Note: Requires at least 5 messages; most effective when context >50% full
 ```
 
 **Configuration:**
