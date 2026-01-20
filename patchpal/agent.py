@@ -894,12 +894,23 @@ class PatchPalAgent:
                 if operation_cancelled:
                     return "Operation cancelled by user."
 
+                # Check if context window needs compaction after tool results are added
+                # This prevents context from ballooning within a single turn (e.g., reading large files)
+                if self.enable_auto_compact and self.context_manager.needs_compaction(
+                    self.messages
+                ):
+                    self._perform_auto_compaction()
+
                 # Continue loop to let agent process tool results
-                # Compaction is handled at the start of the next user turn
                 continue
             else:
                 # No tool calls, agent is done
-                # Return immediately - compaction will happen at start of next user turn
+                # Check if we need compaction before returning (final response might be large)
+                if self.enable_auto_compact and self.context_manager.needs_compaction(
+                    self.messages
+                ):
+                    self._perform_auto_compaction()
+
                 return assistant_message.content or "Task completed"
 
         # Max iterations reached

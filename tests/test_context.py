@@ -285,28 +285,58 @@ class TestContextManager:
 
     def test_needs_compaction_below_threshold(self):
         """Test compaction detection when below threshold."""
-        manager = ContextManager("gpt-4", "Short prompt")
-        messages = [
-            {"role": "user", "content": "Hello!"},
-            {"role": "assistant", "content": "Hi!"},
-        ]
+        import os
 
-        # Should not need compaction with small messages
-        assert not manager.needs_compaction(messages)
+        # Save original env var
+        original_limit = os.environ.get("PATCHPAL_CONTEXT_LIMIT")
+
+        try:
+            # Clear any test override to use actual GPT-4 limit
+            if "PATCHPAL_CONTEXT_LIMIT" in os.environ:
+                del os.environ["PATCHPAL_CONTEXT_LIMIT"]
+
+            manager = ContextManager("gpt-4", "Short prompt")
+            messages = [
+                {"role": "user", "content": "Hello!"},
+                {"role": "assistant", "content": "Hi!"},
+            ]
+
+            # Should not need compaction with small messages
+            assert not manager.needs_compaction(messages)
+
+        finally:
+            # Restore original env var
+            if original_limit is not None:
+                os.environ["PATCHPAL_CONTEXT_LIMIT"] = original_limit
 
     def test_needs_compaction_above_threshold(self):
         """Test compaction detection when above threshold."""
-        manager = ContextManager("gpt-4", "Short prompt")
+        import os
 
-        # Create messages that fill the context window
-        # GPT-4 has 8000 token limit (original), 85% = 6800 tokens
-        # Create large message to exceed threshold
-        large_text = "x" * 30_000  # ~7500 tokens (4 chars per token)
+        # Save original env var
+        original_limit = os.environ.get("PATCHPAL_CONTEXT_LIMIT")
 
-        messages = [{"role": "user", "content": large_text}]
+        try:
+            # Clear any test override to use actual GPT-4 limit (8000 tokens)
+            if "PATCHPAL_CONTEXT_LIMIT" in os.environ:
+                del os.environ["PATCHPAL_CONTEXT_LIMIT"]
 
-        # Should need compaction
-        assert manager.needs_compaction(messages)
+            manager = ContextManager("gpt-4", "Short prompt")
+
+            # Create messages that fill the context window
+            # GPT-4 has 8000 token limit (original), 85% = 6800 tokens
+            # Create large message to exceed threshold
+            large_text = "x" * 30_000  # ~7500 tokens (4 chars per token)
+
+            messages = [{"role": "user", "content": large_text}]
+
+            # Should need compaction
+            assert manager.needs_compaction(messages)
+
+        finally:
+            # Restore original env var
+            if original_limit is not None:
+                os.environ["PATCHPAL_CONTEXT_LIMIT"] = original_limit
 
     def test_prune_tool_outputs_no_pruning_needed(self):
         """Test pruning when no pruning is needed."""
