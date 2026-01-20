@@ -5,9 +5,9 @@
 
 > A lightweight Claude Code–inspired coding and automation assistant -- supports both local and cloud LLMs.
 
-**PatchPal** is an AI coding assistant that helps you build software, debug issues, and automate tasks.  It also supports tool use and executable Python generation, enabling workflows such as data analysis, visualization, web scraping, API interactions, and research with synthesized findings.
+**PatchPal** is an AI coding agent that helps you build software, debug issues, and automate tasks.  Like Claude Code, it also supports agent skills, tool use, and executable Python generation, enabling workflows such as data analysis, visualization, web scraping, API interactions, and research with synthesized findings.
 
-A key goal of this project is to approximate Claude Code's core functionality while remaining lightweight, accessible, and configurable, enabling learning, experimentation, and broad applicability across use cases.
+A key goal of this project is to approximate Claude Code's core functionality while remaining lean, accessible, and configurable, enabling learning, experimentation, and broad applicability across use cases.
 
 
 ```bash
