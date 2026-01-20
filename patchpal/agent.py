@@ -753,126 +753,165 @@ class PatchPalAgent:
 
                 # Execute each tool call
                 for tool_call in assistant_message.tool_calls:
+                    # Validate tool call structure
+                    if not hasattr(tool_call, "function") or not hasattr(
+                        tool_call.function, "name"
+                    ):
+                        print(
+                            "\033[1;33m⚠️  Skipping malformed tool call (missing function/name)\033[0m"
+                        )
+                        continue
+
                     tool_name = tool_call.function.name
-                    tool_args_str = tool_call.function.arguments
 
-                    # Parse arguments
+                    # Validate tool name against known tools
+                    if tool_name not in TOOL_FUNCTIONS:
+                        # Provide helpful error message to the model
+                        tool_result = (
+                            f"Error: Tool '{tool_name}' does not exist.\n"
+                            f"Available tools: {', '.join(sorted(TOOL_FUNCTIONS.keys()))}\n"
+                            f"Please use one of the available tools and try again."
+                        )
+                        print(f"\033[1;33m⚠️  Unknown tool: {tool_name} (skipping)\033[0m")
+                        # Add error to messages so model can see it and self-correct
+                        self.messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": getattr(tool_call, "id", "unknown"),
+                                "name": tool_name,
+                                "content": tool_result,
+                            }
+                        )
+                        continue
+
+                    # Get the tool function (we know it exists now)
+                    tool_func = TOOL_FUNCTIONS[tool_name]
+
+                    # Parse arguments with better error handling
                     try:
-                        tool_args = json.loads(tool_args_str)
-                    except json.JSONDecodeError:
-                        tool_result = f"Error: Invalid JSON arguments for {tool_name}"
-                        print(f"\033[1;31m✗ {tool_name}: Invalid arguments\033[0m")
-                    else:
-                        # Get the tool function
-                        tool_func = TOOL_FUNCTIONS.get(tool_name)
-                        if tool_func is None:
-                            tool_result = f"Error: Unknown tool {tool_name}"
-                            print(f"\033[1;31m✗ Unknown tool: {tool_name}\033[0m")
+                        tool_args_str = tool_call.function.arguments
+                        if not tool_args_str or not tool_args_str.strip():
+                            tool_args = {}
                         else:
-                            # Show tool call message
-                            tool_display = tool_name.replace("_", " ").title()
-                            if tool_name == "read_file":
-                                print(
-                                    f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "list_files":
-                                print("\033[2m📁 Listing files...\033[0m", flush=True)
-                            elif tool_name == "get_file_info":
-                                print(
-                                    f"\033[2m📊 Getting info: {tool_args.get('path', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "edit_file":
-                                print(
-                                    f"\033[2m✏️  Editing: {tool_args.get('path', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "apply_patch":
-                                print(
-                                    f"\033[2m📝 Patching: {tool_args.get('path', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "git_status":
-                                print("\033[2m🔀 Git status...\033[0m", flush=True)
-                            elif tool_name == "git_diff":
-                                print(
-                                    f"\033[2m🔀 Git diff{': ' + tool_args.get('path', '') if tool_args.get('path') else '...'}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "git_log":
-                                print("\033[2m🔀 Git log...\033[0m", flush=True)
-                            elif tool_name == "grep_code":
-                                print(
-                                    f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "find_files":
-                                print(
-                                    f"\033[2m🔍 Finding: {tool_args.get('pattern', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "tree":
-                                print(
-                                    f"\033[2m🌳 Tree: {tool_args.get('path', '.')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "list_skills":
-                                print("\033[2m📋 Listing skills...\033[0m", flush=True)
-                            elif tool_name == "use_skill":
-                                print(
-                                    f"\033[2m⚡ Using skill: {tool_args.get('skill_name', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "web_search":
-                                print(
-                                    f"\033[2m🌐 Searching web: {tool_args.get('query', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "web_fetch":
-                                print(
-                                    f"\033[2m🌐 Fetching: {tool_args.get('url', '')}\033[0m",
-                                    flush=True,
-                                )
-                            elif tool_name == "run_shell":
-                                print(
-                                    f"\033[2m⚡ Running: {tool_args.get('cmd', '')}\033[0m",
-                                    flush=True,
-                                )
+                            tool_args = json.loads(tool_args_str)
+                    except (json.JSONDecodeError, AttributeError) as e:
+                        tool_result = (
+                            f"Error: Invalid arguments for {tool_name}: {e}\n"
+                            f"Please provide valid JSON arguments and try again."
+                        )
+                        print(f"\033[1;33m⚠️  {tool_name}: Malformed arguments - {e}\033[0m")
+                        # Add error to messages so model can see it and self-correct
+                        self.messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": getattr(tool_call, "id", "unknown"),
+                                "name": tool_name,
+                                "content": tool_result,
+                            }
+                        )
+                        continue
 
-                            # Execute the tool (permission checks happen inside the tool)
-                            try:
-                                # Filter tool_args to only include parameters the function accepts
-                                sig = inspect.signature(tool_func)
-                                valid_params = set(sig.parameters.keys())
-                                filtered_args = {
-                                    k: v for k, v in tool_args.items() if k in valid_params
-                                }
+                    # Valid tool call - proceed with execution
+                    # Show tool call message
+                    tool_display = tool_name.replace("_", " ").title()
+                    if tool_name == "read_file":
+                        print(
+                            f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "list_files":
+                        print("\033[2m📁 Listing files...\033[0m", flush=True)
+                    elif tool_name == "get_file_info":
+                        print(
+                            f"\033[2m📊 Getting info: {tool_args.get('path', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "edit_file":
+                        print(
+                            f"\033[2m✏️  Editing: {tool_args.get('path', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "apply_patch":
+                        print(
+                            f"\033[2m📝 Patching: {tool_args.get('path', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "git_status":
+                        print("\033[2m🔀 Git status...\033[0m", flush=True)
+                    elif tool_name == "git_diff":
+                        print(
+                            f"\033[2m🔀 Git diff{': ' + tool_args.get('path', '') if tool_args.get('path') else '...'}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "git_log":
+                        print("\033[2m🔀 Git log...\033[0m", flush=True)
+                    elif tool_name == "grep_code":
+                        print(
+                            f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "find_files":
+                        print(
+                            f"\033[2m🔍 Finding: {tool_args.get('pattern', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "tree":
+                        print(
+                            f"\033[2m🌳 Tree: {tool_args.get('path', '.')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "list_skills":
+                        print("\033[2m📋 Listing skills...\033[0m", flush=True)
+                    elif tool_name == "use_skill":
+                        print(
+                            f"\033[2m⚡ Using skill: {tool_args.get('skill_name', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "web_search":
+                        print(
+                            f"\033[2m🌐 Searching web: {tool_args.get('query', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "web_fetch":
+                        print(
+                            f"\033[2m🌐 Fetching: {tool_args.get('url', '')}\033[0m",
+                            flush=True,
+                        )
+                    elif tool_name == "run_shell":
+                        print(
+                            f"\033[2m⚡ Running: {tool_args.get('cmd', '')}\033[0m",
+                            flush=True,
+                        )
 
-                                # Coerce types for parameters (Ollama sometimes passes strings)
-                                for param_name, param in sig.parameters.items():
-                                    if param_name in filtered_args:
-                                        expected_type = param.annotation
-                                        actual_value = filtered_args[param_name]
+                    # Execute the tool (permission checks happen inside the tool)
+                    try:
+                        # Filter tool_args to only include parameters the function accepts
+                        sig = inspect.signature(tool_func)
+                        valid_params = set(sig.parameters.keys())
+                        filtered_args = {k: v for k, v in tool_args.items() if k in valid_params}
 
-                                        # Convert strings to expected types
-                                        if expected_type is int and isinstance(actual_value, str):
-                                            filtered_args[param_name] = int(actual_value)
-                                        elif expected_type is bool and isinstance(
-                                            actual_value, str
-                                        ):
-                                            filtered_args[param_name] = actual_value.lower() in (
-                                                "true",
-                                                "1",
-                                                "yes",
-                                            )
+                        # Coerce types for parameters (Ollama sometimes passes strings)
+                        for param_name, param in sig.parameters.items():
+                            if param_name in filtered_args:
+                                expected_type = param.annotation
+                                actual_value = filtered_args[param_name]
 
-                                # Silently filter out invalid args (models sometimes hallucinate parameters)
+                                # Convert strings to expected types
+                                if expected_type is int and isinstance(actual_value, str):
+                                    filtered_args[param_name] = int(actual_value)
+                                elif expected_type is bool and isinstance(actual_value, str):
+                                    filtered_args[param_name] = actual_value.lower() in (
+                                        "true",
+                                        "1",
+                                        "yes",
+                                    )
 
-                                tool_result = tool_func(**filtered_args)
-                            except Exception as e:
-                                tool_result = f"Error executing {tool_name}: {e}"
-                                print(f"\033[1;31m✗ {tool_display}: {e}\033[0m")
+                        # Silently filter out invalid args (models sometimes hallucinate parameters)
+
+                        tool_result = tool_func(**filtered_args)
+                    except Exception as e:
+                        tool_result = f"Error executing {tool_name}: {e}"
+                        print(f"\033[1;31m✗ {tool_display}: {e}\033[0m")
 
                     # Add tool result to messages
                     self.messages.append(
