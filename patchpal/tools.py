@@ -79,7 +79,7 @@ READ_ONLY_MODE = os.getenv("PATCHPAL_READ_ONLY", "false").lower() == "true"
 ALLOW_SENSITIVE = os.getenv("PATCHPAL_ALLOW_SENSITIVE", "false").lower() == "true"
 ENABLE_AUDIT_LOG = os.getenv("PATCHPAL_AUDIT_LOG", "true").lower() == "true"
 ENABLE_BACKUPS = os.getenv("PATCHPAL_ENABLE_BACKUPS", "false").lower() == "true"
-MAX_OPERATIONS = int(os.getenv("PATCHPAL_MAX_OPERATIONS", 1000))
+MAX_OPERATIONS = int(os.getenv("PATCHPAL_MAX_OPERATIONS", 10000))
 
 # Web request configuration
 WEB_REQUEST_TIMEOUT = int(os.getenv("PATCHPAL_WEB_TIMEOUT", 30))  # 30 seconds

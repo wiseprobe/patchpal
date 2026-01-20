@@ -490,7 +490,7 @@ PatchPal includes comprehensive security protections enabled by default:
 - **Command history**: User commands saved to `~/.patchpal/<repo-name>/history.txt` (last 1000 commands)
   - Clean, user-friendly format for reviewing past interactions
 - **Automatic backups**: Optional auto-backup of files to `~/.patchpal/<repo-name>/backups/` before modification
-- **Resource limits**: Configurable operation counter prevents infinite loops (1000 operations default)
+- **Resource limits**: Configurable operation counter prevents infinite loops (10000 operations default)
 - **Git state awareness**: Warns when modifying files with uncommitted changes
 
 **Configuration via environment variables:**
@@ -507,7 +507,7 @@ export PATCHPAL_ALLOW_SENSITIVE=true      # Allow access to .env, credentials, A
 # Operational Safety Controls
 export PATCHPAL_AUDIT_LOG=false           # Log all operations to ~/.patchpal/<repo-name>/audit.log (default: true)
 export PATCHPAL_ENABLE_BACKUPS=true       # Auto-backup files to ~/.patchpal/<repo-name>/backups/ before modification (default: false)
-export PATCHPAL_MAX_OPERATIONS=5000       # Maximum operations per session to prevent infinite loops (default: 1000)
+export PATCHPAL_MAX_OPERATIONS=5000       # Maximum operations per session to prevent infinite loops (default: 10000)
 export PATCHPAL_MAX_ITERATIONS=150        # Maximum agent iterations per task (default: 100)
                                           # Increase for very complex multi-file tasks, decrease for testing
 
