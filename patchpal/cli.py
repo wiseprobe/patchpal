@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 
 from patchpal.agent import create_agent
+from patchpal.tools import audit_logger
 
 
 class SkillCompleter(Completer):
@@ -111,27 +112,42 @@ def _get_patchpal_dir() -> Path:
     return repo_dir
 
 
-# Enable command history with up/down arrows
-try:
-    import atexit
-    import readline
+def _save_to_history_file(command: str, history_file: Path, max_entries: int = 1000):
+    """Append a command to the persistent history file.
 
-    # Use repo-specific history file
-    history_file = _get_patchpal_dir() / "history.txt"
+    This allows users to manually review their command history,
+    while keeping InMemoryHistory for session-only terminal scrolling.
 
+    Keeps only the last max_entries commands to prevent unbounded growth.
+    """
     try:
-        readline.read_history_file(str(history_file))
-    except FileNotFoundError:
+        from datetime import datetime
+
+        # Read existing entries
+        entries = []
+        if history_file.exists():
+            with open(history_file, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                # Each entry is 2 lines (timestamp + command)
+                for i in range(0, len(lines), 2):
+                    if i + 1 < len(lines):
+                        entries.append((lines[i], lines[i + 1]))
+
+        # Add new entry
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        entries.append((f"# {timestamp}\n", f"+{command}\n"))
+
+        # Keep only last N entries
+        entries = entries[-max_entries:]
+
+        # Write back
+        with open(history_file, "w", encoding="utf-8") as f:
+            for ts, cmd in entries:
+                f.write(ts)
+                f.write(cmd)
+    except Exception:
+        # Silently fail if history can't be written
         pass
-
-    # Save history on exit
-    atexit.register(readline.write_history_file, str(history_file))
-
-    # Set history length
-    readline.set_history_length(1000)
-except ImportError:
-    # readline not available (e.g., on Windows without pyreadline3)
-    pass
 
 
 def main():
@@ -189,6 +205,9 @@ Supported models: Any LiteLLM-supported model
     # Create in-memory history (within session only, no persistence)
     history = InMemoryHistory()
 
+    # Get history file path for manual logging
+    history_file = _get_patchpal_dir() / "history.txt"
+
     print("=" * 80)
     print("PatchPal - Claude Code–inspired coding and automation assistant")
     print("=" * 80)
@@ -227,6 +246,9 @@ Supported models: Any LiteLLM-supported model
             # Replace newlines with spaces to prevent history file corruption
             # This can happen if user pastes multi-line text
             user_input = user_input.replace("\n", " ").replace("\r", " ")
+
+            # Save command to history file for manual review
+            _save_to_history_file(user_input, history_file)
 
             # Check for exit commands
             if user_input.lower() in ["exit", "quit", "q"]:
@@ -400,6 +422,8 @@ Supported models: Any LiteLLM-supported model
                     if skill_args:
                         prompt += f"\n\nArguments: {skill_args}"
 
+                    # Log user prompt to audit log
+                    audit_logger.info(f"USER_PROMPT: /{skill_name} {skill_args}")
                     result = agent.run(prompt, max_iterations=max_iterations)
 
                     print("\n" + "=" * 80)
@@ -419,6 +443,8 @@ Supported models: Any LiteLLM-supported model
             # Run the agent (Ctrl-C here will interrupt agent, not exit)
             try:
                 print()  # Add blank line before agent output
+                # Log user prompt to audit log
+                audit_logger.info(f"USER_PROMPT: {user_input}")
                 result = agent.run(user_input, max_iterations=max_iterations)
 
                 print("\n" + "=" * 80)

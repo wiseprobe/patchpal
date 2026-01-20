@@ -129,11 +129,18 @@ def _get_permission_manager() -> PermissionManager:
     return _permission_manager
 
 
-# Audit logging setup
+# Audit logging setup with rotation
 audit_logger = logging.getLogger("patchpal.audit")
 if ENABLE_AUDIT_LOG and not audit_logger.handlers:
+    from logging.handlers import RotatingFileHandler
+
     audit_logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(AUDIT_LOG_FILE)
+    # Rotate at 10MB, keep 3 backup files (30MB total max)
+    handler = RotatingFileHandler(
+        AUDIT_LOG_FILE,
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=3,
+    )
     handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
     audit_logger.addHandler(handler)
 
