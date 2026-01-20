@@ -92,6 +92,13 @@ class SmartPathCompleter(Completer):
                 )
 
 
+def _get_version() -> str:
+    """Get the PatchPal version string."""
+    from patchpal import __version__
+
+    return __version__
+
+
 def _get_patchpal_dir() -> Path:
     """Get the patchpal directory for this repository.
 
@@ -173,6 +180,12 @@ Supported models: Any LiteLLM-supported model
   - Ollama (local): ollama_chat/llama3.1, ollama_chat/codellama, ollama_chat/deepseek-coder, etc.
   - Others: See https://docs.litellm.ai/docs/providers
         """,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {_get_version()}",
+        help="Show program's version number and exit",
     )
     parser.add_argument(
         "--model",
