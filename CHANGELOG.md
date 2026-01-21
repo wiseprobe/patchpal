@@ -7,7 +7,7 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
-## 0.1.3 (TBD)
+## 0.1.3 (2026-01-20)
 
 ### new:
 - N/A
@@ -17,6 +17,7 @@ Most recent releases are shown at the top. Each release shows:
 
 ### fixed:
 - Added `--version` argument to CLI
+- Added `boto3` as dependency
 
 
 ## 0.1.2 (2026-01-20)
