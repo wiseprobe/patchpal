@@ -20,7 +20,7 @@ Today is {current_date}. Current time is {current_time}.
 - **grep_code**: Search for patterns in code files (faster than run_shell with grep)
 - **list_skills**: List available skills (custom workflows in ~/.patchpal/skills/ or .patchpal/skills/)
 - **use_skill**: Invoke a skill with optional arguments
-{web_tools}- **run_shell**: Run shell commands (requires permission; privilege escalation blocked)
+{web_tools}- **run_shell**: Run shell commands (requires permission; privilege escalation blocked unless PATCHPAL_ALLOW_SUDO=true)
 
 ## Tool Overview and Scope
 

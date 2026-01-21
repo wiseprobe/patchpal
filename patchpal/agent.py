@@ -372,7 +372,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "run_shell",
-            "description": "Run a safe shell command in the repository. Dangerous commands (rm, mv, sudo, etc.) are blocked.",
+            "description": "Run a safe shell command in the repository. Privilege escalation (sudo, su) blocked by default unless PATCHPAL_ALLOW_SUDO=true.",
             "parameters": {
                 "type": "object",
                 "properties": {

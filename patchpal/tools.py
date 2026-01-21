@@ -32,7 +32,13 @@ REPO_ROOT = Path(".").resolve()
 
 # Platform-aware command blocking - minimal list since we have permission system
 # Only block privilege escalation commands specific to each platform
-if platform.system() == "Windows":
+# Allow sudo if explicitly enabled via environment variable
+ALLOW_SUDO = os.getenv("PATCHPAL_ALLOW_SUDO", "false").lower() == "true"
+
+if ALLOW_SUDO:
+    # Sudo allowed - no command blocking
+    FORBIDDEN = set()
+elif platform.system() == "Windows":
     # Windows privilege escalation commands
     FORBIDDEN = {"runas", "psexec"}  # Run as different user, SysInternals elevated execution
 else:

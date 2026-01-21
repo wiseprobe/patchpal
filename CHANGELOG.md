@@ -7,6 +7,20 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.1.4 (2026-01-21)
+
+### new:
+- N/A
+
+### changed
+- Added `PATCHPAL_ALLOW_SUDO` environment variable.
+- Enhanced README.md security documentation with clearer warning for
+  `PATCHPAL_REQUIRE_PERMISSION` environment variable
+
+### fixed:
+- N/A
+
+
 ## 0.1.3 (2026-01-20)
 
 ### new:

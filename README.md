@@ -570,12 +570,16 @@ PatchPal includes comprehensive security protections enabled by default:
 ```bash
 # Critical Security Controls
 export PATCHPAL_REQUIRE_PERMISSION=true  # Prompt for permission before executing commands/modifying files (default: true)
-                                          # Set to false to disable prompts (not recommended for production use)
+                                          # ⚠️  WARNING: Setting to false disables prompts - only use in trusted, controlled environments
+                                          # When disabled, the agent can modify files and run commands without asking
 export PATCHPAL_MAX_FILE_SIZE=5242880     # Maximum file size in bytes for read/write operations (default: 10485760 = 10MB)
 export PATCHPAL_READ_ONLY=true            # Prevent all file modifications, analysis-only mode (default: false)
                                            # Useful for: code review, exploration, security audits, CI/CD analysis, or trying PatchPal risk-free
 export PATCHPAL_ALLOW_SENSITIVE=true      # Allow access to .env, credentials, API keys (default: false - blocked for safety)
                                            # Only enable when working with test/dummy credentials or intentionally managing config files
+export PATCHPAL_ALLOW_SUDO=true           # Allow sudo commands (default: false - blocked for safety)
+                                           # ⚠️  WARNING: Only enable in trusted, controlled environments where sudo is necessary
+                                           # When enabled, all privilege escalation blocking is disabled
 
 # Operational Safety Controls
 export PATCHPAL_AUDIT_LOG=false           # Log all operations to ~/.patchpal/<repo-name>/audit.log (default: true)

@@ -155,6 +155,47 @@ def test_run_shell_forbidden_commands(temp_repo):
             run_shell(cmd)
 
 
+def test_run_shell_allow_sudo(temp_repo, monkeypatch):
+    """Test that sudo can be allowed via PATCHPAL_ALLOW_SUDO."""
+    import platform
+
+    from patchpal.tools import run_shell
+
+    # Set environment variable to allow sudo
+    monkeypatch.setenv("PATCHPAL_ALLOW_SUDO", "true")
+
+    # Need to reload the module to pick up the new environment variable
+    import importlib
+
+    import patchpal.tools
+
+    importlib.reload(patchpal.tools)
+
+    # Re-patch REPO_ROOT after reload
+    monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+
+    if platform.system() != "Windows":
+        # On Unix-like systems, sudo should now be allowed (will fail but not blocked)
+        # We can't actually test sudo execution without root, but we can verify
+        # it's not blocked by the FORBIDDEN check
+        try:
+            # This will fail with "sudo: a terminal is required" or similar
+            # but NOT with "Blocked dangerous command"
+            run_shell("sudo --version")
+            # If it succeeds, that's fine too
+        except ValueError as e:
+            # Should not be blocked by our FORBIDDEN check
+            assert "Blocked dangerous command" not in str(e)
+            # Might fail for other reasons (e.g., sudo not installed in test env)
+            assert "sudo" not in str(e).lower() or "not found" in str(e).lower()
+    else:
+        # On Windows, test runas
+        try:
+            run_shell("runas /?")
+        except ValueError as e:
+            assert "Blocked dangerous command" not in str(e)
+
+
 def test_run_shell_complex_safe_command(temp_repo):
     """Test that complex but safe commands work."""
     from patchpal.tools import run_shell
