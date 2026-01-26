@@ -551,6 +551,90 @@ def read_file(path: str) -> str:
 
 
 @require_permission_for_read(
+    "read_lines",
+    get_description=lambda path,
+    start_line,
+    end_line=None: f"   Read lines {start_line}-{end_line or start_line}: {path}",
+    get_pattern=lambda path, start_line, end_line=None: path,
+)
+def read_lines(path: str, start_line: int, end_line: Optional[int] = None) -> str:
+    """
+    Read specific lines from a file.
+
+    Args:
+        path: Path to the file (relative to repository root or absolute)
+        start_line: Starting line number (1-indexed)
+        end_line: Ending line number (inclusive, 1-indexed). If omitted, reads only start_line
+
+    Returns:
+        The requested lines with line numbers
+
+    Raises:
+        ValueError: If file not found, binary, sensitive, or line numbers invalid
+
+    Examples:
+        read_lines("src/auth.py", 45, 60)  # Read lines 45-60
+        read_lines("src/auth.py", 45)       # Read only line 45
+    """
+    _operation_limiter.check_limit(f"read_lines({path}, {start_line}-{end_line or start_line})")
+
+    # Validate line numbers
+    if start_line < 1:
+        raise ValueError(f"start_line must be >= 1, got {start_line}")
+
+    if end_line is None:
+        end_line = start_line
+    elif end_line < start_line:
+        raise ValueError(f"end_line ({end_line}) must be >= start_line ({start_line})")
+
+    p = _check_path(path)
+
+    # Check if binary
+    if _is_binary_file(p):
+        raise ValueError(
+            f"Cannot read binary file: {path}\nType: {mimetypes.guess_type(str(p))[0] or 'unknown'}"
+        )
+
+    # Read file and extract lines
+    try:
+        with open(p, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+    except Exception as e:
+        raise ValueError(f"Failed to read file: {e}")
+
+    total_lines = len(lines)
+
+    # Check if line numbers are within range
+    if start_line > total_lines:
+        raise ValueError(f"start_line {start_line} exceeds file length ({total_lines} lines)")
+
+    # Adjust end_line if it exceeds file length
+    actual_end_line = min(end_line, total_lines)
+
+    # Extract requested lines (convert to 0-indexed)
+    requested_lines = lines[start_line - 1 : actual_end_line]
+
+    # Format output with line numbers
+    result = []
+    for i, line in enumerate(requested_lines, start=start_line):
+        # Remove trailing newline for cleaner output
+        result.append(f"{i:4d}  {line.rstrip()}")
+
+    output = "\n".join(result)
+
+    # Add note if we truncated end_line
+    if actual_end_line < end_line:
+        output += (
+            f"\n\n(Note: Requested lines up to {end_line}, but file only has {total_lines} lines)"
+        )
+
+    audit_logger.info(
+        f"READ_LINES: {path} lines {start_line}-{actual_end_line} ({len(requested_lines)} lines)"
+    )
+    return output
+
+
+@require_permission_for_read(
     "list_files", get_description=lambda: "   List all files in repository"
 )
 def list_files() -> list[str]:

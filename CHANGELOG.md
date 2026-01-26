@@ -7,6 +7,17 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.2.0 (TBD)
+
+### new:
+- Added `read_lines` tool (#21)
+
+### changed
+
+### fixed:
+- N/A
+
+
 ## 0.1.6 (2026-01-22)
 
 ### new:

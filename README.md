@@ -84,6 +84,10 @@ The agent has the following tools:
 
 ### File Operations
 - **read_file**: Read contents of files in the repository
+- **read_lines**: Read specific line ranges from a file without loading the entire file
+  - Example: `read_lines("app.py", 100, 150)` - read lines 100-150
+  - More efficient than read_file when you only need a few lines
+  - Useful for viewing code sections, error context, or specific regions of large files
 - **list_files**: List all files in the repository
 - **get_file_info**: Get detailed metadata for file(s) - size, modification time, type
   - Supports single files: `get_file_info("file.txt")`

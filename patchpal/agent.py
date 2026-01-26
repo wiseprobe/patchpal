@@ -24,6 +24,7 @@ from patchpal.tools import (
     list_files,
     list_skills,
     read_file,
+    read_lines,
     run_shell,
     tree,
     use_skill,
@@ -101,6 +102,31 @@ TOOLS = [
                     }
                 },
                 "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_lines",
+            "description": "Read specific lines from a file without loading the entire file. Useful for viewing code sections, error context, or specific regions of large files. More efficient than read_file when you only need a few lines.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to the file - can be relative to repository root or an absolute path",
+                    },
+                    "start_line": {
+                        "type": "integer",
+                        "description": "Starting line number (1-indexed)",
+                    },
+                    "end_line": {
+                        "type": "integer",
+                        "description": "Ending line number (inclusive, 1-indexed). If omitted, reads only start_line",
+                    },
+                },
+                "required": ["path", "start_line"],
             },
         },
     },
@@ -387,6 +413,7 @@ TOOLS = [
 # Map tool names to functions
 TOOL_FUNCTIONS = {
     "read_file": read_file,
+    "read_lines": read_lines,
     "list_files": list_files,
     "get_file_info": get_file_info,
     "find_files": find_files,
@@ -790,6 +817,13 @@ class PatchPalAgent:
                             if tool_name == "read_file":
                                 print(
                                     f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "read_lines":
+                                start = tool_args.get("start_line", "")
+                                end = tool_args.get("end_line", start)
+                                print(
+                                    f"\033[2m📖 Reading lines {start}-{end}: {tool_args.get('path', '')}\033[0m",
                                     flush=True,
                                 )
                             elif tool_name == "list_files":

@@ -57,6 +57,99 @@ def test_read_file_not_found(temp_repo):
         read_file("nonexistent.txt")
 
 
+def test_read_lines_single_line(temp_repo):
+    """Test reading a single line from a file."""
+    from patchpal.tools import read_lines
+
+    # Create a test file with multiple lines
+    (temp_repo / "multiline.txt").write_text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5")
+
+    result = read_lines("multiline.txt", 3)
+    assert "Line 3" in result
+    assert "   3  Line 3" in result
+    # Should not include other lines
+    assert "Line 1" not in result
+    assert "Line 2" not in result
+    assert "Line 4" not in result
+
+
+def test_read_lines_range(temp_repo):
+    """Test reading a range of lines from a file."""
+    from patchpal.tools import read_lines
+
+    (temp_repo / "multiline.txt").write_text("Line 1\nLine 2\nLine 3\nLine 4\nLine 5")
+
+    result = read_lines("multiline.txt", 2, 4)
+    assert "Line 2" in result
+    assert "Line 3" in result
+    assert "Line 4" in result
+    # Should not include lines outside range
+    assert "Line 1" not in result
+    assert "Line 5" not in result
+    # Check line numbers
+    assert "   2  Line 2" in result
+    assert "   3  Line 3" in result
+    assert "   4  Line 4" in result
+
+
+def test_read_lines_entire_file(temp_repo):
+    """Test reading all lines when range exceeds file length."""
+    from patchpal.tools import read_lines
+
+    (temp_repo / "small.txt").write_text("Line 1\nLine 2\nLine 3")
+
+    result = read_lines("small.txt", 1, 100)
+    assert "Line 1" in result
+    assert "Line 2" in result
+    assert "Line 3" in result
+    # Should include note about truncation
+    assert "file only has 3 lines" in result
+
+
+def test_read_lines_invalid_range(temp_repo):
+    """Test reading with invalid line numbers."""
+    from patchpal.tools import read_lines
+
+    (temp_repo / "test.txt").write_text("Line 1\nLine 2")
+
+    # Start line less than 1
+    with pytest.raises(ValueError, match="start_line must be >= 1"):
+        read_lines("test.txt", 0)
+
+    # End line less than start line
+    with pytest.raises(ValueError, match="end_line.*must be >= start_line"):
+        read_lines("test.txt", 5, 2)
+
+
+def test_read_lines_beyond_file_end(temp_repo):
+    """Test reading starting beyond file end."""
+    from patchpal.tools import read_lines
+
+    (temp_repo / "short.txt").write_text("Line 1\nLine 2")
+
+    with pytest.raises(ValueError, match="exceeds file length"):
+        read_lines("short.txt", 10)
+
+
+def test_read_lines_file_not_found(temp_repo):
+    """Test read_lines with non-existent file."""
+    from patchpal.tools import read_lines
+
+    with pytest.raises(ValueError, match="File not found"):
+        read_lines("nonexistent.txt", 1, 5)
+
+
+def test_read_lines_binary_file(temp_repo):
+    """Test read_lines rejects binary files."""
+    from patchpal.tools import read_lines
+
+    # Create a binary file
+    (temp_repo / "binary.bin").write_bytes(b"\x00\x01\x02\x03")
+
+    with pytest.raises(ValueError, match="Cannot read binary file"):
+        read_lines("binary.bin", 1, 5)
+
+
 def test_list_files(temp_repo):
     """Test listing files in the repository."""
     from patchpal.tools import list_files
