@@ -1165,4 +1165,9 @@ def create_agent(model_id: str = "anthropic/claude-sonnet-4-5") -> PatchPalAgent
     Returns:
         A configured PatchPalAgent instance
     """
+    # Reset session todos for new session
+    from patchpal.tools import reset_session_todos
+
+    reset_session_todos()
+
     return PatchPalAgent(model_id=model_id)

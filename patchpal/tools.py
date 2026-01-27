@@ -1036,49 +1036,30 @@ def use_skill(skill_name: str, args: str = "") -> str:
 # ============================================================================
 # TODO Management System
 # ============================================================================
-# Persistent TODO list for complex multi-step tasks
-# Stored per-repository in ~/.patchpal/<repo-name>/todos.json
+# Session-scoped TODO list for complex multi-step tasks
+# Tasks are stored in-memory and reset when a new session starts
+
+# Session-level TODO storage (resets each session)
+_session_todos: dict = {"tasks": [], "next_id": 1}
 
 
-def _get_todos_file() -> Path:
-    """Get the path to the todos file for this repository."""
-    return PATCHPAL_DIR / "todos.json"
+def reset_session_todos():
+    """Reset the session TODO list. Called when starting a new session."""
+    global _session_todos
+    _session_todos = {"tasks": [], "next_id": 1}
+    audit_logger.info("TODO: Session todos reset")
 
 
 def _load_todos() -> dict:
-    """Load todos from the JSON file."""
-    import json
-
-    todos_file = _get_todos_file()
-    if not todos_file.exists():
-        return {"tasks": [], "next_id": 1}
-
-    try:
-        with open(todos_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            # Ensure structure is correct
-            if "tasks" not in data:
-                data["tasks"] = []
-            if "next_id" not in data:
-                data["next_id"] = 1
-            return data
-    except Exception as e:
-        audit_logger.warning(f"Failed to load todos: {e}")
-        return {"tasks": [], "next_id": 1}
+    """Get the session todos."""
+    return _session_todos
 
 
 def _save_todos(data: dict):
-    """Save todos to the JSON file."""
-    import json
-
-    todos_file = _get_todos_file()
-    try:
-        with open(todos_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        audit_logger.info(f"TODOS: Saved {len(data['tasks'])} tasks")
-    except Exception as e:
-        audit_logger.error(f"Failed to save todos: {e}")
-        raise ValueError(f"Failed to save todos: {e}")
+    """Save todos to session storage."""
+    global _session_todos
+    _session_todos = data
+    audit_logger.info(f"TODOS: Updated session with {len(data['tasks'])} tasks")
 
 
 def todo_add(description: str, details: str = "") -> str:

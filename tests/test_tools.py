@@ -960,9 +960,12 @@ def todo_repo(monkeypatch, temp_repo):
     monkeypatch.setattr("patchpal.tools.PATCHPAL_DIR", todo_dir)
 
     # Reset operation counter
-    from patchpal.tools import reset_operation_counter
+    from patchpal.tools import reset_operation_counter, reset_session_todos
 
     reset_operation_counter()
+
+    # Reset session todos for each test
+    reset_session_todos()
 
     yield temp_repo
 
@@ -1302,19 +1305,13 @@ def test_todo_persistence(todo_repo):
 
 
 def test_todo_json_structure(todo_repo):
-    """Test that TODO JSON file has correct structure."""
-    import json
-
-    from patchpal.tools import todo_add
+    """Test that TODO session storage has correct structure."""
+    from patchpal.tools import _load_todos, todo_add
 
     todo_add("Test task", details="Test details")
 
-    # Read the JSON file directly
-    todos_file = todo_repo / ".patchpal" / "todos.json"
-    assert todos_file.exists()
-
-    with open(todos_file, "r") as f:
-        data = json.load(f)
+    # Check the in-memory session storage structure
+    data = _load_todos()
 
     assert "tasks" in data
     assert "next_id" in data

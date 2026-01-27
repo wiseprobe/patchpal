@@ -16,7 +16,8 @@ Most recent releases are shown at the top. Each release shows:
 - N/A
 
 ### fixed:
-- Refine `edit_file` to mitigate edit fails
+- Refine `edit_file` to mitigate edit fails (#23)
+- Ensure TODO tasks are tracked in session (#24)
 
 ## 0.2.0 (2026-01-26)
 
