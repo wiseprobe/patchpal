@@ -115,7 +115,8 @@ The user will primarily request software engineering tasks like solving bugs, ad
 - Use git_status, git_diff, git_log to understand repository state (no permission needed){web_usage}
 - For complex multi-step tasks:
   - Use todo_add to break down work into manageable subtasks
-  - Use todo_list to check progress and see what's next
+  - Describe the plan in your response text before adding tasks
+  - After adding tasks, display the complete plan to user and organize into phases if necessary
   - Use todo_complete when finishing each task
   - This helps track progress and ensures nothing is forgotten
 - Use ask_user to clarify requirements, get decisions, or gather information during execution
