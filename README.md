@@ -9,6 +9,29 @@
 
 A key goal of this project is to approximate Claude Code's core functionality while remaining lean, accessible, and configurable, enabling learning, experimentation, and broad applicability across use cases.
 
+## Table of Contents
+
+- [Installation](https://github.com/amaiya/patchpal?tab=readme-ov-file#installation)
+- [Setup](https://github.com/amaiya/patchpal?tab=readme-ov-file#setup)
+- [Features](https://github.com/amaiya/patchpal?tab=readme-ov-file#features)
+  - [Tools](https://github.com/amaiya/patchpal?tab=readme-ov-file#tools)
+    - [File Operations](https://github.com/amaiya/patchpal?tab=readme-ov-file#file-operations)
+    - [Task Planning (TODO System)](https://github.com/amaiya/patchpal?tab=readme-ov-file#task-planning-todo-system)
+    - [User Interaction](https://github.com/amaiya/patchpal?tab=readme-ov-file#user-interaction)
+    - [Git Operations](https://github.com/amaiya/patchpal?tab=readme-ov-file#git-operations-no-permission-required)
+    - [Web Capabilities](https://github.com/amaiya/patchpal?tab=readme-ov-file#web-capabilities-requires-permission)
+  - [Skills System](https://github.com/amaiya/patchpal?tab=readme-ov-file#skills-system)
+- [Model Configuration](https://github.com/amaiya/patchpal?tab=readme-ov-file#model-configuration)
+  - [Supported Models](https://github.com/amaiya/patchpal?tab=readme-ov-file#supported-models)
+  - [Using Local Models (vLLM & Ollama)](https://github.com/amaiya/patchpal?tab=readme-ov-file#using-local-models-vllm--ollama)
+  - [Air-Gapped and Offline Environments](https://github.com/amaiya/patchpal?tab=readme-ov-file#air-gapped-and-offline-environments)
+  - [Maximum Security Mode](https://github.com/amaiya/patchpal?tab=readme-ov-file#maximum-security-mode)
+- [Usage](https://github.com/amaiya/patchpal?tab=readme-ov-file#usage)
+- [Example Tasks](https://github.com/amaiya/patchpal?tab=readme-ov-file#example-tasks)
+- [Safety](https://github.com/amaiya/patchpal?tab=readme-ov-file#safety)
+- [Context Management](https://github.com/amaiya/patchpal?tab=readme-ov-file#context-management)
+- [Troubleshooting](https://github.com/amaiya/patchpal?tab=readme-ov-file#troubleshooting)
+
 
 ```bash
 $ls ./patchpal
