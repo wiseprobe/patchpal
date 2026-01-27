@@ -15,6 +15,7 @@ Most recent releases are shown at the top. Each release shows:
 - Added `ask_user` tool (#22)
 
 ### changed
+- N/A
 
 ### fixed:
 - N/A
