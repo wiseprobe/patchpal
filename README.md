@@ -449,6 +449,7 @@ docker rm ollama
 
 # Start with proper configuration
 docker run -d \
+  --gpus all \
   -e OLLAMA_CONTEXT_LENGTH=32768 \
   -v ollama:/root/.ollama \
   -p 11434:11434 \
