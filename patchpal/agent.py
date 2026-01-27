@@ -222,7 +222,7 @@ TOOLS = [
                     },
                     "old_string": {
                         "type": "string",
-                        "description": "The exact string to find and replace (must appear exactly once)",
+                        "description": "The exact string to find and replace (must match exactly including all whitespace; use read_lines to get exact text, or use apply_patch for complex changes)",
                     },
                     "new_string": {
                         "type": "string",

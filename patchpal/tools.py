@@ -1587,18 +1587,36 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
 
     # Check for old_string
     if old_string not in content:
+        # Show first 5 lines of file to help user
+        lines = content.split("\n")[:5]
+        preview = "\n".join(f"  {i + 1}: {line[:80]}" for i, line in enumerate(lines))
+
         raise ValueError(
-            f"String not found in {path}:\n{old_string[:100]}"
-            + ("..." if len(old_string) > 100 else "")
+            f"String not found in {path}.\n\n"
+            f"Searched for:\n{old_string[:200]}\n\n"
+            f"File starts with:\n{preview}\n\n"
+            f"💡 Tip: Use read_lines() to get exact text including whitespace, "
+            f"or use apply_patch() for larger changes."
         )
 
     # Count occurrences
     count = content.count(old_string)
     if count > 1:
+        # Show WHERE the matches are
+        positions = []
+        start = 0
+        while True:
+            pos = content.find(old_string, start)
+            if pos == -1:
+                break
+            line_num = content[:pos].count("\n") + 1
+            positions.append(line_num)
+            start = pos + 1
+
         raise ValueError(
-            f"String appears {count} times in {path}. "
-            f"Please provide a more specific string to ensure correct replacement.\n"
-            f"First occurrence context:\n{content[max(0, content.find(old_string) - 50) : content.find(old_string) + len(old_string) + 50]}"
+            f"String appears {count} times in {path} at lines: {positions}\n"
+            f"Add more context (3-5 surrounding lines) to make it unique.\n\n"
+            f"💡 Tip: Use read_lines() to see the exact context, or use apply_patch() for multiple changes."
         )
 
     # Check permission before proceeding

@@ -7,6 +7,17 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.2.1 (2026-01-27)
+
+### new:
+- N/A
+
+### changed
+- N/A
+
+### fixed:
+- Refine `edit_file` to mitigate edit fails
+
 ## 0.2.0 (2026-01-26)
 
 ### new:
