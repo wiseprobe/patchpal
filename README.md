@@ -110,6 +110,29 @@ The agent has the following tools:
 - **apply_patch**: Modify files by providing complete new content
 - **run_shell**: Execute shell commands (requires user permission; privilege escalation blocked)
 
+### Task Planning (TODO System)
+- **todo_add**: Add a new task to break down complex work into manageable subtasks
+  - Example: `todo_add("Implement authentication", details="Use JWT tokens")`
+  - Each task gets a unique ID for tracking
+- **todo_list**: Show all tasks with their status and progress
+  - Example: `todo_list()` - show pending tasks only
+  - Example: `todo_list(show_completed=True)` - show all tasks including completed
+- **todo_complete**: Mark a task as done
+  - Example: `todo_complete(1)` - mark task #1 as completed
+- **todo_update**: Update task description or details
+  - Example: `todo_update(1, description="Implement OAuth2 authentication")`
+- **todo_remove**: Remove a task from the list
+  - Example: `todo_remove(1)` - remove task #1
+- **todo_clear**: Clear completed tasks or start fresh
+  - Example: `todo_clear()` - clear completed tasks only
+  - Example: `todo_clear(completed_only=False)` - clear all tasks
+
+### User Interaction
+- **ask_user**: Ask the user a question during task execution
+  - Example: `ask_user("Which database should I use?", options=["PostgreSQL", "MySQL", "SQLite"])`
+  - Useful for clarifying requirements, getting decisions, or gathering additional information
+  - Supports multiple choice options or free-form answers
+
 ### Git Operations (No Permission Required)
 - **git_status**: Show modified, staged, and untracked files
 - **git_diff**: Show changes in working directory or staged area

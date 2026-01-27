@@ -38,9 +38,9 @@ def test_agent_has_correct_tools():
     """Test that the agent has the correct tools defined."""
     from patchpal.agent import TOOL_FUNCTIONS, TOOLS
 
-    # Verify we have 17 tools (added read_lines, find_files, tree, list_skills, use_skill)
-    assert len(TOOLS) == 17
-    assert len(TOOL_FUNCTIONS) == 17
+    # Verify we have 24 tools (original 17 + 6 TODO tools + 1 ask_user)
+    assert len(TOOLS) == 24
+    assert len(TOOL_FUNCTIONS) == 24
 
     # Verify tool names
     tool_names = [tool["function"]["name"] for tool in TOOLS]
@@ -61,6 +61,15 @@ def test_agent_has_correct_tools():
     assert "web_search" in tool_names
     assert "web_fetch" in tool_names
     assert "run_shell" in tool_names
+    # New TODO tools
+    assert "todo_add" in tool_names
+    assert "todo_list" in tool_names
+    assert "todo_complete" in tool_names
+    assert "todo_update" in tool_names
+    assert "todo_remove" in tool_names
+    assert "todo_clear" in tool_names
+    # New ask_user tool
+    assert "ask_user" in tool_names
 
 
 def test_agent_system_prompt():

@@ -14,6 +14,7 @@ from rich.markdown import Markdown
 from patchpal.context import ContextManager
 from patchpal.tools import (
     apply_patch,
+    ask_user,
     edit_file,
     find_files,
     get_file_info,
@@ -26,6 +27,12 @@ from patchpal.tools import (
     read_file,
     read_lines,
     run_shell,
+    todo_add,
+    todo_clear,
+    todo_complete,
+    todo_list,
+    todo_remove,
+    todo_update,
     tree,
     use_skill,
     web_fetch,
@@ -397,6 +404,142 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "todo_add",
+            "description": "Add a new task to the TODO list. Use this to break down complex tasks into manageable subtasks. Essential for planning multi-step work.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Brief task description (one line)",
+                    },
+                    "details": {
+                        "type": "string",
+                        "description": "Optional detailed notes about the task",
+                    },
+                },
+                "required": ["description"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "todo_list",
+            "description": "List all tasks in the TODO list with their status and progress.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "show_completed": {
+                        "type": "boolean",
+                        "description": "If true, show completed tasks; if false, show only pending tasks (default: false)",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "todo_complete",
+            "description": "Mark a task as completed.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "integer",
+                        "description": "The ID of the task to complete",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "todo_update",
+            "description": "Update a task's description or details.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "integer",
+                        "description": "The ID of the task to update",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "New description (optional)",
+                    },
+                    "details": {
+                        "type": "string",
+                        "description": "New details (optional)",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "todo_remove",
+            "description": "Remove a task from the TODO list.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "integer",
+                        "description": "The ID of the task to remove",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "todo_clear",
+            "description": "Clear tasks from the TODO list (completed tasks only by default, or all tasks).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "completed_only": {
+                        "type": "boolean",
+                        "description": "If true, clear only completed tasks; if false, clear all tasks (default: true)",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ask_user",
+            "description": "Ask the user a question and wait for their response. Use this to clarify requirements, get decisions, or gather additional information during task execution.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The question to ask the user",
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of predefined answer choices (e.g., ['yes', 'no', 'skip']). User can select from these or provide custom answer.",
+                    },
+                },
+                "required": ["question"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "run_shell",
             "description": "Run a safe shell command in the repository. Privilege escalation (sudo, su) blocked by default unless PATCHPAL_ALLOW_SUDO=true.",
             "parameters": {
@@ -428,6 +571,13 @@ TOOL_FUNCTIONS = {
     "web_fetch": web_fetch,
     "list_skills": list_skills,
     "use_skill": use_skill,
+    "todo_add": todo_add,
+    "todo_list": todo_list,
+    "todo_complete": todo_complete,
+    "todo_update": todo_update,
+    "todo_remove": todo_remove,
+    "todo_clear": todo_clear,
+    "ask_user": ask_user,
     "run_shell": run_shell,
 }
 
@@ -887,6 +1037,41 @@ class PatchPalAgent:
                             elif tool_name == "run_shell":
                                 print(
                                     f"\033[2m⚡ Running: {tool_args.get('cmd', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "todo_add":
+                                print(
+                                    f"\033[2m✅ Adding TODO: {tool_args.get('description', '')[:50]}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "todo_list":
+                                print("\033[2m📋 Listing TODO tasks...\033[0m", flush=True)
+                            elif tool_name == "todo_complete":
+                                print(
+                                    f"\033[2m✓ Completing task #{tool_args.get('task_id', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "todo_update":
+                                print(
+                                    f"\033[2m📝 Updating task #{tool_args.get('task_id', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "todo_remove":
+                                print(
+                                    f"\033[2m🗑️  Removing task #{tool_args.get('task_id', '')}\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "todo_clear":
+                                clear_type = (
+                                    "completed" if tool_args.get("completed_only", True) else "all"
+                                )
+                                print(
+                                    f"\033[2m🧹 Clearing {clear_type} TODO tasks...\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "ask_user":
+                                print(
+                                    "\033[2m❓ Asking user a question...\033[0m",
                                     flush=True,
                                 )
 

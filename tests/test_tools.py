@@ -944,3 +944,507 @@ def test_tree_nonexistent_path(temp_repo):
 
     # Verify the error message doesn't contain WARNING
     assert "[WARNING" not in str(exc_info.value)
+
+
+# ============================================================================
+# TODO System Tests
+# ============================================================================
+
+
+@pytest.fixture
+def todo_repo(monkeypatch, temp_repo):
+    """Set up a temporary repository for TODO testing."""
+    # Ensure PATCHPAL_DIR points to temp location
+    todo_dir = temp_repo / ".patchpal"
+    todo_dir.mkdir(exist_ok=True)
+    monkeypatch.setattr("patchpal.tools.PATCHPAL_DIR", todo_dir)
+
+    # Reset operation counter
+    from patchpal.tools import reset_operation_counter
+
+    reset_operation_counter()
+
+    yield temp_repo
+
+
+def test_todo_add_simple(todo_repo):
+    """Test adding a simple TODO task."""
+    from patchpal.tools import todo_add
+
+    result = todo_add("Implement authentication")
+    assert "✓ Added task #1" in result
+    assert "Implement authentication" in result
+
+
+def test_todo_add_with_details(todo_repo):
+    """Test adding a TODO task with details."""
+    from patchpal.tools import todo_add
+
+    result = todo_add("Add login endpoint", details="Use JWT tokens with refresh mechanism")
+    assert "✓ Added task #1" in result
+    assert "Add login endpoint" in result
+    assert "JWT tokens" in result
+
+
+def test_todo_add_multiple_tasks(todo_repo):
+    """Test adding multiple TODO tasks."""
+    from patchpal.tools import todo_add
+
+    result1 = todo_add("Task 1")
+    result2 = todo_add("Task 2")
+    result3 = todo_add("Task 3")
+
+    assert "task #1" in result1
+    assert "task #2" in result2
+    assert "task #3" in result3
+
+
+def test_todo_list_empty(todo_repo):
+    """Test listing TODOs when list is empty."""
+    from patchpal.tools import todo_list
+
+    result = todo_list()
+    assert "No tasks in TODO list" in result
+    assert "todo_add()" in result
+
+
+def test_todo_list_pending_only(todo_repo):
+    """Test listing only pending tasks."""
+    from patchpal.tools import todo_add, todo_complete, todo_list
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_add("Task 3")
+    todo_complete(2)
+
+    result = todo_list(show_completed=False)
+    assert "Task 1" in result
+    assert "Task 3" in result
+    assert "Task 2" not in result  # Completed task should not appear
+    assert "○ Task #1" in result
+    assert "○ Task #3" in result
+
+
+def test_todo_list_all_tasks(todo_repo):
+    """Test listing all tasks including completed."""
+    from patchpal.tools import todo_add, todo_complete, todo_list
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_complete(1)
+
+    result = todo_list(show_completed=True)
+    assert "Task 1" in result
+    assert "Task 2" in result
+    assert "✓ Task #1" in result  # Completed
+    assert "○ Task #2" in result  # Pending
+
+
+def test_todo_list_shows_details(todo_repo):
+    """Test that todo_list shows task details."""
+    from patchpal.tools import todo_add, todo_list
+
+    todo_add("Implement auth", details="Use OAuth2 with PKCE flow\nHandle token refresh")
+
+    result = todo_list()
+    assert "Implement auth" in result
+    assert "OAuth2" in result
+    assert "token refresh" in result
+
+
+def test_todo_list_shows_progress(todo_repo):
+    """Test that todo_list shows progress summary."""
+    from patchpal.tools import todo_add, todo_complete, todo_list
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_add("Task 3")
+    todo_complete(1)
+    todo_complete(2)
+
+    result = todo_list(show_completed=True)
+    assert "Summary:" in result
+    assert "1 pending" in result
+    assert "2 completed" in result
+    assert "3 total" in result
+
+
+def test_todo_list_all_completed(todo_repo):
+    """Test listing when all tasks are completed."""
+    from patchpal.tools import todo_add, todo_complete, todo_list
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_complete(1)
+    todo_complete(2)
+
+    result = todo_list(show_completed=False)
+    assert "No pending tasks" in result
+    assert "All tasks completed" in result
+    assert "show_completed=True" in result
+
+
+def test_todo_complete_success(todo_repo):
+    """Test completing a TODO task."""
+    from patchpal.tools import todo_add, todo_complete
+
+    todo_add("Task to complete")
+    result = todo_complete(1)
+
+    assert "✓ Completed task #1" in result
+    assert "Task to complete" in result
+    assert "Progress: 1/1" in result
+
+
+def test_todo_complete_shows_progress(todo_repo):
+    """Test that todo_complete shows progress."""
+    from patchpal.tools import todo_add, todo_complete
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_add("Task 3")
+
+    result = todo_complete(2)
+    assert "Progress: 1/3" in result
+
+
+def test_todo_complete_nonexistent(todo_repo):
+    """Test completing a nonexistent task."""
+    from patchpal.tools import todo_add, todo_complete
+
+    todo_add("Task 1")
+    result = todo_complete(999)
+
+    assert "Task #999 not found" in result
+    assert "Available task IDs: [1]" in result
+
+
+def test_todo_complete_already_completed(todo_repo):
+    """Test completing an already completed task."""
+    from patchpal.tools import todo_add, todo_complete
+
+    todo_add("Task 1")
+    todo_complete(1)
+
+    result = todo_complete(1)
+    assert "already completed" in result
+
+
+def test_todo_update_description(todo_repo):
+    """Test updating task description."""
+    from patchpal.tools import todo_add, todo_update
+
+    todo_add("Original description")
+    result = todo_update(1, description="Updated description")
+
+    assert "✓ Updated task #1" in result
+    assert "Original description" in result
+    assert "Updated description" in result
+
+
+def test_todo_update_details(todo_repo):
+    """Test updating task details."""
+    from patchpal.tools import todo_add, todo_list, todo_update
+
+    todo_add("Task 1", details="Old details")
+    todo_update(1, details="New details with more information")
+
+    result = todo_list()
+    assert "New details with more information" in result
+    assert "Old details" not in result
+
+
+def test_todo_update_both_fields(todo_repo):
+    """Test updating both description and details."""
+    from patchpal.tools import todo_add, todo_update
+
+    todo_add("Old task", details="Old details")
+    result = todo_update(1, description="New task", details="New details")
+
+    assert "✓ Updated task #1" in result
+    assert "Old task" in result
+    assert "New task" in result
+
+
+def test_todo_update_no_fields(todo_repo):
+    """Test updating without providing any fields."""
+    from patchpal.tools import todo_add, todo_update
+
+    todo_add("Task 1")
+    result = todo_update(1)
+
+    assert "Error: Must provide either description or details" in result
+
+
+def test_todo_update_nonexistent(todo_repo):
+    """Test updating a nonexistent task."""
+    from patchpal.tools import todo_update
+
+    result = todo_update(999, description="New description")
+    assert "Task #999 not found" in result
+
+
+def test_todo_remove_success(todo_repo):
+    """Test removing a TODO task."""
+    from patchpal.tools import todo_add, todo_remove
+
+    todo_add("Task to remove")
+    result = todo_remove(1)
+
+    assert "✓ Removed task #1" in result
+    assert "Task to remove" in result
+    assert "0 task(s) remaining" in result
+
+
+def test_todo_remove_with_remaining_tasks(todo_repo):
+    """Test removing a task when others remain."""
+    from patchpal.tools import todo_add, todo_list, todo_remove
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_add("Task 3")
+
+    result = todo_remove(2)
+    assert "✓ Removed task #2" in result
+    assert "2 task(s) remaining" in result
+
+    # Verify remaining tasks
+    list_result = todo_list()
+    assert "Task 1" in list_result
+    assert "Task 3" in list_result
+    assert "Task 2" not in list_result
+
+
+def test_todo_remove_nonexistent(todo_repo):
+    """Test removing a nonexistent task."""
+    from patchpal.tools import todo_add, todo_remove
+
+    todo_add("Task 1")
+    result = todo_remove(999)
+
+    assert "Task #999 not found" in result
+    assert "Available task IDs: [1]" in result
+
+
+def test_todo_clear_completed_only(todo_repo):
+    """Test clearing only completed tasks."""
+    from patchpal.tools import todo_add, todo_clear, todo_complete, todo_list
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_add("Task 3")
+    todo_complete(1)
+    todo_complete(3)
+
+    result = todo_clear(completed_only=True)
+    assert "✓ Cleared 2 completed task(s)" in result
+    assert "1 pending task(s) remaining" in result
+
+    # Verify only pending task remains
+    list_result = todo_list()
+    assert "Task 2" in list_result
+    assert "Task 1" not in list_result
+    assert "Task 3" not in list_result
+
+
+def test_todo_clear_all_tasks(todo_repo):
+    """Test clearing all tasks."""
+    from patchpal.tools import todo_add, todo_clear, todo_complete, todo_list
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+    todo_complete(1)
+
+    result = todo_clear(completed_only=False)
+    assert "✓ Cleared all 2 task(s)" in result
+    assert "TODO list is now empty" in result
+
+    # Verify list is empty
+    list_result = todo_list()
+    assert "No tasks in TODO list" in list_result
+
+
+def test_todo_clear_empty_list(todo_repo):
+    """Test clearing when TODO list is already empty."""
+    from patchpal.tools import todo_clear
+
+    result = todo_clear()
+    assert "TODO list is already empty" in result
+
+
+def test_todo_clear_no_completed_tasks(todo_repo):
+    """Test clearing completed tasks when none are completed."""
+    from patchpal.tools import todo_add, todo_clear
+
+    todo_add("Task 1")
+    todo_add("Task 2")
+
+    result = todo_clear(completed_only=True)
+    assert "No completed tasks to clear" in result
+
+
+def test_todo_persistence(todo_repo):
+    """Test that TODO list persists across function calls."""
+    from patchpal.tools import todo_add, todo_complete, todo_list
+
+    # Add tasks
+    todo_add("Task 1")
+    todo_add("Task 2")
+
+    # Complete one
+    todo_complete(1)
+
+    # Verify state persists
+    result = todo_list(show_completed=True)
+    assert "Task 1" in result
+    assert "Task 2" in result
+    assert "✓ Task #1" in result  # Should be completed
+
+
+def test_todo_json_structure(todo_repo):
+    """Test that TODO JSON file has correct structure."""
+    import json
+
+    from patchpal.tools import todo_add
+
+    todo_add("Test task", details="Test details")
+
+    # Read the JSON file directly
+    todos_file = todo_repo / ".patchpal" / "todos.json"
+    assert todos_file.exists()
+
+    with open(todos_file, "r") as f:
+        data = json.load(f)
+
+    assert "tasks" in data
+    assert "next_id" in data
+    assert len(data["tasks"]) == 1
+    assert data["tasks"][0]["id"] == 1
+    assert data["tasks"][0]["description"] == "Test task"
+    assert data["tasks"][0]["details"] == "Test details"
+    assert data["tasks"][0]["completed"] is False
+    assert "created_at" in data["tasks"][0]
+
+
+def test_todo_timestamps(todo_repo):
+    """Test that TODO tasks have proper timestamps."""
+    from datetime import datetime
+
+    from patchpal.tools import todo_add, todo_complete, todo_list
+
+    todo_add("Task with timestamp")
+    todo_complete(1)
+
+    result = todo_list(show_completed=True)
+    # Should show created and completed times
+    assert "Created:" in result
+    assert "Completed:" in result
+    # Should have year
+    assert str(datetime.now().year) in result
+
+
+# ============================================================================
+# ask_user Tool Tests
+# ============================================================================
+
+
+def test_ask_user_simple_question(monkeypatch):
+    """Test asking a simple question."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    # Mock Prompt.ask to return an answer
+    with patch("rich.prompt.Prompt.ask", return_value="Yes"):
+        result = ask_user("Should we proceed?")
+        assert result == "Yes"
+
+
+def test_ask_user_with_options(monkeypatch):
+    """Test asking a question with multiple choice options."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    # Mock user selecting option 1
+    with patch("rich.prompt.Prompt.ask", return_value="1"):
+        result = ask_user("Which database?", options=["PostgreSQL", "MySQL", "SQLite"])
+        assert result == "PostgreSQL"
+
+
+def test_ask_user_with_options_by_name(monkeypatch):
+    """Test user typing option name directly."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    # Mock user typing the option name
+    with patch("rich.prompt.Prompt.ask", return_value="MySQL"):
+        result = ask_user("Which database?", options=["PostgreSQL", "MySQL", "SQLite"])
+        assert result == "MySQL"
+
+
+def test_ask_user_with_options_custom_answer(monkeypatch):
+    """Test user providing custom answer when options are given."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    # Mock user typing a custom answer
+    with patch("rich.prompt.Prompt.ask", return_value="MongoDB"):
+        result = ask_user("Which database?", options=["PostgreSQL", "MySQL", "SQLite"])
+        assert result == "MongoDB"
+
+
+def test_ask_user_with_options_out_of_range(monkeypatch):
+    """Test user selecting a number out of range."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    # Mock user entering invalid number
+    with patch("rich.prompt.Prompt.ask", return_value="99"):
+        result = ask_user("Which database?", options=["PostgreSQL", "MySQL", "SQLite"])
+        # Should treat as custom answer
+        assert result == "99"
+
+
+def test_ask_user_audit_logging(monkeypatch, caplog):
+    """Test that ask_user logs to audit log."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    with patch("rich.prompt.Prompt.ask", return_value="Test answer"):
+        ask_user("Test question?")
+
+        # Check audit logger was called (in real usage, would be in audit.log)
+        # We can't easily verify the log file in tests, but we verify the function completes
+
+
+def test_ask_user_long_question(monkeypatch):
+    """Test asking a long question."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    long_question = (
+        "This is a very long question that spans multiple lines and contains lots of details about what we're asking the user to decide on. "
+        * 3
+    )
+
+    with patch("rich.prompt.Prompt.ask", return_value="Answer"):
+        result = ask_user(long_question)
+        assert result == "Answer"
+
+
+def test_ask_user_empty_options_list(monkeypatch):
+    """Test asking with empty options list."""
+    from patchpal.tools import ask_user, reset_operation_counter
+
+    reset_operation_counter()
+
+    # Empty list should be treated as no options
+    with patch("rich.prompt.Prompt.ask", return_value="Free form answer"):
+        result = ask_user("What do you think?", options=[])
+        assert result == "Free form answer"
