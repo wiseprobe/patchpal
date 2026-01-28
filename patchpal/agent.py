@@ -541,7 +541,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "run_shell",
-            "description": "Run a safe shell command in the repository. Privilege escalation (sudo, su) blocked by default unless PATCHPAL_ALLOW_SUDO=true.",
+            "description": "Run a safe shell command in the repository. Commands execute from repository root automatically (no need for 'cd'). Privilege escalation (sudo, su) blocked by default unless PATCHPAL_ALLOW_SUDO=true.",
             "parameters": {
                 "type": "object",
                 "properties": {
