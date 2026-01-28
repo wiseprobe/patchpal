@@ -290,9 +290,15 @@ class OutputFilter:
                     in_failure = True
                     failure_context = [line]
                 elif in_failure:
-                    # Capture context after failure (next 10 lines)
+                    # Capture context after failure (up to 10 lines or until next test/blank line)
                     failure_context.append(line)
-                    if len(failure_context) > 10:
+                    # End failure context on: blank line, next test case, or 10 lines
+                    if (
+                        not line.strip()
+                        or "::" in line
+                        or line.startswith("=")
+                        or len(failure_context) >= 10
+                    ):
                         filtered_lines.extend(failure_context)
                         in_failure = False
                         failure_context = []
