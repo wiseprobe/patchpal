@@ -287,10 +287,6 @@ class OutputFilter:
                     keyword in line.upper()
                     for keyword in ["FAIL", "ERROR", "FAILED", "✗", "✖", "FAILURE"]
                 ):
-                    # Dump previous failure context if any
-                    if failure_context:
-                        filtered_lines.extend(failure_context)
-                    # Start new failure context
                     in_failure = True
                     failure_context = [line]
                 elif in_failure:
@@ -306,16 +302,10 @@ class OutputFilter:
                         filtered_lines.extend(failure_context)
                         in_failure = False
                         failure_context = []
-                # Always capture summary lines (but not individual test results)
-                elif any(keyword in line.lower() for keyword in ["summary", "total"]) or (
-                    # Summary lines typically have "=" separators or aggregate counts
-                    line.startswith("=")
-                    or (
-                        any(keyword in line.lower() for keyword in ["passed", "failed", "error"])
-                        and any(
-                            sep in line for sep in [",", "in "]
-                        )  # "X passed, Y failed" or "in 2.5s"
-                    )
+                # Always capture summary lines
+                elif any(
+                    keyword in line.lower()
+                    for keyword in ["passed", "failed", "error", "summary", "total"]
                 ):
                     filtered_lines.append(line)
 
