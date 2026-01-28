@@ -100,6 +100,10 @@ WEB_USER_AGENT = f"PatchPal/{__version__} (AI Code Assistant)"
 # Shell command configuration
 SHELL_TIMEOUT = int(os.getenv("PATCHPAL_SHELL_TIMEOUT", 30))  # 30 seconds default
 
+# Output filtering configuration - reduce token usage from verbose commands
+ENABLE_OUTPUT_FILTERING = os.getenv("PATCHPAL_FILTER_OUTPUTS", "true").lower() == "true"
+MAX_OUTPUT_LINES = int(os.getenv("PATCHPAL_MAX_OUTPUT_LINES", 500))  # Max lines of output
+
 # Global flag for requiring permission on ALL operations (including reads)
 # Set via CLI flag --require-permission-for-all
 _REQUIRE_PERMISSION_FOR_ALL = False
@@ -195,8 +199,186 @@ class OperationLimiter:
         audit_logger.info(f"Operation {self.operations}/{self.max_operations}: {operation}")
 
     def reset(self):
-        """Reset operation counter."""
+        """Reset the operation counter (used in tests)."""
         self.operations = 0
+
+
+class OutputFilter:
+    """Filter verbose command outputs to reduce token usage.
+
+    This class implements Claude Code's strategy of filtering verbose outputs
+    to show only relevant information (e.g., test failures, error messages).
+    Can save 75% or more on output tokens for verbose commands.
+    """
+
+    @staticmethod
+    def should_filter(cmd: str) -> bool:
+        """Check if a command should have its output filtered.
+
+        Args:
+            cmd: The shell command
+
+        Returns:
+            True if filtering should be applied
+        """
+        if not ENABLE_OUTPUT_FILTERING:
+            return False
+
+        # Test runners - show only failures
+        test_patterns = [
+            "pytest",
+            "npm test",
+            "npm run test",
+            "yarn test",
+            "go test",
+            "cargo test",
+            "mvn test",
+            "gradle test",
+            "ruby -I test",
+            "rspec",
+        ]
+
+        # Version control - limit log output
+        vcs_patterns = [
+            "git log",
+            "git reflog",
+        ]
+
+        # Package managers - show only important info
+        pkg_patterns = [
+            "npm install",
+            "pip install",
+            "cargo build",
+            "go build",
+        ]
+
+        all_patterns = test_patterns + vcs_patterns + pkg_patterns
+        return any(pattern in cmd for pattern in all_patterns)
+
+    @staticmethod
+    def filter_output(cmd: str, output: str) -> str:
+        """Filter command output to reduce token usage.
+
+        Args:
+            cmd: The shell command
+            output: The raw command output
+
+        Returns:
+            Filtered output with only relevant information
+        """
+        if not output or not ENABLE_OUTPUT_FILTERING:
+            return output
+
+        lines = output.split("\n")
+        original_lines = len(lines)
+
+        # Test output - show only failures and summary
+        if any(
+            pattern in cmd
+            for pattern in ["pytest", "npm test", "yarn test", "go test", "cargo test", "rspec"]
+        ):
+            filtered_lines = []
+            in_failure = False
+            failure_context = []
+
+            for line in lines:
+                # Capture failure indicators
+                if any(
+                    keyword in line.upper()
+                    for keyword in ["FAIL", "ERROR", "FAILED", "✗", "✖", "FAILURE"]
+                ):
+                    in_failure = True
+                    failure_context = [line]
+                elif in_failure:
+                    # Capture context after failure (next 10 lines)
+                    failure_context.append(line)
+                    if len(failure_context) > 10:
+                        filtered_lines.extend(failure_context)
+                        in_failure = False
+                        failure_context = []
+                # Always capture summary lines
+                elif any(
+                    keyword in line.lower()
+                    for keyword in ["passed", "failed", "error", "summary", "total"]
+                ):
+                    filtered_lines.append(line)
+
+            # Add remaining failure context
+            if failure_context:
+                filtered_lines.extend(failure_context)
+
+            # If we filtered significantly, add header
+            if filtered_lines and len(filtered_lines) < original_lines * 0.5:
+                header = f"[Filtered test output - showing failures only ({len(filtered_lines)}/{original_lines} lines)]"
+                return header + "\n" + "\n".join(filtered_lines)
+            else:
+                # Not much to filter, return original but truncated if too long
+                return OutputFilter._truncate_output(output, lines, original_lines)
+
+        # Git log - limit to reasonable number of commits
+        elif "git log" in cmd or "git reflog" in cmd:
+            # Take first 50 lines (typically ~5-10 commits with details)
+            if len(lines) > 50:
+                truncated = "\n".join(lines[:50])
+                footer = f"\n[Output truncated: showing first 50/{original_lines} lines. Use --max-count to limit commits]"
+                return truncated + footer
+            return output
+
+        # Build/install output - show only errors and final status
+        elif any(
+            pattern in cmd for pattern in ["npm install", "pip install", "cargo build", "go build"]
+        ):
+            filtered_lines = []
+
+            for line in lines:
+                # Keep error/warning lines
+                if any(
+                    keyword in line.upper()
+                    for keyword in ["ERROR", "WARN", "FAIL", "SUCCESSFULLY", "COMPLETE"]
+                ):
+                    filtered_lines.append(line)
+                # Keep final summary lines
+                elif any(
+                    keyword in line.lower()
+                    for keyword in ["installed", "built", "compiled", "finished"]
+                ):
+                    filtered_lines.append(line)
+
+            if filtered_lines and len(filtered_lines) < original_lines * 0.3:
+                header = f"[Filtered build output - showing errors and summary only ({len(filtered_lines)}/{original_lines} lines)]"
+                return header + "\n" + "\n".join(filtered_lines)
+            else:
+                return OutputFilter._truncate_output(output, lines, original_lines)
+
+        # Default: truncate if too long
+        return OutputFilter._truncate_output(output, lines, original_lines)
+
+    @staticmethod
+    def _truncate_output(output: str, lines: list, original_lines: int) -> str:
+        """Truncate output if it exceeds maximum lines.
+
+        Args:
+            output: Original output string
+            lines: Split lines
+            original_lines: Count of original lines
+
+        Returns:
+            Truncated output if necessary
+        """
+        if original_lines > MAX_OUTPUT_LINES:
+            # Show first and last portions
+            keep_start = MAX_OUTPUT_LINES // 2
+            keep_end = MAX_OUTPUT_LINES // 2
+
+            truncated_lines = (
+                lines[:keep_start]
+                + ["", f"... [truncated {original_lines - MAX_OUTPUT_LINES} lines] ...", ""]
+                + lines[-keep_end:]
+            )
+
+            return "\n".join(truncated_lines)
+
+        return output
 
 
 # Global operation limiter
@@ -2359,4 +2541,19 @@ def run_shell(cmd: str) -> str:
     stdout = result.stdout.decode("utf-8", errors="replace") if result.stdout else ""
     stderr = result.stderr.decode("utf-8", errors="replace") if result.stderr else ""
 
-    return stdout + stderr
+    output = stdout + stderr
+
+    # Apply output filtering to reduce token usage
+    if OutputFilter.should_filter(cmd):
+        filtered_output = OutputFilter.filter_output(cmd, output)
+        # Log if we filtered significantly
+        original_lines = len(output.split("\n"))
+        filtered_lines = len(filtered_output.split("\n"))
+        if filtered_lines < original_lines * 0.5:
+            audit_logger.info(
+                f"SHELL_FILTER: Reduced output from {original_lines} to {filtered_lines} lines "
+                f"(~{int((1 - filtered_lines / original_lines) * 100)}% reduction)"
+            )
+        return filtered_output
+
+    return output
