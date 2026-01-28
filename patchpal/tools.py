@@ -1457,7 +1457,7 @@ def _try_line_trimmed_match(content: str, old_string: str) -> Optional[str]:
     content_lines = content.split("\n")
     search_lines = old_string.split("\n")
 
-    # Remove trailing empty line if present
+    # Remove trailing empty line if present in search
     if search_lines and search_lines[-1] == "":
         search_lines.pop()
 
@@ -1472,7 +1472,19 @@ def _try_line_trimmed_match(content: str, old_string: str) -> Optional[str]:
         if matches:
             # Found a match - return the original lines (with indentation) joined
             matched_lines = content_lines[i : i + len(search_lines)]
-            return "\n".join(matched_lines)
+            result = "\n".join(matched_lines)
+
+            # Preserve trailing newlines if present in the matched section
+            # After the matched lines, check if there's more content (indicating trailing newline)
+            end_index = i + len(search_lines)
+            if end_index < len(content_lines):
+                # There's more content after match, so add the newline that separates them
+                result += "\n"
+            elif content.endswith("\n"):
+                # At end of file and file ends with newline, preserve it
+                result += "\n"
+
+            return result
 
     return None
 
@@ -1746,20 +1758,26 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
     backup_path = _backup_file(p)
 
     # Perform replacement using the matched string
-    # Note: newString is used as-is (OpenCode behavior)
-    # The LLM should provide newString with proper indentation matching the original
-    new_content = content.replace(matched_string, new_string)
+    # Important: Preserve trailing newlines from matched_string to maintain file structure
+    adjusted_new_string = new_string
+    if matched_string.endswith("\n") and not new_string.endswith("\n"):
+        # Matched block had trailing newline(s), preserve them
+        # Count consecutive trailing newlines in matched_string
+        trailing_newlines = len(matched_string) - len(matched_string.rstrip("\n"))
+        adjusted_new_string = new_string + ("\n" * trailing_newlines)
+
+    new_content = content.replace(matched_string, adjusted_new_string)
 
     # Write the new content
     p.write_text(new_content)
 
-    # Generate diff for the specific change (use matched_string for accurate diff)
+    # Generate diff for the specific change (use adjusted_new_string for accurate diff)
     old_lines = matched_string.split("\n")
-    new_lines = new_string.split("\n")
+    new_lines = adjusted_new_string.split("\n")
     diff = difflib.unified_diff(old_lines, new_lines, fromfile="old", tofile="new", lineterm="")
     diff_str = "\n".join(diff)
 
-    audit_logger.info(f"EDIT: {path} ({len(matched_string)} -> {len(new_string)} chars)")
+    audit_logger.info(f"EDIT: {path} ({len(matched_string)} -> {len(adjusted_new_string)} chars)")
 
     backup_msg = f"\n[Backup saved: {backup_path}]" if backup_path else ""
     return f"Successfully edited {path}{backup_msg}\n\nChange:\n{diff_str}"

@@ -1652,9 +1652,9 @@ def test_edit_file_matching_strategies_helper_functions(temp_repo):
     assert _try_simple_match(content, 'print("world")') == 'print("world")'
     assert _try_simple_match(content, "nonexistent") is None
 
-    # Test line trimmed match (should find with correct indentation)
+    # Test line trimmed match (should find with correct indentation AND trailing newline)
     match = _try_line_trimmed_match(content, 'print("world")')
-    assert match == '    print("world")'
+    assert match == '    print("world")\n'  # Now preserves trailing newline
 
     # Test whitespace normalized match
     content2 = "x    =    42"
@@ -1679,8 +1679,8 @@ def test_edit_file_multiline_trimmed_match_helper(temp_repo):
     return value"""
 
     match = _try_line_trimmed_match(content, search)
-    # Should return with proper indentation (8 spaces)
-    assert match == "        if True:\n            do_something()\n            return value"
+    # Should return with proper indentation (8 spaces) AND trailing newline
+    assert match == "        if True:\n            do_something()\n            return value\n"
 
 
 def test_edit_file_finds_match_with_strategy_order(temp_repo):
@@ -1696,5 +1696,83 @@ def test_edit_file_finds_match_with_strategy_order(temp_repo):
 
     # Without indentation, should match the full line not substring in comment
     match = _find_match_with_strategies(content, "return result")
-    assert match == "    return result"
+    assert match == "    return result\n"  # Now includes trailing newline
+    # Should prefer full line match for code patterns
+    content = """def calculate():
+    result = process()  # result is important
+    return result
+"""
+
+    # Without indentation, should match the full line not substring in comment
+    match = _find_match_with_strategies(content, "return result")
+    assert match == "    return result\n"  # Now includes trailing newline
     # Should NOT match just "result" in the comment or variable name
+
+
+def test_edit_file_preserves_trailing_newline(temp_repo):
+    """Test that flexible matching preserves trailing newlines in matched blocks."""
+    from patchpal.tools import edit_file
+
+    # Test case 1: Match in middle of file (should preserve ONE trailing newline, not blank lines)
+    content_middle = """def function1():
+    print("hello")
+    return 1
+
+def function2():
+    print("world")
+    return 2
+"""
+    (temp_repo / "newline_test1.py").write_text(content_middle)
+
+    # Edit a block in the middle - the matched block should include ONE trailing newline
+    # but NOT the blank line that follows (blank line is not part of the function)
+    old_string = """def function1():
+    print("hello")
+    return 1"""
+
+    new_string = """def function1():
+    print("modified")
+    return 1"""
+
+    edit_file("newline_test1.py", old_string, new_string)
+
+    # Verify: the matched section gets replaced, preserving structure
+    # The blank line should remain because it's between the two functions
+    new_content = (temp_repo / "newline_test1.py").read_text()
+    # After editing, there should still be a blank line between functions
+    assert "\n\ndef function2():" in new_content
+    assert 'print("modified")' in new_content
+
+    # Test case 2: Match at end of file WITH trailing newline
+    content_end_with = """def function():
+    print("test")
+    return True
+"""
+    (temp_repo / "newline_test2.py").write_text(content_end_with)
+
+    old_string = 'print("test")\n    return True'
+    new_string = 'print("modified")\n    return True'
+
+    edit_file("newline_test2.py", old_string, new_string)
+
+    new_content = (temp_repo / "newline_test2.py").read_text()
+    # File should still end with newline
+    assert new_content.endswith("\n")
+    assert 'print("modified")' in new_content
+
+    # Test case 3: Match at end of file WITHOUT trailing newline
+    content_end_without = """def function():
+    print("test")
+    return False"""  # No trailing newline
+
+    (temp_repo / "newline_test3.py").write_text(content_end_without)
+
+    old_string = 'print("test")\n    return False'
+    new_string = 'print("changed")\n    return False'
+
+    edit_file("newline_test3.py", old_string, new_string)
+
+    new_content = (temp_repo / "newline_test3.py").read_text()
+    # File should NOT have trailing newline (preserving original)
+    assert not new_content.endswith("\n")
+    assert 'print("changed")' in new_content
