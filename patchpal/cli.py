@@ -248,7 +248,9 @@ Supported models: Any LiteLLM-supported model
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
 
     print("\nType 'exit' to quit.")
-    print("Use '/status' to check context window usage, '/compact' to manually compact.")
+    print(
+        "Use '/status' to check context window usage, '/compact' to manually compact, '/clear' to start fresh."
+    )
     print("Use 'list skills' to see available skills or /skillname to invoke skills.")
     print("Press Ctrl-C during agent execution to interrupt the agent.\n")
 
@@ -360,6 +362,52 @@ Supported models: Any LiteLLM-supported model
                         "\n  Auto-compaction: \033[33mDisabled\033[0m (set PATCHPAL_DISABLE_AUTOCOMPACT=false to enable)"
                     )
 
+                print("=" * 70 + "\n")
+                continue
+
+            # Handle /clear command - clear conversation history
+            if user_input.lower() in ["clear", "/clear"]:
+                print("\n" + "=" * 70)
+                print("\033[1;36mClear Context\033[0m")
+                print("=" * 70)
+
+                if not agent.messages:
+                    print("\033[1;33m  Context is already empty.\033[0m")
+                    print("=" * 70 + "\n")
+                    continue
+
+                # Show current status
+                stats = agent.context_manager.get_usage_stats(agent.messages)
+                print(
+                    f"  Current: {len(agent.messages)} messages, {stats['total_tokens']:,} tokens"
+                )
+
+                # Confirm before clearing
+                try:
+                    confirm = pt_prompt(
+                        FormattedText(
+                            [
+                                ("ansiyellow", "  Clear all context and start fresh? (y/n): "),
+                                ("", ""),
+                            ]
+                        )
+                    ).strip()
+                    if confirm.lower() not in ["y", "yes"]:
+                        print("  Cancelled.")
+                        print("=" * 70 + "\n")
+                        continue
+                except KeyboardInterrupt:
+                    print("\n  Cancelled.")
+                    print("=" * 70 + "\n")
+                    continue
+
+                # Clear conversation history
+                agent.messages = []
+                agent._last_compaction_message_count = 0
+
+                print("\n\033[1;32m✓ Context cleared successfully!\033[0m")
+                print("  Starting fresh with empty conversation history.")
+                print("  All previous context has been removed - ready for a new task.")
                 print("=" * 70 + "\n")
                 continue
 
