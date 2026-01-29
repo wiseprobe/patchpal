@@ -441,13 +441,17 @@ def test_prompt_caching_application_anthropic():
     # Test with direct Anthropic API
     cached_messages = _apply_prompt_caching(messages.copy(), "anthropic/claude-sonnet-4-5")
 
-    # System message should have cache_control
-    assert "cache_control" in cached_messages[0]
-    assert cached_messages[0]["cache_control"] == {"type": "ephemeral"}
+    # System message should have cache_control inside content block
+    assert isinstance(cached_messages[0]["content"], list)
+    assert cached_messages[0]["content"][0]["type"] == "text"
+    assert "cache_control" in cached_messages[0]["content"][0]
+    assert cached_messages[0]["content"][0]["cache_control"] == {"type": "ephemeral"}
 
-    # Last 2 messages should have cache_control
-    assert "cache_control" in cached_messages[-1]  # Last user message
-    assert "cache_control" in cached_messages[-2]  # Last assistant message
+    # Last 2 messages should have cache_control inside content blocks
+    assert isinstance(cached_messages[-1]["content"], list)  # Last user message
+    assert "cache_control" in cached_messages[-1]["content"][0]
+    assert isinstance(cached_messages[-2]["content"], list)  # Last assistant message
+    assert "cache_control" in cached_messages[-2]["content"][0]
 
 
 def test_prompt_caching_application_bedrock():
@@ -466,13 +470,17 @@ def test_prompt_caching_application_bedrock():
         messages.copy(), "bedrock/anthropic.claude-sonnet-4-5-v1:0"
     )
 
-    # System message should have cachePoint (Bedrock format)
-    assert "cachePoint" in cached_messages[0]
-    assert cached_messages[0]["cachePoint"] == {"type": "ephemeral"}
+    # System message should have cachePoint inside content block (Bedrock format)
+    assert isinstance(cached_messages[0]["content"], list)
+    assert cached_messages[0]["content"][0]["type"] == "text"
+    assert "cachePoint" in cached_messages[0]["content"][0]
+    assert cached_messages[0]["content"][0]["cachePoint"] == {"type": "ephemeral"}
 
-    # Last 2 messages should have cachePoint
-    assert "cachePoint" in cached_messages[-1]
-    assert "cachePoint" in cached_messages[-2]
+    # Last 2 messages should have cachePoint inside content blocks
+    assert isinstance(cached_messages[-1]["content"], list)
+    assert "cachePoint" in cached_messages[-1]["content"][0]
+    assert isinstance(cached_messages[-2]["content"], list)
+    assert "cachePoint" in cached_messages[-2]["content"][0]
 
 
 def test_prompt_caching_no_modification_for_unsupported():
@@ -506,5 +514,10 @@ def test_prompt_caching_idempotent():
     cached_once = _apply_prompt_caching(messages.copy(), "anthropic/claude-sonnet-4-5")
     cached_twice = _apply_prompt_caching(cached_once.copy(), "anthropic/claude-sonnet-4-5")
 
-    # Should be the same after second application
-    assert cached_once == cached_twice
+    # Should have the same structure after second application
+    assert cached_once[0]["content"][0] == cached_twice[0]["content"][0]
+    assert cached_once[1]["content"][0] == cached_twice[1]["content"][0]
+
+    # Should only have one cache_control marker per message
+    assert len([k for k in cached_twice[0]["content"][0].keys() if "cache" in k]) == 1
+    assert len([k for k in cached_twice[1]["content"][0].keys() if "cache" in k]) == 1

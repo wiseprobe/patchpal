@@ -756,13 +756,52 @@ def _apply_prompt_caching(messages: List[Dict[str, Any]], model_id: str) -> List
 
     # Apply caching to system messages (first 2)
     for idx in system_messages[:2]:
-        if "cache_control" not in messages[idx] and "cachePoint" not in messages[idx]:
-            messages[idx] = {**messages[idx], **cache_marker}
+        msg = messages[idx]
+        # Skip if already has cache marker at content block level
+        if isinstance(msg.get("content"), list):
+            # Already structured - check if any block has cache_control/cachePoint
+            has_cache = any(
+                "cache_control" in block or "cachePoint" in block
+                for block in msg["content"]
+                if isinstance(block, dict)
+            )
+            if not has_cache and msg["content"]:
+                # Add cache marker to the last content block
+                last_block = msg["content"][-1]
+                if isinstance(last_block, dict):
+                    last_block.update(cache_marker)
+        else:
+            # Convert simple string content to structured format with cache marker
+            content_text = msg.get("content", "")
+            messages[idx] = {
+                **msg,
+                "content": [{"type": "text", "text": content_text, **cache_marker}],
+            }
 
     # Apply caching to last 2 messages
     for idx in last_two_indices:
-        if "cache_control" not in messages[idx] and "cachePoint" not in messages[idx]:
-            messages[idx] = {**messages[idx], **cache_marker}
+        msg = messages[idx]
+        # Skip if already has cache marker at content block level
+        if isinstance(msg.get("content"), list):
+            # Already structured - check if any block has cache_control/cachePoint
+            has_cache = any(
+                "cache_control" in block or "cachePoint" in block
+                for block in msg["content"]
+                if isinstance(block, dict)
+            )
+            if not has_cache and msg["content"]:
+                # Add cache marker to the last content block
+                last_block = msg["content"][-1]
+                if isinstance(last_block, dict):
+                    last_block.update(cache_marker)
+        else:
+            # Convert simple string content to structured format with cache marker
+            content_text = msg.get("content", "")
+            if content_text:  # Only convert non-empty content
+                messages[idx] = {
+                    **msg,
+                    "content": [{"type": "text", "text": content_text, **cache_marker}],
+                }
 
     return messages
 

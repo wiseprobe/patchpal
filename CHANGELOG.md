@@ -7,6 +7,18 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.4.3 (2026-01-29)
+
+### new:
+- N/A
+
+### changed
+- N/A
+
+### fixed:
+- Fixed prompt caching structure to place `cache_control` markers inside content blocks instead of at message level. Previous implementation was completely ignored by Anthropic API, resulting in 0% cache rate. After this fix, users should see actual cache hits and significant cost reduction on cached content.
+
+
 ## 0.4.2 (2026-01-29)
 
 ### new:
