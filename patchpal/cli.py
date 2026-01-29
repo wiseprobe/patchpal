@@ -365,10 +365,20 @@ Supported models: Any LiteLLM-supported model
                 # Show cumulative token usage
                 print("\n\033[1;36mSession Statistics\033[0m")
                 print(f"  LLM calls: {agent.total_llm_calls}")
-                print(f"  Cumulative input tokens: {agent.cumulative_input_tokens:,}")
-                print(f"  Cumulative output tokens: {agent.cumulative_output_tokens:,}")
-                total_tokens = agent.cumulative_input_tokens + agent.cumulative_output_tokens
-                print(f"  Total tokens: {total_tokens:,}")
+
+                # Check if usage info is available (if we have LLM calls but no token counts)
+                has_usage_info = (
+                    agent.cumulative_input_tokens > 0 or agent.cumulative_output_tokens > 0
+                )
+                if agent.total_llm_calls > 0 and not has_usage_info:
+                    print(
+                        "  \033[2mToken usage unavailable (model doesn't report usage info)\033[0m"
+                    )
+                else:
+                    print(f"  Cumulative input tokens: {agent.cumulative_input_tokens:,}")
+                    print(f"  Cumulative output tokens: {agent.cumulative_output_tokens:,}")
+                    total_tokens = agent.cumulative_input_tokens + agent.cumulative_output_tokens
+                    print(f"  Total tokens: {total_tokens:,}")
 
                 print("=" * 70 + "\n")
                 continue
