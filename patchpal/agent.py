@@ -818,6 +818,11 @@ class PatchPalAgent:
         # Track last compaction to prevent compaction loops
         self._last_compaction_message_count = 0
 
+        # Track cumulative token usage across all LLM calls
+        self.total_llm_calls = 0
+        self.cumulative_input_tokens = 0
+        self.cumulative_output_tokens = 0
+
         # LiteLLM settings for models that need parameter dropping
         self.litellm_kwargs = {}
         if self.model_id.startswith("bedrock/"):
@@ -896,11 +901,21 @@ class PatchPalAgent:
                 messages = [{"role": "system", "content": SYSTEM_PROMPT}] + msgs
                 # Apply prompt caching for supported models
                 messages = _apply_prompt_caching(messages, self.model_id)
-                return litellm.completion(
+                response = litellm.completion(
                     model=self.model_id,
                     messages=messages,
                     **self.litellm_kwargs,
                 )
+
+                # Track token usage from compaction call
+                self.total_llm_calls += 1
+                if hasattr(response, "usage") and response.usage:
+                    if hasattr(response.usage, "prompt_tokens"):
+                        self.cumulative_input_tokens += response.usage.prompt_tokens
+                    if hasattr(response.usage, "completion_tokens"):
+                        self.cumulative_output_tokens += response.usage.completion_tokens
+
+                return response
 
             summary_msg, summary_text = self.context_manager.create_compaction(
                 self.messages,
@@ -995,6 +1010,15 @@ class PatchPalAgent:
                     tool_choice="auto",
                     **self.litellm_kwargs,
                 )
+
+                # Track token usage from this LLM call
+                self.total_llm_calls += 1
+                if hasattr(response, "usage") and response.usage:
+                    if hasattr(response.usage, "prompt_tokens"):
+                        self.cumulative_input_tokens += response.usage.prompt_tokens
+                    if hasattr(response.usage, "completion_tokens"):
+                        self.cumulative_output_tokens += response.usage.completion_tokens
+
             except Exception as e:
                 return f"Error calling model: {e}"
 

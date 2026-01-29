@@ -362,6 +362,14 @@ Supported models: Any LiteLLM-supported model
                         "\n  Auto-compaction: \033[33mDisabled\033[0m (set PATCHPAL_DISABLE_AUTOCOMPACT=false to enable)"
                     )
 
+                # Show cumulative token usage
+                print("\n\033[1;36mSession Statistics\033[0m")
+                print(f"  LLM calls: {agent.total_llm_calls}")
+                print(f"  Cumulative input tokens: {agent.cumulative_input_tokens:,}")
+                print(f"  Cumulative output tokens: {agent.cumulative_output_tokens:,}")
+                total_tokens = agent.cumulative_input_tokens + agent.cumulative_output_tokens
+                print(f"  Total tokens: {total_tokens:,}")
+
                 print("=" * 70 + "\n")
                 continue
 
