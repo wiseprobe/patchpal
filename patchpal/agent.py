@@ -811,12 +811,17 @@ def _apply_prompt_caching(messages: List[Dict[str, Any]], model_id: str) -> List
 class PatchPalAgent:
     """Simple agent that uses LiteLLM for tool calling."""
 
-    def __init__(self, model_id: str = "anthropic/claude-sonnet-4-5"):
+    def __init__(self, model_id: str = "anthropic/claude-sonnet-4-5", custom_tools=None):
         """Initialize the agent.
 
         Args:
             model_id: LiteLLM model identifier
+            custom_tools: Optional list of Python functions to add as tools
         """
+        # Store custom tools
+        self.custom_tools = custom_tools or []
+        self.custom_tool_funcs = {func.__name__: func for func in self.custom_tools}
+
         # Convert ollama/ to ollama_chat/ for LiteLLM compatibility
         if model_id.startswith("ollama/"):
             model_id = model_id.replace("ollama/", "ollama_chat/", 1)
@@ -1103,10 +1108,18 @@ class PatchPalAgent:
 
             # Use LiteLLM for all providers
             try:
+                # Build tool list (built-in + custom)
+                tools = list(TOOLS)
+                if self.custom_tools:
+                    from patchpal.tool_schema import function_to_tool_schema
+
+                    for func in self.custom_tools:
+                        tools.append(function_to_tool_schema(func))
+
                 response = litellm.completion(
                     model=self.model_id,
                     messages=messages,
-                    tools=TOOLS,
+                    tools=tools,
                     tool_choice="auto",
                     **self.litellm_kwargs,
                 )
@@ -1160,15 +1173,25 @@ class PatchPalAgent:
                         tool_result = f"Error: Invalid JSON arguments for {tool_name}"
                         print(f"\033[1;31m✗ {tool_name}: Invalid arguments\033[0m")
                     else:
-                        # Get the tool function
-                        tool_func = TOOL_FUNCTIONS.get(tool_name)
+                        # Get the tool function (check custom tools first, then built-in)
+                        tool_func = self.custom_tool_funcs.get(tool_name) or TOOL_FUNCTIONS.get(
+                            tool_name
+                        )
                         if tool_func is None:
                             tool_result = f"Error: Unknown tool {tool_name}"
                             print(f"\033[1;31m✗ Unknown tool: {tool_name}\033[0m")
                         else:
                             # Show tool call message
-                            tool_display = tool_name.replace("_", " ").title()
-                            if tool_name == "read_file":
+                            if tool_name in self.custom_tool_funcs:
+                                # Custom tool - show generic message with args
+                                args_preview = str(tool_args)[:60]
+                                if len(str(tool_args)) > 60:
+                                    args_preview += "..."
+                                print(
+                                    f"\033[2m🔧 {tool_name}({args_preview})\033[0m",
+                                    flush=True,
+                                )
+                            elif tool_name == "read_file":
                                 print(
                                     f"\033[2m📖 Reading: {tool_args.get('path', '')}\033[0m",
                                     flush=True,
@@ -1311,7 +1334,7 @@ class PatchPalAgent:
                                 tool_result = tool_func(**filtered_args)
                             except Exception as e:
                                 tool_result = f"Error executing {tool_name}: {e}"
-                                print(f"\033[1;31m✗ {tool_display}: {e}\033[0m")
+                                print(f"\033[1;31m✗ {tool_name}: {e}\033[0m")
 
                     # Add tool result to messages
                     self.messages.append(
@@ -1360,18 +1383,33 @@ class PatchPalAgent:
         )
 
 
-def create_agent(model_id: str = "anthropic/claude-sonnet-4-5") -> PatchPalAgent:
+def create_agent(model_id: str = "anthropic/claude-sonnet-4-5", custom_tools=None) -> PatchPalAgent:
     """Create and return a PatchPal agent.
 
     Args:
         model_id: LiteLLM model identifier (default: anthropic/claude-sonnet-4-5)
+        custom_tools: Optional list of Python functions to use as custom tools.
+                     Each function should have type hints and a docstring.
 
     Returns:
         A configured PatchPalAgent instance
+
+    Example:
+        def calculator(x: int, y: int) -> str:
+            '''Add two numbers.
+
+            Args:
+                x: First number
+                y: Second number
+            '''
+            return str(x + y)
+
+        agent = create_agent(custom_tools=[calculator])
+        response = agent.run("What's 5 + 3?")
     """
     # Reset session todos for new session
     from patchpal.tools import reset_session_todos
 
     reset_session_todos()
 
-    return PatchPalAgent(model_id=model_id)
+    return PatchPalAgent(model_id=model_id, custom_tools=custom_tools)
