@@ -7,7 +7,7 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
-## 0.4.6 (TBD)
+## 0.4.5 (TBD)
 
 ### new:
 - N/A
@@ -17,19 +17,8 @@ Most recent releases are shown at the top. Each release shows:
 - Permission prompts now show scope context (working directory for shell, directory for files) (#33)
 
 ### fixed:
-- Fixed test fixture to properly reset cached permission manager
-
-
-## 0.4.5 (2026-01-30)
-
-### new:
-- N/A
-
-### changed
-- N/A
-
-### fixed:
 - Fixed `read_file` and `read_lines` incorrectly detecting JSON, XML, and other text-based files as binary. Added whitelist for common text-based `application/*` MIME types including JSON, XML, JavaScript, YAML, and shell scripts. (#32)
+- Fixed test fixture to properly reset cached permission manager
 
 
 ## 0.4.4 (2026-01-29)
