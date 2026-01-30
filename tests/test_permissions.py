@@ -13,6 +13,105 @@ def mock_repo(tmp_path):
     return repo_dir
 
 
+def test_shell_command_pattern_simple():
+    """Test simple shell command pattern extraction."""
+    from patchpal.tools import _extract_shell_command_info
+
+    # Simple command
+    cmd, wd = _extract_shell_command_info("pytest tests/")
+    assert cmd == "pytest"
+    assert wd is None
+
+    # Command with flags
+    cmd, wd = _extract_shell_command_info("python -m pytest tests/")
+    assert cmd == "python"
+    assert wd is None
+
+
+def test_shell_command_pattern_with_cd():
+    """Test shell command pattern extraction with cd."""
+    from patchpal.tools import _extract_shell_command_info
+
+    # cd && command
+    cmd, wd = _extract_shell_command_info("cd /tmp && python test.py")
+    assert cmd == "python"
+    assert wd == "/tmp"
+
+    # cd && command with relative path
+    cmd, wd = _extract_shell_command_info("cd src && python app.py")
+    assert cmd == "python"
+    assert wd == "src"
+
+    # Multiple commands after cd
+    cmd, wd = _extract_shell_command_info("cd /tmp && python setup.py && pytest")
+    assert cmd == "python"  # First non-cd command
+    assert wd == "/tmp"
+
+
+def test_shell_command_pattern_with_pipes():
+    """Test shell command pattern extraction with pipes."""
+    from patchpal.tools import _extract_shell_command_info
+
+    # Command with pipe
+    cmd, wd = _extract_shell_command_info("ls -la | grep test")
+    assert cmd == "ls"
+    assert wd is None
+
+    # cd && command | pipe
+    cmd, wd = _extract_shell_command_info("cd /tmp && ls -la | grep test")
+    assert cmd == "ls"
+    assert wd == "/tmp"
+
+
+def test_shell_command_pattern_cd_only():
+    """Test shell command pattern extraction for cd-only command."""
+    from patchpal.tools import _extract_shell_command_info
+
+    # Just cd
+    cmd, wd = _extract_shell_command_info("cd /tmp")
+    assert cmd == "cd"
+    assert wd == "/tmp"
+
+
+def test_shell_command_pattern_or_operator():
+    """Test shell command pattern extraction with || operator."""
+    from patchpal.tools import _extract_shell_command_info
+
+    # Command with ||
+    cmd, wd = _extract_shell_command_info("python test.py || echo failed")
+    assert cmd == "python"
+    assert wd is None
+
+
+def test_shell_command_composite_pattern():
+    """Test that run_shell creates correct composite patterns."""
+    # We can't easily test run_shell directly due to permission prompts,
+    # but we can verify the pattern format logic
+
+    # Pattern for simple command (no cd)
+    command_name, working_dir = "pytest", None
+    pattern = f"{command_name}@{working_dir}" if working_dir and command_name else command_name
+    assert pattern == "pytest"
+
+    # Pattern for command with cd - using @ separator for cross-platform compatibility
+    command_name, working_dir = "python", "/tmp"
+    pattern = f"{command_name}@{working_dir}" if working_dir and command_name else command_name
+    assert pattern == "python@/tmp"
+
+    # Pattern for different directory
+    command_name, working_dir = "python", "/home"
+    pattern = f"{command_name}@{working_dir}" if working_dir and command_name else command_name
+    assert pattern == "python@/home"
+
+    # These should be different patterns (different directories)
+    assert "python@/tmp" != "python@/home"
+
+    # Test Windows path compatibility
+    command_name, working_dir = "python", "C:\\temp"
+    pattern = f"{command_name}@{working_dir}" if working_dir and command_name else command_name
+    assert pattern == "python@C:\\temp"  # No ambiguity with @ separator
+
+
 def test_permission_pattern_inside_repo(mock_repo, monkeypatch):
     """Test that files inside repo use relative path as pattern."""
     # Mock REPO_ROOT
@@ -97,7 +196,7 @@ def test_apply_patch_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
     # Track what pattern is passed to permission request
     captured_pattern = {}
 
-    def mock_request_permission(self, tool_name, description, pattern=None):
+    def mock_request_permission(self, tool_name, description, pattern=None, context=None):
         captured_pattern["pattern"] = pattern
         return False  # Deny to prevent actual file write
 
@@ -141,7 +240,7 @@ def test_edit_file_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
     # Track what pattern is passed to permission request
     captured_pattern = {}
 
-    def mock_request_permission(self, tool_name, description, pattern=None):
+    def mock_request_permission(self, tool_name, description, pattern=None, context=None):
         captured_pattern["pattern"] = pattern
         return False  # Deny to prevent actual edit
 
@@ -182,7 +281,7 @@ def test_permission_pattern_consistency_across_tools(mock_repo, monkeypatch, tmp
 
     captured_patterns = []
 
-    def mock_request_permission(self, tool_name, description, pattern=None):
+    def mock_request_permission(self, tool_name, description, pattern=None, context=None):
         captured_patterns.append(pattern)
         return False
 

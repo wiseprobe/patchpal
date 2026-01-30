@@ -278,7 +278,7 @@ class TestPathTraversal:
         monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
 
         # Mock permission request to deny access
-        def mock_request_permission(self, tool_name, description, pattern=None):
+        def mock_request_permission(self, tool_name, description, pattern=None, context=None):
             return False  # Deny permission
 
         monkeypatch.setattr(
@@ -313,7 +313,7 @@ class TestPathTraversal:
         monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
 
         # Mock permission request to deny access
-        def mock_request_permission(self, tool_name, description, pattern=None):
+        def mock_request_permission(self, tool_name, description, pattern=None, context=None):
             return False  # Deny permission
 
         monkeypatch.setattr(
@@ -383,7 +383,7 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     """Comprehensive test showing all security features."""
     # Mock permission request to deny only for outside-repo writes
 
-    def mock_request_permission(self, tool_name, description, pattern=None):
+    def mock_request_permission(self, tool_name, description, pattern=None, context=None):
         # Only deny write operations (apply_patch/edit_file) for paths outside repo
         if tool_name in ("apply_patch", "edit_file") and pattern:
             # New pattern format: directory-based (e.g., "tmp/") for files outside repo

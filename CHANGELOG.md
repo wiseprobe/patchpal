@@ -15,10 +15,14 @@ Most recent releases are shown at the top. Each release shows:
 ### changed
 - File operation permissions now use directory-based patterns (matches Claude Code behavior) (#33)
 - Permission prompts now show scope context (working directory for shell, directory for files) (#33)
+- Shell command permissions now use composite patterns `command@directory` for `cd` commands, properly isolating different working directories (#33)
 
 ### fixed:
 - Fixed `read_file` and `read_lines` incorrectly detecting JSON, XML, and other text-based files as binary. Added whitelist for common text-based `application/*` MIME types including JSON, XML, JavaScript, YAML, and shell scripts. (#32)
 - Fixed test fixture to properly reset cached permission manager
+- Fixed shell command permission patterns to extract actual command from compound commands (e.g., `cd /tmp && python test.py` now correctly identifies `python` as the command, not `cd`) (#33)
+- Fixed shell command permission prompts to show the correct working directory when `cd` is used (e.g., shows `/tmp` instead of repo root) (#33)
+- Fixed Windows compatibility: shell command patterns now use `@` separator instead of `:` to avoid conflicts with Windows drive letters (e.g., `python@C:\temp` instead of `python:C:\temp`) (#33)
 
 
 ## 0.4.4 (2026-01-29)

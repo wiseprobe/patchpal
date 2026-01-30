@@ -105,14 +105,19 @@ class PermissionManager:
                 self.session_grants[tool_name] = True
 
     def request_permission(
-        self, tool_name: str, description: str, pattern: Optional[str] = None
+        self,
+        tool_name: str,
+        description: str,
+        pattern: Optional[str] = None,
+        context: Optional[str] = None,
     ) -> bool:
         """Request permission from user to execute a tool.
 
         Args:
             tool_name: Name of the tool (e.g., 'run_shell', 'apply_patch')
             description: Human-readable description of what will be executed
-            pattern: Optional pattern for matching (e.g., 'pytest' for pytest commands)
+            pattern: Optional pattern for matching (e.g., 'pytest' for pytest commands, 'python:/tmp' for python in /tmp)
+            context: Optional context string for display (e.g., working directory)
 
         Returns:
             True if permission granted, False otherwise
@@ -158,9 +163,16 @@ class PermissionManager:
                         f"  2. Yes, and don't ask again this session for edits to {pattern}\n"
                     )
             elif tool_name == "run_shell":
-                # Shell command - show working directory context (match Claude Code)
+                # Shell command - show working directory context
+                # Extract command name from pattern (could be "python" or "python@/tmp")
+                # Using @ separator for cross-platform compatibility (: conflicts with Windows paths)
+                command_name = pattern.split("@")[0] if "@" in pattern else pattern
+
+                # Use context (working_dir) if provided, otherwise use repo_root
+                display_dir = context if context else str(repo_root)
+
                 sys.stderr.write(
-                    f"  2. Yes, and don't ask again this session for '{pattern}' commands in {repo_root}\n"
+                    f"  2. Yes, and don't ask again this session for '{command_name}' commands in {display_dir}\n"
                 )
             else:
                 # Other tools
