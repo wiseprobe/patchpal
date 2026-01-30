@@ -7,6 +7,18 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.4.5 (2026-01-30)
+
+### new:
+- N/A
+
+### changed
+- N/A
+
+### fixed:
+- Fixed `read_file` and `read_lines` incorrectly detecting JSON, XML, and other text-based files as binary. Added whitelist for common text-based `application/*` MIME types including JSON, XML, JavaScript, YAML, and shell scripts. (#32)
+
+
 ## 0.4.4 (2026-01-29)
 
 ### new:

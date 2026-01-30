@@ -150,6 +150,30 @@ def test_read_lines_binary_file(temp_repo):
         read_lines("binary.bin", 1, 5)
 
 
+def test_read_file_json(temp_repo):
+    """Test reading JSON files (application/json MIME type)."""
+    from patchpal.tools import read_file
+
+    # Create a JSON file
+    json_content = '{"name": "test", "value": 123}'
+    (temp_repo / "test.json").write_text(json_content)
+
+    content = read_file("test.json")
+    assert content == json_content
+
+
+def test_read_file_xml(temp_repo):
+    """Test reading XML files (application/xml MIME type)."""
+    from patchpal.tools import read_file
+
+    # Create an XML file
+    xml_content = '<?xml version="1.0"?><root><item>test</item></root>'
+    (temp_repo / "test.xml").write_text(xml_content)
+
+    content = read_file("test.xml")
+    assert content == xml_content
+
+
 def test_list_files(temp_repo):
     """Test listing files in the repository."""
     from patchpal.tools import list_files

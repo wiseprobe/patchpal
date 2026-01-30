@@ -589,9 +589,27 @@ def _is_binary_file(path: Path) -> bool:
     if not path.exists():
         return False
 
+    # Text-based application MIME types that should be treated as text
+    text_application_mimes = {
+        "application/json",
+        "application/xml",
+        "application/javascript",
+        "application/x-yaml",
+        "application/x-sh",
+        "application/x-shellscript",
+        "application/x-python",
+        "application/x-perl",
+        "application/x-ruby",
+        "application/x-php",
+    }
+
     # Check MIME type first
     mime_type, _ = mimetypes.guess_type(str(path))
-    if mime_type and not mime_type.startswith("text/"):
+    if mime_type:
+        # Allow text/* and whitelisted application/* types
+        if mime_type.startswith("text/") or mime_type in text_application_mimes:
+            return False
+        # Everything else is binary
         return True
 
     # Fallback: check for null bytes in first 8KB
