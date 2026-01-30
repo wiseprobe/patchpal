@@ -119,8 +119,8 @@ def test_permission_pattern_inside_repo(mock_repo, monkeypatch):
 
     from patchpal.tools import _get_permission_pattern_for_path
 
-    # Test file inside repo
-    test_file = mock_repo / "src" / "app.py"
+    # Test file inside repo - use resolved path like the actual code does
+    test_file = (mock_repo / "src" / "app.py").resolve()
     pattern = _get_permission_pattern_for_path("src/app.py", test_file)
 
     assert pattern == "src/app.py"
@@ -134,8 +134,8 @@ def test_permission_pattern_outside_repo_tmp(mock_repo, monkeypatch):
 
     from patchpal.tools import _get_permission_pattern_for_path
 
-    # Test file in /tmp/
-    tmp_file = Path("/tmp/test.py")
+    # Test file in /tmp/ - use absolute resolved path
+    tmp_file = Path("/tmp/test.py").resolve()
     pattern = _get_permission_pattern_for_path("../../../../../tmp/test.py", tmp_file)
 
     assert pattern == "tmp/"
@@ -149,8 +149,8 @@ def test_permission_pattern_outside_repo_home(mock_repo, monkeypatch):
 
     from patchpal.tools import _get_permission_pattern_for_path
 
-    # Test file in /home/user/other/
-    other_file = Path("/home/user/other/file.py")
+    # Test file in /home/user/other/ - use absolute resolved path
+    other_file = Path("/home/user/other/file.py").resolve()
     pattern = _get_permission_pattern_for_path("/home/user/other/file.py", other_file)
 
     assert pattern == "other/"
@@ -164,7 +164,8 @@ def test_permission_pattern_multiple_traversals_same_dir(mock_repo, monkeypatch)
 
     from patchpal.tools import _get_permission_pattern_for_path
 
-    tmp_file = Path("/tmp/test.py")
+    # Use resolved path like the actual code does
+    tmp_file = Path("/tmp/test.py").resolve()
 
     # Different path traversals to /tmp/
     pattern1 = _get_permission_pattern_for_path("../../../../../tmp/test.py", tmp_file)

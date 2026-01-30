@@ -647,7 +647,8 @@ def _get_permission_pattern_for_path(path: str, resolved_path: Path) -> str:
     if _is_inside_repo(resolved_path):
         try:
             relative = resolved_path.relative_to(REPO_ROOT)
-            return str(relative)
+            # Use forward slashes for cross-platform consistency
+            return str(relative).replace("\\", "/")
         except ValueError:
             pass
 
