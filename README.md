@@ -32,7 +32,7 @@ __init__.py agent.py  cli.py context.py permissions.py  skills.py system_prompt.
   - [Air-Gapped and Offline Environments](https://github.com/amaiya/patchpal?tab=readme-ov-file#air-gapped-and-offline-environments)
   - [Maximum Security Mode](https://github.com/amaiya/patchpal?tab=readme-ov-file#maximum-security-mode)
 - [Usage](https://github.com/amaiya/patchpal?tab=readme-ov-file#usage)
-  - [Using PatchPal as a Python Library](https://github.com/amaiya/patchpal?tab=readme-ov-file#using-patchpal-as-a-python-library)
+- [Python API](https://github.com/amaiya/patchpal?tab=readme-ov-file#python-api)
 - [Configuration](https://github.com/amaiya/patchpal?tab=readme-ov-file#configuration)
 - [Example Tasks](https://github.com/amaiya/patchpal?tab=readme-ov-file#example-tasks)
 - [Safety](https://github.com/amaiya/patchpal?tab=readme-ov-file#safety)
@@ -633,7 +633,7 @@ The agent will process your request and show you the results. You can continue w
 - **Interrupt Agent**: Press `Ctrl-C` during agent execution to stop the current task without exiting PatchPal
 - **Exit**: Type `exit`, `quit`, or press `Ctrl-C` at the prompt to exit PatchPal
 
-### Using PatchPal as a Python Library
+## Python API
 
 PatchPal can be used programmatically from Python scripts or a REPL, giving you full agent capabilities with a simple API. **Unlike fully autonomous agent frameworks, PatchPal is designed for human-in-the-loop workflows** where users maintain control through interactive permission prompts, making it ideal for code assistance, debugging, and automation tasks that benefit from human oversight.
 
