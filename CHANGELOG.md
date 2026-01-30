@@ -24,6 +24,7 @@ Most recent releases are shown at the top. Each release shows:
 - Fixed shell command permission prompts to show the correct working directory when `cd` is used (e.g., shows `/tmp` instead of repo root) (#33)
 - Fixed Windows compatibility: shell command patterns now use `@` separator instead of `:` to avoid conflicts with Windows drive letters (e.g., `python@C:\temp` instead of `python:C:\temp`) (#33)
 - Fixed Windows compatibility: file permission patterns now normalize path separators to forward slashes for cross-platform consistency (e.g., `src/app.py` instead of `src\app.py`), preventing permission grant mismatches when mixing slash styles (#33)
+- Windows fixes
 
 
 ## 0.4.4 (2026-01-29)

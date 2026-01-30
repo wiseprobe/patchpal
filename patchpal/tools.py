@@ -623,7 +623,13 @@ def _is_binary_file(path: Path) -> bool:
 
 def _is_inside_repo(path: Path) -> bool:
     """Check if a path is inside the repository."""
-    return str(path).startswith(str(REPO_ROOT))
+    try:
+        # Use is_relative_to() for proper path comparison (available in Python 3.9+)
+        # This handles case-insensitivity on Windows and symbolic links properly
+        path.relative_to(REPO_ROOT)
+        return True
+    except ValueError:
+        return False
 
 
 def _get_permission_pattern_for_path(path: str, resolved_path: Path) -> str:

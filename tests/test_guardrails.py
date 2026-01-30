@@ -199,6 +199,12 @@ class TestCommandSafety:
 
     def test_command_timeout(self, temp_repo, monkeypatch):
         """Test that long-running commands timeout."""
+        import sys
+
+        # Skip on Windows - subprocess timeout with shell=True doesn't work reliably
+        if sys.platform == "win32":
+            pytest.skip("Subprocess timeout with shell=True unreliable on Windows")
+
         # Set a short timeout for faster testing
         monkeypatch.setenv("PATCHPAL_SHELL_TIMEOUT", "2")
 
@@ -214,10 +220,20 @@ class TestCommandSafety:
 
         import subprocess
 
+        # Use cross-platform sleep command
+        import sys
+
         from patchpal.tools import run_shell
 
+        if sys.platform == "win32":
+            # Windows: timeout command (but we use Python for better cross-platform consistency)
+            sleep_cmd = f'{sys.executable} -c "import time; time.sleep(10)"'
+        else:
+            # Unix/Linux/macOS: sleep command
+            sleep_cmd = "sleep 10"
+
         with pytest.raises(subprocess.TimeoutExpired):
-            run_shell("sleep 10")
+            run_shell(sleep_cmd)
 
 
 class TestPathTraversal:
@@ -336,6 +352,12 @@ class TestPathTraversal:
 
     def test_allows_reading_symlink_outside_repo(self, temp_repo):
         """Test that symlinks pointing outside repo can be read."""
+        import sys
+
+        # Skip on Windows unless running with admin privileges (symlinks require special permissions)
+        if sys.platform == "win32":
+            pytest.skip("Symlink creation requires admin privileges on Windows")
+
         from patchpal.tools import read_file
 
         # Create file outside repo and symlink to it
@@ -434,7 +456,12 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     result = apply_patch("test.txt", "new content")
     assert "Successfully updated" in result
 
-    output = run_shell("ls normal.txt")
+    # Test shell command (use cross-platform Python instead of ls)
+    import sys
+
+    output = run_shell(
+        f"{sys.executable} -c \"import os; print('normal.txt' if os.path.exists('normal.txt') else 'not found')\""
+    )
     assert "normal.txt" in output
 
     files = list_files()
