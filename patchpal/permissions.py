@@ -135,10 +135,36 @@ class PermissionManager:
         sys.stderr.write("-" * 80 + "\n")
 
         # Get user input
+        # Get the actual repository root for display (match Claude Code's UX)
+        from pathlib import Path
+
+        repo_root = Path(".").resolve()
+
         sys.stderr.write("\nDo you want to proceed?\n")
         sys.stderr.write("  1. Yes\n")
         if pattern:
-            sys.stderr.write(f"  2. Yes, and don't ask again this session for '{pattern}'\n")
+            # For file operations, pattern is the directory (e.g., "tmp/")
+            # For shell commands, pattern is the command name (e.g., "python")
+            if tool_name in ("edit_file", "apply_patch"):
+                # File operation - show directory context
+                if pattern.endswith("/"):
+                    # Outside repo - directory pattern like "tmp/"
+                    sys.stderr.write(
+                        f"  2. Yes, and don't ask again this session for edits in {pattern}\n"
+                    )
+                else:
+                    # Inside repo - file path pattern
+                    sys.stderr.write(
+                        f"  2. Yes, and don't ask again this session for edits to {pattern}\n"
+                    )
+            elif tool_name == "run_shell":
+                # Shell command - show working directory context (match Claude Code)
+                sys.stderr.write(
+                    f"  2. Yes, and don't ask again this session for '{pattern}' commands in {repo_root}\n"
+                )
+            else:
+                # Other tools
+                sys.stderr.write(f"  2. Yes, and don't ask again this session for '{pattern}'\n")
         else:
             sys.stderr.write(f"  2. Yes, and don't ask again this session for {tool_name}\n")
         sys.stderr.write("  3. No, and tell me what to do differently\n")

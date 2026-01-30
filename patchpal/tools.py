@@ -626,6 +626,39 @@ def _is_inside_repo(path: Path) -> bool:
     return str(path).startswith(str(REPO_ROOT))
 
 
+def _get_permission_pattern_for_path(path: str, resolved_path: Path) -> str:
+    """Get permission pattern for a file path (matches Claude Code's behavior).
+
+    For paths outside the repository, uses the directory (like Claude Code shows "tmp/").
+    For paths inside the repository, uses the relative path from repo root.
+
+    Args:
+        path: Original path string from user
+        resolved_path: Resolved absolute path
+
+    Returns:
+        Pattern string for permission matching
+
+    Example:
+        ../../../../../tmp/test.py -> "tmp/" (directory for files outside repo)
+        src/app.py -> "src/app.py" (relative path for files inside repo)
+    """
+    # If inside repository, use relative path from repo root
+    if _is_inside_repo(resolved_path):
+        try:
+            relative = resolved_path.relative_to(REPO_ROOT)
+            return str(relative)
+        except ValueError:
+            pass
+
+    # Outside repository: use directory name (match Claude Code)
+    # e.g., /tmp/test.py -> "tmp/"
+    # e.g., /home/user/other/file.py -> "other/"
+    parent = resolved_path.parent
+    dir_name = parent.name if parent.name else str(parent)
+    return f"{dir_name}/"
+
+
 def require_permission_for_read(tool_name: str, get_description, get_pattern=None):
     """Decorator to optionally require permission for read operations.
 
@@ -1820,6 +1853,9 @@ def apply_patch(path: str, new_content: str) -> str:
     operation = "Create" if not p.exists() else "Update"
     diff_display = _format_colored_diff(old_content, new_content, file_path=path)
 
+    # Get permission pattern (directory for outside repo, relative path for inside)
+    permission_pattern = _get_permission_pattern_for_path(path, p)
+
     # Add warning if writing outside repository
     outside_repo_warning = ""
     if not _is_inside_repo(p):
@@ -1827,7 +1863,9 @@ def apply_patch(path: str, new_content: str) -> str:
 
     description = f"   ● {operation}({path}){outside_repo_warning}\n{diff_display}"
 
-    if not permission_manager.request_permission("apply_patch", description, pattern=path):
+    if not permission_manager.request_permission(
+        "apply_patch", description, pattern=permission_pattern
+    ):
         return "Operation cancelled by user."
 
     # Check git status for uncommitted changes (only for files inside repo)
@@ -2000,6 +2038,9 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
     # Format colored diff for permission prompt (use adjusted_new_string so user sees what will actually be written)
     diff_display = _format_colored_diff(matched_string, adjusted_new_string, file_path=path)
 
+    # Get permission pattern (directory for outside repo, relative path for inside)
+    permission_pattern = _get_permission_pattern_for_path(path, p)
+
     # Add warning if writing outside repository
     outside_repo_warning = ""
     if not _is_inside_repo(p):
@@ -2007,7 +2048,9 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
 
     description = f"   ● Update({path}){outside_repo_warning}\n{diff_display}"
 
-    if not permission_manager.request_permission("edit_file", description, pattern=path):
+    if not permission_manager.request_permission(
+        "edit_file", description, pattern=permission_pattern
+    ):
         return "Operation cancelled by user."
 
     # Backup if enabled

@@ -25,6 +25,11 @@ def temp_repo(monkeypatch):
         # Disable permission prompts during tests
         monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
 
+        # Reset the cached permission manager so it picks up the new env var
+        import patchpal.tools
+
+        patchpal.tools._permission_manager = None
+
         # Reset operation counter before each test
         from patchpal.tools import reset_operation_counter
 

@@ -7,6 +7,19 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.4.6 (TBD)
+
+### new:
+- N/A
+
+### changed
+- File operation permissions now use directory-based patterns (matches Claude Code behavior) (#33)
+- Permission prompts now show scope context (working directory for shell, directory for files) (#33)
+
+### fixed:
+- Fixed test fixture to properly reset cached permission manager
+
+
 ## 0.4.5 (2026-01-30)
 
 ### new:

@@ -386,16 +386,16 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     def mock_request_permission(self, tool_name, description, pattern=None):
         # Only deny write operations (apply_patch/edit_file) for paths outside repo
         if tool_name in ("apply_patch", "edit_file") and pattern:
-            # Convert pattern to Path to handle both relative and absolute paths
-            from pathlib import Path
+            # New pattern format: directory-based (e.g., "tmp/") for files outside repo
+            # Inside repo uses relative path (e.g., "src/app.py")
 
-            pattern_path = Path(pattern)
-            # If it's not absolute, it's relative to repo, so it's inside repo
-            if not pattern_path.is_absolute():
-                return True
-            # If absolute, check if it's inside repo
-            if not str(pattern_path).startswith(str(temp_repo)):
+            # If pattern ends with "/", it's a directory pattern for outside repo
+            if pattern.endswith("/"):
+                # Outside repo - deny
                 return False
+
+            # Otherwise it's a relative path inside repo - allow
+            return True
         # Allow everything else by returning True or checking original behavior
         return True
 
