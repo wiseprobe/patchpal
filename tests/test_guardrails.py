@@ -440,15 +440,15 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     # Re-patch REPO_ROOT again after reload (gets reset during reload)
     monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
 
-    from patchpal.tools import apply_patch, list_files, read_file, run_shell
-
-    # Reset the cached permission manager so it picks up the new env var
+    # Reset the cached permission manager BEFORE importing functions
     patchpal.tools._permission_manager = None
 
-    # Mock the request_permission method
+    # Mock the request_permission method BEFORE importing
     monkeypatch.setattr(
         patchpal.permissions.PermissionManager, "request_permission", mock_request_permission
     )
+
+    from patchpal.tools import apply_patch, list_files, read_file, run_shell
 
     # 1. Normal operations work
     content = read_file("normal.txt")
