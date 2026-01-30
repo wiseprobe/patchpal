@@ -402,8 +402,18 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     # Enable permissions but set up mock
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "true")
 
+    import importlib
+
     import patchpal.permissions
     import patchpal.tools
+
+    # Reload modules to pick up the new env var
+    importlib.reload(patchpal.permissions)
+    importlib.reload(patchpal.tools)
+
+    # Re-patch REPO_ROOT after reload
+    monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+
     from patchpal.tools import apply_patch, list_files, read_file, run_shell
 
     # Reset the cached permission manager so it picks up the new env var
