@@ -407,11 +407,14 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     import patchpal.permissions
     import patchpal.tools
 
+    # Re-patch REPO_ROOT BEFORE reload so PATCHPAL_DIR is calculated correctly
+    monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+
     # Reload modules to pick up the new env var
     importlib.reload(patchpal.permissions)
     importlib.reload(patchpal.tools)
 
-    # Re-patch REPO_ROOT after reload
+    # Re-patch REPO_ROOT again after reload (gets reset during reload)
     monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
 
     from patchpal.tools import apply_patch, list_files, read_file, run_shell
