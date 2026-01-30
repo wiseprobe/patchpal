@@ -1029,6 +1029,67 @@ class PatchPalAgent:
         if self.enable_auto_compact and self.context_manager.needs_compaction(self.messages):
             self._perform_auto_compaction()
 
+        # Agent loop with interrupt handling
+        try:
+            return self._run_agent_loop(max_iterations)
+        except KeyboardInterrupt:
+            # Clean up conversation state if interrupted mid-execution
+            self._cleanup_interrupted_state()
+            raise  # Re-raise so CLI can handle it
+
+    def _cleanup_interrupted_state(self):
+        """Clean up conversation state after KeyboardInterrupt.
+
+        If the last message is an assistant message with tool_calls but no
+        corresponding tool responses, we need to either remove the message
+        or add error responses to maintain valid conversation structure.
+        """
+        if not self.messages:
+            return
+
+        last_msg = self.messages[-1]
+
+        # Check if last message is assistant with tool_calls
+        if last_msg.get("role") == "assistant" and last_msg.get("tool_calls"):
+            tool_calls = last_msg["tool_calls"]
+
+            # Check if we have tool responses for all tool_calls
+            tool_call_ids = {tc.id for tc in tool_calls}
+
+            # Look for tool responses after this assistant message
+            # (should be immediately following, but scan to be safe)
+            response_ids = set()
+            for msg in self.messages[self.messages.index(last_msg) + 1 :]:
+                if msg.get("role") == "tool":
+                    response_ids.add(msg.get("tool_call_id"))
+
+            # If we're missing responses, add error responses for all tool calls
+            if tool_call_ids != response_ids:
+                missing_ids = tool_call_ids - response_ids
+
+                # Add error tool responses for the missing tool calls
+                for tool_call in tool_calls:
+                    if tool_call.id in missing_ids:
+                        self.messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": tool_call.function.name,
+                                "content": "Error: Operation interrupted by user (Ctrl-C)",
+                            }
+                        )
+
+    def _run_agent_loop(self, max_iterations: int) -> str:
+        """Internal method that runs the agent loop.
+
+        Separated from run() to enable proper interrupt handling.
+
+        Args:
+            max_iterations: Maximum number of agent iterations
+
+        Returns:
+            The agent's final response
+        """
         # Agent loop
         for iteration in range(max_iterations):
             # Show thinking message

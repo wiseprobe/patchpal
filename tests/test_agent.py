@@ -552,3 +552,209 @@ def test_prompt_caching_idempotent():
     # Should only have one cache_control marker per message
     assert len([k for k in cached_twice[0]["content"][0].keys() if "cache" in k]) == 1
     assert len([k for k in cached_twice[1]["content"][0].keys() if "cache" in k]) == 1
+
+
+def test_agent_handles_keyboard_interrupt_during_tool_execution(monkeypatch):
+    """Test that agent properly cleans up conversation state when interrupted during tool execution."""
+    from patchpal.agent import create_agent
+
+    # Disable permissions for this test
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    # Mock litellm.completion to return a tool call
+    tool_call = MagicMock()
+    tool_call.id = "call_abc123"
+    tool_call.function.name = "read_file"
+    tool_call.function.arguments = '{"path": "test.txt"}'
+
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message = MagicMock()
+    mock_response.choices[0].message.content = "Let me read that file."
+    mock_response.choices[0].message.tool_calls = [tool_call]
+
+    # Mock read_file to raise KeyboardInterrupt (simulating user pressing CTRL-C)
+    from patchpal.agent import TOOL_FUNCTIONS
+
+    original_read_file = TOOL_FUNCTIONS["read_file"]
+
+    def mock_read_file_interrupt(path):
+        raise KeyboardInterrupt()
+
+    TOOL_FUNCTIONS["read_file"] = mock_read_file_interrupt
+
+    try:
+        with patch("patchpal.agent.litellm.completion", return_value=mock_response):
+            agent = create_agent()
+
+            # Run should raise KeyboardInterrupt
+            try:
+                agent.run("Read test.txt")
+                assert False, "Expected KeyboardInterrupt to be raised"
+            except KeyboardInterrupt:
+                pass
+
+            # Verify conversation state is valid
+            # Should have: user message, assistant with tool_calls, tool error response
+            assert len(agent.messages) == 3
+
+            # Check user message
+            assert agent.messages[0]["role"] == "user"
+
+            # Check assistant message with tool_calls
+            assert agent.messages[1]["role"] == "assistant"
+            assert agent.messages[1]["tool_calls"] is not None
+            assert len(agent.messages[1]["tool_calls"]) == 1
+
+            # Check error tool response was added
+            assert agent.messages[2]["role"] == "tool"
+            assert agent.messages[2]["tool_call_id"] == "call_abc123"
+            assert agent.messages[2]["name"] == "read_file"
+            assert "interrupted" in agent.messages[2]["content"].lower()
+
+    finally:
+        TOOL_FUNCTIONS["read_file"] = original_read_file
+
+
+def test_agent_handles_keyboard_interrupt_with_multiple_tool_calls(monkeypatch):
+    """Test that agent adds error responses for ALL pending tool calls when interrupted."""
+    from patchpal.agent import create_agent
+
+    # Disable permissions for this test
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    # Mock litellm.completion to return multiple tool calls
+    tool_call_1 = MagicMock()
+    tool_call_1.id = "call_1"
+    tool_call_1.function.name = "read_file"
+    tool_call_1.function.arguments = '{"path": "file1.txt"}'
+
+    tool_call_2 = MagicMock()
+    tool_call_2.id = "call_2"
+    tool_call_2.function.name = "read_file"
+    tool_call_2.function.arguments = '{"path": "file2.txt"}'
+
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message = MagicMock()
+    mock_response.choices[0].message.content = ""
+    mock_response.choices[0].message.tool_calls = [tool_call_1, tool_call_2]
+
+    # Mock read_file to raise KeyboardInterrupt on first call
+    from patchpal.agent import TOOL_FUNCTIONS
+
+    original_read_file = TOOL_FUNCTIONS["read_file"]
+
+    call_count = [0]
+
+    def mock_read_file_interrupt(path):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise KeyboardInterrupt()
+        return "This shouldn't be reached"
+
+    TOOL_FUNCTIONS["read_file"] = mock_read_file_interrupt
+
+    try:
+        with patch("patchpal.agent.litellm.completion", return_value=mock_response):
+            agent = create_agent()
+
+            # Run should raise KeyboardInterrupt
+            try:
+                agent.run("Read both files")
+                assert False, "Expected KeyboardInterrupt to be raised"
+            except KeyboardInterrupt:
+                pass
+
+            # Verify conversation state has error responses for ALL tool calls
+            # Should have: user message, assistant with 2 tool_calls, 2 tool error responses
+            assert len(agent.messages) == 4
+
+            # Check assistant message
+            assert agent.messages[1]["role"] == "assistant"
+            assert len(agent.messages[1]["tool_calls"]) == 2
+
+            # Check both error responses were added
+            tool_responses = [msg for msg in agent.messages if msg.get("role") == "tool"]
+            assert len(tool_responses) == 2
+
+            # Verify both tool_call_ids are present
+            response_ids = {msg["tool_call_id"] for msg in tool_responses}
+            assert response_ids == {"call_1", "call_2"}
+
+            # Both should have error messages
+            for response in tool_responses:
+                assert "interrupted" in response["content"].lower()
+
+    finally:
+        TOOL_FUNCTIONS["read_file"] = original_read_file
+
+
+def test_agent_keyboard_interrupt_after_successful_retry(monkeypatch):
+    """Test that after cleaning up from interrupt, agent can be used again successfully."""
+    from patchpal.agent import create_agent
+
+    # Disable permissions for this test
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    # First call: return a tool call
+    tool_call = MagicMock()
+    tool_call.id = "call_xyz"
+    tool_call.function.name = "list_files"
+    tool_call.function.arguments = "{}"
+
+    mock_response_1 = MagicMock()
+    mock_response_1.choices = [MagicMock()]
+    mock_response_1.choices[0].message = MagicMock()
+    mock_response_1.choices[0].message.content = ""
+    mock_response_1.choices[0].message.tool_calls = [tool_call]
+
+    # Second call: return success response (after interrupt and retry)
+    mock_response_2 = MagicMock()
+    mock_response_2.choices = [MagicMock()]
+    mock_response_2.choices[0].message = MagicMock()
+    mock_response_2.choices[0].message.content = "I found 3 files."
+    mock_response_2.choices[0].message.tool_calls = None
+
+    # Mock list_files to raise interrupt first, then succeed
+    from patchpal.agent import TOOL_FUNCTIONS
+
+    original_list_files = TOOL_FUNCTIONS["list_files"]
+
+    call_count = [0]
+
+    def mock_list_files_conditional():
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise KeyboardInterrupt()
+        return ["file1.py", "file2.py", "file3.py"]
+
+    TOOL_FUNCTIONS["list_files"] = mock_list_files_conditional
+
+    try:
+        with patch(
+            "patchpal.agent.litellm.completion", side_effect=[mock_response_1, mock_response_2]
+        ):
+            agent = create_agent()
+
+            # First run: should be interrupted
+            try:
+                agent.run("List files")
+                assert False, "Expected KeyboardInterrupt"
+            except KeyboardInterrupt:
+                pass
+
+            # Verify state after interrupt - should have error response
+            assert len(agent.messages) == 3
+            assert agent.messages[2]["role"] == "tool"
+            assert "interrupted" in agent.messages[2]["content"].lower()
+
+            # Second run: should succeed (using the error responses from cleanup)
+            # The agent should be able to continue from the cleaned-up state
+            result = agent.run("Try again")
+
+            # Should complete successfully
+            assert result == "I found 3 files."
+
+    finally:
+        TOOL_FUNCTIONS["list_files"] = original_list_files

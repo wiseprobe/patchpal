@@ -7,6 +7,18 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.4.6 (TBD)
+
+### new:
+- N/A
+
+### changed
+- N/A
+
+### fixed:
+- Fixed conversation state corruption when pressing CTRL-C during tool execution. Previously, interrupting the agent would leave the conversation history in an invalid state (assistant message with `tool_calls` but no corresponding tool responses), causing OpenAI API to reject subsequent requests. The agent now properly cleans up interrupted state by adding error responses for all pending tool calls, ensuring conversation remains valid after interruption.
+
+
 ## 0.4.5 (2026-01-30)
 
 ### new:
