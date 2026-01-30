@@ -423,6 +423,7 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
 
     # Enable permissions but set up mock
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "true")
+    monkeypatch.setenv("PATCHPAL_READ_ONLY", "false")  # Ensure writes are allowed
 
     import importlib
 
