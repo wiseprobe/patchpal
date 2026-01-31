@@ -2521,8 +2521,24 @@ def web_search(query: str, max_results: int = 5) -> str:
     max_results = min(max_results, 10)
 
     try:
+        # Determine SSL verification setting
+        # Priority: PATCHPAL_VERIFY_SSL env var > SSL_CERT_FILE > REQUESTS_CA_BUNDLE > default True
+        verify_ssl = os.getenv("PATCHPAL_VERIFY_SSL")
+        if verify_ssl is not None:
+            # User explicitly set PATCHPAL_VERIFY_SSL
+            if verify_ssl.lower() in ("false", "0", "no"):
+                verify = False
+            elif verify_ssl.lower() in ("true", "1", "yes"):
+                verify = True
+            else:
+                # Treat as path to CA bundle
+                verify = verify_ssl
+        else:
+            # Use SSL_CERT_FILE or REQUESTS_CA_BUNDLE if set (for corporate environments)
+            verify = os.getenv("SSL_CERT_FILE") or os.getenv("REQUESTS_CA_BUNDLE") or True
+
         # Perform search using DuckDuckGo
-        with DDGS() as ddgs:
+        with DDGS(verify=verify) as ddgs:
             results = list(ddgs.text(query, max_results=max_results))
 
         if not results:

@@ -7,6 +7,18 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.5.1 (2026-01-30)
+
+### new:
+- N/A
+
+### changed
+- N/A
+
+### fixed:
+- Fixed `web_search` SSL certificate verification in corporate environments: Now automatically detects and uses `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE` environment variables for custom CA certificates. Added `PATCHPAL_VERIFY_SSL` environment variable for explicit SSL configuration. (#36)
+
+
 ## 0.5.0 (2026-01-30)
 
 ### new:

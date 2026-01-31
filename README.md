@@ -858,6 +858,16 @@ export PATCHPAL_PRUNE_MINIMUM=20000          # Minimum tokens to prune (default:
 # Enable/Disable Web Access
 export PATCHPAL_ENABLE_WEB=false             # Disable web search/fetch for air-gapped environments (default: true)
 
+# SSL Certificate Verification (for web_search)
+export PATCHPAL_VERIFY_SSL=true              # SSL verification for web searches (default: true)
+                                              # Set to 'false' to disable (not recommended for production)
+                                              # Or set to path of CA bundle file for corporate certificates
+                                              # Auto-detects SSL_CERT_FILE and REQUESTS_CA_BUNDLE if not set
+                                              # Examples:
+                                              #   export PATCHPAL_VERIFY_SSL=false  # Disable verification
+                                              #   export PATCHPAL_VERIFY_SSL=/path/to/ca-bundle.crt  # Custom CA bundle
+                                              #   (Leave unset to auto-detect from SSL_CERT_FILE/REQUESTS_CA_BUNDLE)
+
 # Web Request Limits
 export PATCHPAL_WEB_TIMEOUT=60               # Web request timeout in seconds (default: 30)
 export PATCHPAL_MAX_WEB_SIZE=10485760        # Max web content size in bytes (default: 5MB)
