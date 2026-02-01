@@ -71,9 +71,10 @@ def add(x: int, y: int) -> str:
 - ❌ Private functions (starting with `_`)
 - ❌ Imported functions from other modules
 
-## Example: calculator.py
+## Available Example Tools
 
-Includes 7 example tools:
+### calculator.py
+Basic arithmetic and temperature conversion (7 tools):
 - `add(x, y)` - Add two integers
 - `subtract(x, y)` - Subtract two integers
 - `multiply(x, y)` - Multiply two floats
@@ -81,6 +82,52 @@ Includes 7 example tools:
 - `calculate_percentage(value, percentage)` - Calculate percentage of value
 - `fahrenheit_to_celsius(fahrenheit)` - Convert F to C
 - `celsius_to_fahrenheit(celsius)` - Convert C to F
+
+### system_tools.py
+Get system information and analyze disk usage (6 tools):
+- `get_disk_usage(path)` - Show disk usage statistics for a path
+- `get_system_info()` - Get OS, Python version, and architecture info
+- `get_env_var(var_name)` - Get an environment variable (masks sensitive values)
+- `list_env_vars(filter_pattern)` - List environment variables with optional filter
+- `get_directory_size(directory)` - Calculate total size of a directory
+- `check_path_exists(path)` - Check if path exists and show info
+
+**Requirements:** No external dependencies (uses Python standard library)
+
+**Example usage:**
+```
+You: What's the disk usage for the current directory?
+Agent: [Calls get_disk_usage(".")]
+
+You: Show me system information
+Agent: [Calls get_system_info()]
+
+You: What's the value of PATH?
+Agent: [Calls get_env_var("PATH")]
+
+You: How big is the examples directory?
+Agent: [Calls get_directory_size("examples")]
+```
+
+### github_tools.py
+Search and get information from GitHub API (3 tools):
+- `search_github_repos(query, language, max_results)` - Search repositories
+- `get_github_user(username)` - Get user profile information
+- `get_repo_info(owner, repo)` - Get detailed repository info
+
+**Requirements:** `pip install requests`
+
+**Example usage:**
+```
+You: Search for Python machine learning repos
+Agent: [Calls search_github_repos("machine learning", "Python", 5)]
+
+You: Get info about torvalds
+Agent: [Calls get_github_user("torvalds")]
+
+You: Show details for amaiya/patchpal
+Agent: [Calls get_repo_info("amaiya", "patchpal")]
+```
 
 ## Creating Your Own Tools
 
