@@ -244,7 +244,7 @@ cd patchpal
 # Copy examples to your personal skills directory
 cp -r examples/skills/commit ~/.patchpal/skills/
 cp -r examples/skills/review ~/.patchpal/skills/
-cp -r examples/skills/add-tests ~/.patchpal/skills/
+cp -r examples/skills/skill-creator ~/.patchpal/skills/
 ```
 
 **View examples online:**
