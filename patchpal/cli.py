@@ -16,6 +16,83 @@ from patchpal.agent import create_agent
 from patchpal.tools import audit_logger
 
 
+def _format_cost(value: float) -> str:
+    """Format cost with smart precision.
+
+    Args:
+        value: Cost in dollars
+
+    Returns:
+        Formatted cost string (e.g., "0.0234" or "0.00145")
+    """
+    if value == 0:
+        return "0.00"
+    magnitude = abs(value)
+    if magnitude >= 0.01:
+        return f"{value:.2f}"
+    else:
+        # For very small costs, show more decimal places
+        import math
+
+        return f"{value:.{max(2, 2 - int(math.log10(magnitude)))}f}"
+
+
+def _print_session_summary(agent, show_detailed: bool = False):
+    """Print session statistics summary.
+
+    Args:
+        agent: PatchPalAgent instance
+        show_detailed: If True, show detailed breakdown; if False, show compact summary
+    """
+    # Guard against missing attributes (e.g., in tests with mock agents)
+    if (
+        not hasattr(agent, "total_llm_calls")
+        or not isinstance(agent.total_llm_calls, int)
+        or agent.total_llm_calls == 0
+    ):
+        return
+
+    print("\n" + "=" * 70)
+    print("\033[1;36mSession Summary\033[0m")
+    print("=" * 70)
+    print(f"  LLM calls: {agent.total_llm_calls}")
+
+    # Show token usage if available
+    has_usage_info = (
+        hasattr(agent, "cumulative_input_tokens")
+        and hasattr(agent, "cumulative_output_tokens")
+        and (agent.cumulative_input_tokens > 0 or agent.cumulative_output_tokens > 0)
+    )
+    if has_usage_info:
+        total_tokens = agent.cumulative_input_tokens + agent.cumulative_output_tokens
+        print(f"  Total tokens: {total_tokens:,}")
+
+        # Show cache hit rate if caching was used
+        if (
+            hasattr(agent, "cumulative_cache_read_tokens")
+            and hasattr(agent, "cumulative_input_tokens")
+            and agent.cumulative_cache_read_tokens > 0
+        ):
+            cache_hit_rate = (
+                agent.cumulative_cache_read_tokens / agent.cumulative_input_tokens
+            ) * 100
+            print(f"  Cache hit rate: {cache_hit_rate:.1f}%")
+
+    # Show cost if available
+    if hasattr(agent, "cumulative_cost") and agent.cumulative_cost > 0:
+        print(f"  Session cost: ${_format_cost(agent.cumulative_cost)} (estimated)")
+
+        # Show average cost per 1K tokens in detailed mode
+        if show_detailed and has_usage_info and total_tokens > 0:
+            cost_per_1k = (agent.cumulative_cost / total_tokens) * 1000
+            print(f"  Average: ${_format_cost(cost_per_1k)} per 1K tokens")
+    elif hasattr(agent, "total_llm_calls") and agent.total_llm_calls > 0 and show_detailed:
+        # Model might not have pricing data (e.g., local Ollama)
+        print("  \033[2mCost tracking unavailable (no pricing data for this model)\033[0m")
+
+    print("=" * 70)
+
+
 class SkillCompleter(Completer):
     """Completer for skill names when input starts with /"""
 
@@ -304,6 +381,9 @@ Supported models: Any LiteLLM-supported model
 
             # Check for exit commands
             if user_input.lower() in ["exit", "quit", "q"]:
+                # Show session statistics before exiting
+                _print_session_summary(agent, show_detailed=False)
+
                 print("\nGoodbye!")
                 break
 
@@ -449,6 +529,24 @@ Supported models: Any LiteLLM-supported model
                             print(
                                 "  \033[2m(Cache reads cost 10% of base price, writes cost 125% of base price)\033[0m"
                             )
+
+                    # Show cost statistics if available
+                    if agent.cumulative_cost > 0:
+                        print("\n  \033[1;36mCost Statistics\033[0m")
+                        print(f"  Session cost: ${_format_cost(agent.cumulative_cost)} (estimated)")
+                        print(
+                            "  \033[2m(Calculated from token counts - check provider bill for exact cost)\033[0m"
+                        )
+
+                        # Show cost breakdown if we have token data
+                        if total_tokens > 0:
+                            cost_per_1k = (agent.cumulative_cost / total_tokens) * 1000
+                            print(f"  Average: ${_format_cost(cost_per_1k)} per 1K tokens")
+                    elif agent.total_llm_calls > 0:
+                        # Model might not have pricing data (e.g., local Ollama)
+                        print(
+                            "\n  \033[2mCost tracking unavailable (no pricing data for this model)\033[0m"
+                        )
 
                 print("=" * 70 + "\n")
                 continue

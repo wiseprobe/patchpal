@@ -871,6 +871,10 @@ class PatchPalAgent:
         self.cumulative_cache_creation_tokens = 0
         self.cumulative_cache_read_tokens = 0
 
+        # Track cumulative costs across all LLM calls
+        self.cumulative_cost = 0.0
+        self.last_message_cost = 0.0
+
         # LiteLLM settings for models that need parameter dropping
         self.litellm_kwargs = {}
         if self.model_id.startswith("bedrock/"):
@@ -1055,6 +1059,9 @@ class PatchPalAgent:
                     ):
                         self.cumulative_cache_read_tokens += response.usage.cache_read_input_tokens
 
+                # Track cost from compaction call
+                self._calculate_cost(response)
+
                 return response
 
             summary_msg, summary_text = self.context_manager.create_compaction(
@@ -1111,6 +1118,72 @@ class PatchPalAgent:
             print(
                 "\033[1;33m   Continuing without compaction. Consider starting a new session.\033[0m\n"
             )
+
+    def _compute_cost_from_tokens(self, usage):
+        """Manually calculate cost from token usage using model pricing.
+
+        Args:
+            usage: The usage object from the LLM response
+
+        Returns:
+            float: The calculated cost in dollars
+        """
+        try:
+            model_info = litellm.get_model_info(self.model_id)
+            input_cost_per_token = model_info.get("input_cost_per_token", 0)
+            output_cost_per_token = model_info.get("output_cost_per_token", 0)
+
+            cost = 0.0
+
+            # Handle cache pricing for models that support it (e.g., Anthropic)
+            # Cache writes cost 1.25x, cache reads cost 0.1x of base price
+            cache_creation_tokens = 0
+            cache_read_tokens = 0
+
+            if hasattr(usage, "cache_creation_input_tokens") and usage.cache_creation_input_tokens:
+                cache_creation_tokens = usage.cache_creation_input_tokens
+                cost += cache_creation_tokens * input_cost_per_token * 1.25
+
+            if hasattr(usage, "cache_read_input_tokens") and usage.cache_read_input_tokens:
+                cache_read_tokens = usage.cache_read_input_tokens
+                cost += cache_read_tokens * input_cost_per_token * 0.1
+
+            # Regular input tokens (excluding cache tokens)
+            regular_input = usage.prompt_tokens - cache_creation_tokens - cache_read_tokens
+            cost += regular_input * input_cost_per_token
+
+            # Output tokens
+            cost += usage.completion_tokens * output_cost_per_token
+
+            return cost
+        except Exception:
+            # If pricing data is unavailable, return 0
+            return 0.0
+
+    def _calculate_cost(self, response):
+        """Calculate cost from LLM response and update cumulative tracking.
+
+        Args:
+            response: The LLM response object
+
+        Returns:
+            float: The calculated cost in dollars
+        """
+        try:
+            # Try litellm's built-in cost calculator first
+            cost = litellm.completion_cost(completion_response=response)
+        except Exception:
+            cost = 0.0
+
+        if not cost and hasattr(response, "usage") and response.usage:
+            # Fallback: manual calculation using model pricing
+            cost = self._compute_cost_from_tokens(response.usage)
+
+        if isinstance(cost, (int, float)) and cost > 0:
+            self.cumulative_cost += cost
+            self.last_message_cost = cost
+
+        return cost
 
     def run(self, user_message: str, max_iterations: int = 100) -> str:
         """Run the agent on a user message.
@@ -1240,6 +1313,9 @@ class PatchPalAgent:
                         and response.usage.cache_read_input_tokens
                     ):
                         self.cumulative_cache_read_tokens += response.usage.cache_read_input_tokens
+
+                # Track cost from this LLM call
+                self._calculate_cost(response)
 
             except Exception as e:
                 return f"Error calling model: {e}"
