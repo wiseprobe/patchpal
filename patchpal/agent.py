@@ -4,6 +4,7 @@ import inspect
 import json
 import os
 import platform
+import time
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -871,6 +872,15 @@ class PatchPalAgent:
         self.cumulative_cache_creation_tokens = 0
         self.cumulative_cache_read_tokens = 0
 
+        # Cache warming setup (keeps Anthropic prompt cache alive during idle periods)
+        self.cache_warming_enabled = False
+        self.cache_warming_thread = None
+        self.cache_warming_stop = False
+        self.next_cache_warm = 0
+        self.warming_pings_left = 0
+        self.warming_pings_original = 0  # Store original count for reset
+        self.cached_messages = []  # Messages with cache markers applied
+
         # LiteLLM settings for models that need parameter dropping
         self.litellm_kwargs = {}
         if self.model_id.startswith("bedrock/"):
@@ -1046,6 +1056,10 @@ class PatchPalAgent:
         # Add user message to history
         self.messages.append({"role": "user", "content": user_message})
 
+        # Reset cache warming counter when user sends a message
+        # This ensures each idle period gets the full ping budget
+        self.reset_cache_warming_counter()
+
         # Check for compaction BEFORE starting work
         # This ensures we never compact mid-execution and lose tool results
         if self.enable_auto_compact and self.context_manager.needs_compaction(self.messages):
@@ -1053,7 +1067,11 @@ class PatchPalAgent:
 
         # Agent loop with interrupt handling
         try:
-            return self._run_agent_loop(max_iterations)
+            result = self._run_agent_loop(max_iterations)
+            # Update cache warming messages after the turn completes
+            # This ensures cache warming uses the complete conversation state
+            self.update_cache_warming_messages()
+            return result
         except KeyboardInterrupt:
             # Clean up conversation state if interrupted mid-execution
             self._cleanup_interrupted_state()
@@ -1411,6 +1429,113 @@ class PatchPalAgent:
             "💡 Tip: Type 'continue' or 'please continue' to resume where I left off, "
             "or set PATCHPAL_MAX_ITERATIONS=<large #> as environment variable."
         )
+
+    def start_cache_warming(self, num_pings: int = 0, verbose: bool = False):
+        """Start cache warming thread to keep prompt cache alive.
+
+        Args:
+            num_pings: Number of cache warming pings (0 = disabled, -1 = unlimited)
+            verbose: Whether to show cache warming messages
+        """
+        # Only warm cache for Anthropic models with prompt caching
+        if not _supports_prompt_caching(self.model_id):
+            return
+
+        # Only start if pings configured
+        if num_pings == 0:
+            return
+
+        # Store cached messages for warming
+        self.cached_messages = _apply_prompt_caching(self.messages.copy(), self.model_id)
+        if not self.cached_messages:
+            return
+
+        self.cache_warming_enabled = True
+        self.cache_warming_stop = False
+        self.warming_pings_left = num_pings
+        self.warming_pings_original = num_pings  # Store for reset
+        self.next_cache_warm = time.time() + ContextManager.CACHE_WARMING_DELAY
+
+        # Start background thread
+        if self.cache_warming_thread is None:
+            import threading
+
+            def cache_warming_worker():
+                """Background worker that pings cache periodically."""
+                while self.cache_warming_enabled and not self.cache_warming_stop:
+                    time.sleep(1)
+
+                    # Check if we should stop
+                    if self.warming_pings_left == 0:
+                        continue
+
+                    # Check if it's time to ping
+                    now = time.time()
+                    if now < self.next_cache_warm:
+                        continue
+
+                    # Decrement counter (unless unlimited)
+                    if self.warming_pings_left > 0:
+                        self.warming_pings_left -= 1
+
+                    # Schedule next ping
+                    self.next_cache_warm = time.time() + ContextManager.CACHE_WARMING_DELAY
+
+                    # Send minimal request to warm cache
+                    try:
+                        completion = litellm.completion(
+                            model=self.model_id,
+                            messages=self.cached_messages,
+                            stream=False,
+                            max_tokens=1,  # Minimal output
+                            **self.litellm_kwargs,
+                        )
+
+                        # Check cache hit tokens
+                        cache_hit_tokens = getattr(
+                            completion.usage, "prompt_cache_hit_tokens", 0
+                        ) or getattr(completion.usage, "cache_read_input_tokens", 0)
+
+                        if verbose and cache_hit_tokens > 0:
+                            print(
+                                f"\033[2m🔥 Cache warming: {cache_hit_tokens:,} tokens cached\033[0m"
+                            )
+
+                    except Exception as err:
+                        if verbose:
+                            print(f"\033[2m⚠️  Cache warming error: {err}\033[0m")
+
+            self.cache_warming_thread = threading.Thread(target=cache_warming_worker, daemon=True)
+            self.cache_warming_thread.start()
+
+    def reset_cache_warming_counter(self):
+        """Reset cache warming counter when user sends a message.
+
+        This ensures each idle period gets the full ping budget, not just
+        the remaining pings from the previous idle period.
+        """
+        if self.cache_warming_enabled and self.warming_pings_original != 0:
+            self.warming_pings_left = self.warming_pings_original
+            # Also reset the timer so we don't ping immediately after user message
+            self.next_cache_warm = time.time() + ContextManager.CACHE_WARMING_DELAY
+
+    def stop_cache_warming(self):
+        """Stop the cache warming thread gracefully."""
+        self.cache_warming_enabled = False
+        self.cache_warming_stop = True
+        if self.cache_warming_thread:
+            # Give thread time to exit cleanly
+            self.cache_warming_thread.join(timeout=2)
+            self.cache_warming_thread = None
+
+    def update_cache_warming_messages(self):
+        """Update cached messages for cache warming after conversation changes."""
+        if self.cache_warming_enabled and self.messages:
+            self.cached_messages = _apply_prompt_caching(self.messages.copy(), self.model_id)
+
+    def __del__(self):
+        """Cleanup when agent is destroyed."""
+        self.stop_cache_warming()
 
 
 def create_agent(model_id: str = "anthropic/claude-sonnet-4-5", custom_tools=None) -> PatchPalAgent:

@@ -123,6 +123,16 @@ class ContextManager:
         os.getenv("PATCHPAL_COMPACT_THRESHOLD", "0.75")
     )  # Compact at 75% capacity (lower due to estimation inaccuracy)
 
+    # Cache warming configuration (inspired by aider)
+    # Anthropic's prompt cache expires after 5 minutes of inactivity
+    # We ping slightly before expiry (295 seconds = 5 min - 5 sec buffer)
+    CACHE_WARMING_DELAY = float(
+        os.getenv("PATCHPAL_CACHE_WARMING_DELAY", "295")
+    )  # Seconds between cache warming pings
+    CACHE_WARMING_PINGS = int(
+        os.getenv("PATCHPAL_CACHE_WARMING_PINGS", "0")
+    )  # Number of keepalive pings (0 = disabled)
+
     # Model context limits (tokens)
     # From OpenCode's models.dev data - see https://models.dev/api.json
     MODEL_LIMITS = {

@@ -200,6 +200,19 @@ Supported models: Any LiteLLM-supported model
         help="Require permission for ALL operations including read operations (read_file, list_files, etc.). "
         "Use this for maximum security when you want to review every operation the agent performs.",
     )
+    parser.add_argument(
+        "--cache-warming-pings",
+        type=int,
+        default=None,
+        help="Number of cache warming pings to keep Anthropic's prompt cache alive (0 = disabled, -1 = unlimited). "
+        "Pings occur every ~5 minutes to prevent cache expiration. "
+        "Can also be set via PATCHPAL_CACHE_WARMING_PINGS environment variable. Default: 0 (disabled)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show verbose output including cache warming status messages.",
+    )
     args = parser.parse_args()
 
     # Set the require-permission-for-all flag if specified
@@ -210,6 +223,16 @@ Supported models: Any LiteLLM-supported model
 
     # Determine model to use (priority: CLI arg > env var > default)
     model_id = args.model or os.getenv("PATCHPAL_MODEL") or "anthropic/claude-sonnet-4-5"
+
+    # Get cache warming configuration (priority: CLI arg > env var > default)
+    cache_warming_pings = (
+        args.cache_warming_pings
+        if args.cache_warming_pings is not None
+        else int(os.getenv("PATCHPAL_CACHE_WARMING_PINGS", "0"))
+    )
+
+    # Get verbose flag
+    verbose = args.verbose
 
     # Discover custom tools from ~/.patchpal/tools/
     from patchpal.tool_schema import discover_tools, list_custom_tools
@@ -231,6 +254,10 @@ Supported models: Any LiteLLM-supported model
     # Create the agent with the specified model and custom tools
     # LiteLLM will handle API key validation and provide appropriate error messages
     agent = create_agent(model_id=model_id, custom_tools=custom_tools)
+
+    # Start cache warming if configured
+    if cache_warming_pings != 0:
+        agent.start_cache_warming(num_pings=cache_warming_pings, verbose=verbose)
 
     # Get max iterations from environment variable or use default
     max_iterations = int(os.getenv("PATCHPAL_MAX_ITERATIONS", "100"))
@@ -267,6 +294,15 @@ Supported models: Any LiteLLM-supported model
     custom_prompt_path = os.getenv("PATCHPAL_SYSTEM_PROMPT")
     if custom_prompt_path:
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
+
+    # Show cache warming status if enabled
+    if cache_warming_pings != 0:
+        if cache_warming_pings < 0:
+            print("\033[1;36m🔥 Cache warming: Enabled (unlimited pings)\033[0m")
+        else:
+            print(
+                f"\033[1;36m🔥 Cache warming: Enabled ({cache_warming_pings} pings, ~{cache_warming_pings * 5} min)\033[0m"
+            )
 
     print("\nType 'exit' to quit.")
     print(
@@ -382,6 +418,26 @@ Supported models: Any LiteLLM-supported model
                     print(
                         "\n  Auto-compaction: \033[33mDisabled\033[0m (set PATCHPAL_DISABLE_AUTOCOMPACT=false to enable)"
                     )
+
+                # Show cache warming status
+                if agent.cache_warming_enabled:
+                    if agent.warming_pings_left < 0:
+                        print("  Cache warming: \033[32mEnabled\033[0m (unlimited pings)")
+                    elif agent.warming_pings_left > 0:
+                        print(
+                            f"  Cache warming: \033[32mActive\033[0m ({agent.warming_pings_left} pings remaining)"
+                        )
+                    else:
+                        print("  Cache warming: \033[33mExpired\033[0m (no pings remaining)")
+                else:
+                    if cache_warming_pings != 0:
+                        print(
+                            "  Cache warming: \033[33mNot supported\033[0m (model doesn't support prompt caching)"
+                        )
+                    else:
+                        print(
+                            "  Cache warming: \033[2mDisabled\033[0m (use --cache-warming-pings to enable)"
+                        )
 
                 # Show cumulative token usage
                 print("\n\033[1;36mSession Statistics\033[0m")

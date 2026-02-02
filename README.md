@@ -963,6 +963,17 @@ print(f"Usage: {stats['usage_percent']}%")
 if agent.context_manager.needs_compaction(agent.messages):
     agent._perform_auto_compaction()
 
+# Enable cache warming for long sessions (Anthropic models only)
+# Keeps prompt cache alive during idle periods
+agent.start_cache_warming(num_pings=10, verbose=True)  # 10 pings = ~50 minutes
+# Or unlimited: agent.start_cache_warming(num_pings=-1, verbose=True)
+
+# Update cache after conversation changes
+agent.update_cache_warming_messages()
+
+# Stop cache warming when done
+agent.stop_cache_warming()
+
 # Track API costs (cumulative token counts across session)
 print(f"Total LLM calls: {agent.total_llm_calls}")
 print(f"Cumulative input tokens: {agent.cumulative_input_tokens:,}")
@@ -1061,6 +1072,15 @@ export PATCHPAL_CONTEXT_LIMIT=100000         # Override model's context limit (f
 # Pruning Controls
 export PATCHPAL_PRUNE_PROTECT=40000          # Keep last N tokens of tool outputs (default: 40000)
 export PATCHPAL_PRUNE_MINIMUM=20000          # Minimum tokens to prune (default: 20000)
+
+# Cache Warming (Anthropic models only)
+export PATCHPAL_CACHE_WARMING_PINGS=10       # Number of cache warming pings per idle period (default: 0 = disabled, -1 = unlimited)
+                                              # Keeps Anthropic's prompt cache alive during idle periods
+                                              # Each ping occurs every ~5 minutes (295 seconds)
+                                              # Counter resets when user sends a message (fresh budget per idle period)
+                                              # Example: 10 pings = ~50 minutes of keepalive PER idle session
+export PATCHPAL_CACHE_WARMING_DELAY=295      # Seconds between cache warming pings (default: 295 = 5 min - 5 sec)
+                                              # Anthropic's cache expires after 5 minutes of inactivity
 ```
 
 ### Web Tools
@@ -1385,7 +1405,28 @@ When using cloud LLM providers (Anthropic, OpenAI, etc.), token usage directly i
   ```
 - Pruning happens transparently before compaction and is much faster (no LLM call needed)
 
-**2. Monitor Session Token Usage**
+**2. Enable Cache Warming for Long Sessions**
+- **Cache warming** keeps Anthropic's prompt cache alive during idle periods
+- Without warming, cache expires after 5 minutes of inactivity
+- With warming, background pings refresh cache every ~5 minutes
+- **Counter resets** when you send a message - each idle period gets fresh ping budget
+  ```bash
+  # Enable cache warming with 10 pings per idle period (~50 minutes each time)
+  patchpal --cache-warming-pings 10
+
+  # Or set via environment variable
+  export PATCHPAL_CACHE_WARMING_PINGS=10
+  patchpal
+
+  # Unlimited cache warming (use --verbose to see ping status)
+  patchpal --cache-warming-pings -1 --verbose
+  ```
+- **Cost savings**: Avoids expensive cache recreation after idle periods
+- **Use case**: Long interactive sessions with pauses between requests
+- **How it works**: Counter resets on each message, so 10 pings = 50 min per idle period, not total
+- Check `/status` to see cache warming status and pings remaining
+
+**3. Monitor Session Token Usage**
 - Use `/status` to see cumulative token usage in real-time
 - **Session Statistics** section shows:
   - Total LLM calls made
@@ -1396,12 +1437,12 @@ When using cloud LLM providers (Anthropic, OpenAI, etc.), token usage directly i
 - **Important**: Token counts don't reflect prompt caching discounts (Anthropic models)
 - For actual costs, check your provider's usage dashboard which shows cache-adjusted billing
 
-**3. Manual Compaction for Cost Control**
+**4. Manual Compaction for Cost Control**
 - Use `/status` regularly to monitor context window usage
 - Run `/compact` proactively when context grows large (before hitting auto-compact threshold)
 - Manual compaction gives you control over when the summarization LLM call happens
 
-**4. Adjust Auto-Compaction Threshold**
+**5. Adjust Auto-Compaction Threshold**
 - Lower threshold = more frequent compaction = smaller context = lower per-request costs
 - Higher threshold = fewer compaction calls = larger context = higher per-request costs
   ```bash
@@ -1410,7 +1451,7 @@ When using cloud LLM providers (Anthropic, OpenAI, etc.), token usage directly i
   ```
 - Find the sweet spot for your workload (balance between compaction frequency and context size)
 
-**5. Use Local Models for Zero API Costs**
+**6. Use Local Models for Zero API Costs**
 - **Best option:** Run vLLM locally to eliminate API costs entirely
   ```bash
   export HOSTED_VLLM_API_BASE=http://localhost:8000
@@ -1420,13 +1461,13 @@ When using cloud LLM providers (Anthropic, OpenAI, etc.), token usage directly i
 - **Alternative:** Use Ollama (requires `OLLAMA_CONTEXT_LENGTH=32768`)
 - See [Using Local Models](https://github.com/amaiya/patchpal?tab=readme-ov-file#using-local-models-vllm--ollama) for setup
 
-**6. Start Fresh When Appropriate**
+**7. Start Fresh When Appropriate**
 - Use `/clear` command to reset conversation history without restarting PatchPal
 - Exit and restart PatchPal between unrelated tasks to clear context completely
 - Each fresh start begins with minimal tokens (just the system prompt)
 - Better than carrying large conversation history across different tasks
 
-**7. Use Smaller Models for Simple Tasks**
+**8. Use Smaller Models for Simple Tasks**
 - Use less expensive models for routine tasks:
   ```bash
   patchpal --model anthropic/claude-3-7-sonnet-latest  # Cheaper than claude-sonnet-4-5
@@ -1437,6 +1478,7 @@ When using cloud LLM providers (Anthropic, OpenAI, etc.), token usage directly i
 **Cost Monitoring Tips:**
 - Check `/status` before large operations to see current token usage
 - **Anthropic models**: Prompt caching reduces costs (system prompt + last 2 messages cached)
+- **Cache warming**: Prevents expensive cache recreation during idle periods
 - Most cloud providers offer usage dashboards showing cache hits and actual charges
 - Set up billing alerts with your provider to avoid surprises
 - Consider local models (vLLM recommended) for high-volume usage or zero API costs
