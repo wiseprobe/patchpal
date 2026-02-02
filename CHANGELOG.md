@@ -16,7 +16,7 @@ Most recent releases are shown at the top. Each release shows:
 - N/A
 
 ### fixed:
-- **Context window management**: Fixed critical bug where reading large files (3.46MB) could push context to 1234% capacity, causing compaction to fail. Implemented three-layer defense: (1) Reduced MAX_FILE_SIZE from 10MB to 500KB, (2) Added runtime truncation of tool outputs >100K chars before adding to context, (3) Smart compaction strategy with aggressive pruning for few-message/high-capacity scenarios and emergency mode at ≥100% capacity. (#39)
+- **Context window management**: Fixed critical bug where reading large files (3.46MB) could push context to 1234% capacity, causing compaction to fail. Implemented three-layer defense: (1) Reduced `MAX_FILE_SIZE` from 10MB to 500KB, (2) Added runtime monitoring and truncation of tool outputs (warns at >100K chars, truncates to 50K chars if adding would exceed 150% capacity), (3) Smart compaction strategy with aggressive pruning for few-message/high-capacity scenarios and emergency mode at ≥100% capacity. (#39)
 
 
 ## 0.7.0 (2026-02-01)
