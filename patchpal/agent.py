@@ -882,6 +882,26 @@ class PatchPalAgent:
             # Custom OpenAI-compatible servers (vLLM, etc.) often don't support all parameters
             self.litellm_kwargs["drop_params"] = True
 
+    def _prune_tool_outputs_inline(self, max_chars: int, truncation_message: str) -> int:
+        """Unified pruning function for tool outputs.
+
+        Args:
+            max_chars: Maximum characters to keep per tool output
+            truncation_message: Message to append after truncation
+
+        Returns:
+            Number of characters pruned
+        """
+        pruned_chars = 0
+        for msg in self.messages:
+            if msg.get("role") == "tool" and msg.get("content"):
+                content_size = len(str(msg["content"]))
+                if content_size > max_chars:
+                    original_size = content_size
+                    msg["content"] = str(msg["content"])[:max_chars] + truncation_message
+                    pruned_chars += original_size - len(msg["content"])
+        return pruned_chars
+
     def _perform_auto_compaction(self):
         """Perform automatic context window compaction.
 
@@ -897,18 +917,11 @@ class PatchPalAgent:
                 f"\033[2m   Only {len(self.messages)} messages - using aggressive pruning instead of summarization\033[0m"
             )
 
-            # Aggressively truncate all large tool outputs
-            pruned_chars = 0
-            for msg in self.messages:
-                if msg.get("role") == "tool" and msg.get("content"):
-                    content_size = len(str(msg["content"]))
-                    if content_size > 5_000:  # Truncate anything over 5K chars
-                        original_size = content_size
-                        msg["content"] = (
-                            str(msg["content"])[:5_000]
-                            + "\n\n[... content truncated during compaction. Use read_lines or grep_code for targeted access ...]"
-                        )
-                        pruned_chars += original_size - len(msg["content"])
+            # Aggressively truncate all large tool outputs (5K chars)
+            pruned_chars = self._prune_tool_outputs_inline(
+                max_chars=5_000,
+                truncation_message="\n\n[... content truncated during compaction. Use read_lines or grep_code for targeted access ...]",
+            )
 
             stats_after = self.context_manager.get_usage_stats(self.messages)
             if pruned_chars > 0:
@@ -981,18 +994,11 @@ class PatchPalAgent:
                 flush=True,
             )
 
-            # Find and truncate large tool outputs (keep only first 10K chars)
-            emergency_pruned = 0
-            for msg in reversed(self.messages):
-                if msg.get("role") == "tool" and msg.get("content"):
-                    content_size = len(str(msg["content"]))
-                    if content_size > 10_000:
-                        original_size = content_size
-                        msg["content"] = (
-                            str(msg["content"])[:10_000]
-                            + "\n\n[... content truncated due to context window limits ...]"
-                        )
-                        emergency_pruned += original_size - len(msg["content"])
+            # Truncate large tool outputs (10K chars - less aggressive than 5K for few-messages case)
+            emergency_pruned = self._prune_tool_outputs_inline(
+                max_chars=10_000,
+                truncation_message="\n\n[... content truncated due to context window limits ...]",
+            )
 
             if emergency_pruned > 0:
                 print(
