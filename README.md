@@ -185,7 +185,7 @@ The agent has the following tools:
 - **web_fetch**: Fetch and read content from URLs
   - Read documentation pages
   - Access API references
-  - Extract readable text from HTML pages
+  - Extract readable text from HTML pages and PDF documents
   - Requires permission to prevent information leakage about your codebase
 
 ### Skills System

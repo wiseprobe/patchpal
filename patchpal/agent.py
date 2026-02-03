@@ -355,7 +355,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "web_fetch",
-            "description": "Fetch and read content from a URL. Requires permission to prevent information leakage about your codebase.",
+            "description": "Fetch and read content from a URL. Supports text extraction from HTML and PDF files. Requires permission to prevent information leakage about your codebase.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -365,7 +365,7 @@ TOOLS = [
                     },
                     "extract_text": {
                         "type": "boolean",
-                        "description": "If true, extract readable text from HTML (default: true)",
+                        "description": "If true, extract readable text from HTML/PDF (default: true)",
                     },
                 },
                 "required": ["url"],

@@ -1845,3 +1845,89 @@ def test_edit_file_auto_adjusts_indentation(temp_repo):
     # Content should be updated
     assert "Modified TODO" in new_content
     assert "Adding TODO" not in new_content
+
+
+def test_web_fetch_pdf_extraction(monkeypatch):
+    """Test fetching and extracting text from a PDF."""
+    from unittest.mock import Mock
+
+    from patchpal.tools import PYMUPDF_AVAILABLE, web_fetch
+
+    if not PYMUPDF_AVAILABLE:
+        pytest.skip("PyMuPDF not available")
+
+    # Create a simple PDF in memory
+    import io
+
+    import pymupdf
+
+    pdf_bytes = io.BytesIO()
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Test PDF Content\nSecond Line")
+    doc.save(pdf_bytes)
+    doc.close()
+    pdf_content = pdf_bytes.getvalue()
+
+    # Mock requests.get
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.headers = {
+        "Content-Type": "application/pdf",
+        "Content-Length": str(len(pdf_content)),
+    }
+    mock_response.encoding = "utf-8"
+    mock_response.iter_content = lambda chunk_size: [pdf_content]
+
+    mock_get = Mock(return_value=mock_response)
+    monkeypatch.setattr("patchpal.tools.requests.get", mock_get)
+
+    # Disable permission prompts
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    # Reset operation counter
+    from patchpal.tools import reset_operation_counter
+
+    reset_operation_counter()
+
+    result = web_fetch("https://example.com/test.pdf")
+    assert "Test PDF Content" in result
+    assert "Second Line" in result
+
+
+def test_web_fetch_pdf_without_pymupdf(monkeypatch):
+    """Test PDF fetching when PyMuPDF is not available."""
+    from unittest.mock import Mock
+
+    from patchpal.tools import web_fetch
+
+    # Mock PyMuPDF as unavailable
+    monkeypatch.setattr("patchpal.tools.PYMUPDF_AVAILABLE", False)
+
+    # Mock PDF content
+    pdf_content = b"%PDF-1.4\n%fake pdf content"
+
+    # Mock requests.get
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.headers = {
+        "Content-Type": "application/pdf",
+        "Content-Length": str(len(pdf_content)),
+    }
+    mock_response.encoding = "utf-8"
+    mock_response.iter_content = lambda chunk_size: [pdf_content]
+
+    mock_get = Mock(return_value=mock_response)
+    monkeypatch.setattr("patchpal.tools.requests.get", mock_get)
+
+    # Disable permission prompts
+    monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+    # Reset operation counter
+    from patchpal.tools import reset_operation_counter
+
+    reset_operation_counter()
+
+    result = web_fetch("https://example.com/test.pdf")
+    # Should return raw decoded content when PyMuPDF is not available
+    assert isinstance(result, str)

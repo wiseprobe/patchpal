@@ -22,6 +22,13 @@ except ImportError:
     # Fall back to old package name if new one not installed
     from duckduckgo_search import DDGS
 
+try:
+    import pymupdf
+
+    PYMUPDF_AVAILABLE = True
+except ImportError:
+    PYMUPDF_AVAILABLE = False
+
 # Import version for user agent
 try:
     from patchpal import __version__
@@ -2410,10 +2417,10 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
 
     Args:
         url: The URL to fetch
-        extract_text: If True, extract readable text from HTML (default: True)
+        extract_text: If True, extract readable text from HTML/PDF (default: True)
 
     Returns:
-        The fetched content (text extracted from HTML if extract_text=True)
+        The fetched content (text extracted from HTML/PDF if extract_text=True)
 
     Raises:
         ValueError: If request fails or content is too large
@@ -2455,24 +2462,50 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
             if len(content) > MAX_WEB_CONTENT_SIZE:
                 raise ValueError(f"Content exceeds size limit ({MAX_WEB_CONTENT_SIZE:,} bytes)")
 
-        # Decode content
-        text_content = content.decode(response.encoding or "utf-8", errors="replace")
+        # Get content type
+        content_type = response.headers.get("Content-Type", "").lower()
 
-        # Extract readable text from HTML if requested
-        if extract_text and "html" in response.headers.get("Content-Type", "").lower():
-            soup = BeautifulSoup(text_content, "html.parser")
+        # Extract text based on content type
+        if extract_text:
+            if "pdf" in content_type and PYMUPDF_AVAILABLE:
+                # Extract text from PDF
+                try:
+                    pdf_document = pymupdf.open(stream=content, filetype="pdf")
+                    text_parts = []
+                    for page_num in range(pdf_document.page_count):
+                        page = pdf_document[page_num]
+                        text_parts.append(page.get_text())
+                    pdf_document.close()
+                    text_content = "\n".join(text_parts)
+                except Exception as pdf_error:
+                    # Fall back to showing error if PDF extraction fails
+                    text_content = (
+                        f"[PDF extraction failed: {pdf_error}]\n\n"
+                        f"PDF URL: {url}\n"
+                        f"To read this PDF, download it locally or try a different source."
+                    )
+            elif "html" in content_type:
+                # Extract text from HTML
+                text_content = content.decode(response.encoding or "utf-8", errors="replace")
+                soup = BeautifulSoup(text_content, "html.parser")
 
-            # Remove script and style elements
-            for element in soup(["script", "style", "nav", "footer", "header"]):
-                element.decompose()
+                # Remove script and style elements
+                for element in soup(["script", "style", "nav", "footer", "header"]):
+                    element.decompose()
 
-            # Get text
-            text = soup.get_text()
+                # Get text
+                text = soup.get_text()
 
-            # Clean up whitespace
-            lines = (line.strip() for line in text.splitlines())
-            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text_content = "\n".join(chunk for chunk in chunks if chunk)
+                # Clean up whitespace
+                lines = (line.strip() for line in text.splitlines())
+                chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+                text_content = "\n".join(chunk for chunk in chunks if chunk)
+            else:
+                # For other content types, try to decode as text
+                text_content = content.decode(response.encoding or "utf-8", errors="replace")
+        else:
+            # No text extraction - just decode
+            text_content = content.decode(response.encoding or "utf-8", errors="replace")
 
         # Truncate content if it exceeds character limit to prevent context window overflow
         if len(text_content) > MAX_WEB_CONTENT_CHARS:
