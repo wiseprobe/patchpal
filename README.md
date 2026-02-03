@@ -92,7 +92,7 @@ export HOSTED_VLLM_API_KEY=token-abc123           # optional depending on your v
 patchpal
 
 # Use a specific model via command-line argument
-patchpal --model openai/gpt-5.2  # or openai/gpt-5-mini, anthropic/claude-opus-4-5 etc.
+patchpal --model openai/gpt-5.2-codex  # or openai/gpt-5-mini, anthropic/claude-opus-4-5, etc.
 
 # Use vLLM (local)
 # Note: vLLM server must be started with --tool-call-parser and --enable-auto-tool-choice
