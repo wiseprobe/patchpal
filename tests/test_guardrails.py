@@ -26,9 +26,9 @@ def temp_repo(monkeypatch):
         (tmpdir_path / "binary.bin").write_bytes(b"\x00\x01\x02\x03")
 
         # Monkey-patch REPO_ROOT
-        import patchpal.tools as tools_enhanced
+        import patchpal.tools.common
 
-        monkeypatch.setattr(tools_enhanced, "REPO_ROOT", tmpdir_path)
+        monkeypatch.setattr(patchpal.tools.common, "REPO_ROOT", tmpdir_path)
 
         # Disable permission prompts during tests
         monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
@@ -57,19 +57,14 @@ class TestSensitiveFileProtection:
 
     def test_allows_with_override(self, temp_repo, monkeypatch):
         """Test that ALLOW_SENSITIVE override works."""
-        monkeypatch.setenv("PATCHPAL_ALLOW_SENSITIVE", "true")
+        # Directly patch ALLOW_SENSITIVE instead of reloading
+        import patchpal.tools.common
 
-        # Reimport to pick up env var
-        import importlib
+        monkeypatch.setattr(patchpal.tools.common, "ALLOW_SENSITIVE", True)
 
-        import patchpal.tools
+        from patchpal.tools import read_file
 
-        importlib.reload(patchpal.tools)
-
-        # Re-monkeypatch REPO_ROOT after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
-
-        content = patchpal.tools.read_file(".env")
+        content = read_file(".env")
         assert "SECRET_KEY" in content
 
 
@@ -142,33 +137,26 @@ class TestReadOnlyMode:
 
     def test_blocks_writes_in_readonly(self, temp_repo, monkeypatch):
         """Test that writes are blocked in read-only mode."""
-        monkeypatch.setenv("PATCHPAL_READ_ONLY", "true")
+        # Patch READ_ONLY_MODE in the file_editing module where it's used
+        import patchpal.tools.file_editing
 
-        # Reimport to pick up env var
-        import importlib
+        monkeypatch.setattr(patchpal.tools.file_editing, "READ_ONLY_MODE", True)
 
-        import patchpal.tools
-
-        importlib.reload(patchpal.tools)
+        from patchpal.tools import apply_patch
 
         with pytest.raises(ValueError, match="read-only mode"):
-            patchpal.tools.apply_patch("test.txt", "content")
+            apply_patch("test.txt", "content")
 
     def test_allows_reads_in_readonly(self, temp_repo, monkeypatch):
         """Test that reads work in read-only mode."""
-        monkeypatch.setenv("PATCHPAL_READ_ONLY", "true")
+        # Directly patch READ_ONLY_MODE instead of reloading
+        import patchpal.tools.common
 
-        # Reimport to pick up env var
-        import importlib
+        monkeypatch.setattr(patchpal.tools.common, "READ_ONLY_MODE", True)
 
-        import patchpal.tools
+        from patchpal.tools import read_file
 
-        importlib.reload(patchpal.tools)
-
-        # Re-monkeypatch REPO_ROOT after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
-
-        content = patchpal.tools.read_file("normal.txt")
+        content = read_file("normal.txt")
         assert content == "normal file"
 
 
@@ -205,23 +193,12 @@ class TestCommandSafety:
         if sys.platform == "win32":
             pytest.skip("Subprocess timeout with shell=True unreliable on Windows")
 
-        # Set a short timeout for faster testing
-        monkeypatch.setenv("PATCHPAL_SHELL_TIMEOUT", "2")
+        # Directly patch SHELL_TIMEOUT instead of reloading
+        import patchpal.tools.shell_tools
 
-        # Reload module to pick up new timeout
-        import importlib
-
-        import patchpal.tools
-
-        importlib.reload(patchpal.tools)
-
-        # Re-monkeypatch REPO_ROOT after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+        monkeypatch.setattr(patchpal.tools.shell_tools, "SHELL_TIMEOUT", 2)
 
         import subprocess
-
-        # Use cross-platform sleep command
-        import sys
 
         from patchpal.tools import run_shell
 
@@ -292,7 +269,7 @@ class TestPathTraversal:
 
         # Patch REPO_ROOT
         repo_root = Path(temp_repo).resolve()
-        monkeypatch.setattr(patchpal.tools, "REPO_ROOT", repo_root)
+        monkeypatch.setattr(patchpal.tools.common, "REPO_ROOT", repo_root)
 
         # Mock permission request to deny access
         def mock_request_permission(self, tool_name, description, pattern=None, context=None):
@@ -328,7 +305,7 @@ class TestPathTraversal:
 
         # Patch REPO_ROOT
         repo_root = Path(temp_repo).resolve()
-        monkeypatch.setattr(patchpal.tools, "REPO_ROOT", repo_root)
+        monkeypatch.setattr(patchpal.tools.common, "REPO_ROOT", repo_root)
 
         # Mock permission request to deny access
         def mock_request_permission(self, tool_name, description, pattern=None, context=None):
@@ -383,17 +360,10 @@ class TestConfigurability:
 
     def test_custom_max_file_size(self, temp_repo, monkeypatch):
         """Test that MAX_FILE_SIZE can be configured."""
-        monkeypatch.setenv("PATCHPAL_MAX_FILE_SIZE", "1000")
+        # Patch MAX_FILE_SIZE in the file_operations module where it's used
+        import patchpal.tools.file_operations
 
-        # Reimport to pick up env var
-        import importlib
-
-        import patchpal.tools
-
-        importlib.reload(patchpal.tools)
-
-        # Re-monkeypatch REPO_ROOT after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+        monkeypatch.setattr(patchpal.tools.file_operations, "MAX_FILE_SIZE", 1000)
 
         # Should now block even small files
         (temp_repo / "medium.txt").write_text("x" * 2000)
@@ -436,18 +406,19 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
     # ----------------------------
     import patchpal.permissions
     import patchpal.tools
+    import patchpal.tools.common
 
     # ----------------------------
     # Reset all cached globals
     # ----------------------------
     patchpal.permissions._permission_manager = None
-    patchpal.tools._permission_manager = None
+    patchpal.tools.common._permission_manager = None
 
     # ----------------------------
     # Patch REPO_ROOT (normalized)
     # ----------------------------
     repo_root = Path(temp_repo).resolve()
-    monkeypatch.setattr(patchpal.tools, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(patchpal.tools.common, "REPO_ROOT", repo_root)
 
     # ----------------------------
     # Patch permission manager BEFORE use
@@ -562,14 +533,14 @@ def test_comprehensive_security_demo(temp_repo, monkeypatch):
 # import patchpal.tools
 
 ## Re-patch REPO_ROOT BEFORE reload so PATCHPAL_DIR is calculated correctly
-# monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+# monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", temp_repo)
 
 ## Reload modules to pick up the new env var
 # importlib.reload(patchpal.permissions)
 # importlib.reload(patchpal.tools)
 
 ## Re-patch REPO_ROOT again after reload (gets reset during reload)
-# monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+# monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", temp_repo)
 
 ## Reset the cached permission manager BEFORE importing functions
 # patchpal.tools._permission_manager = None

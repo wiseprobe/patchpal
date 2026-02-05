@@ -203,7 +203,7 @@ def test_agent_run_with_tool_call(monkeypatch):
     mock_response2.choices[0].message.tool_calls = None
 
     with patch("patchpal.agent.litellm.completion", side_effect=[mock_response1, mock_response2]):
-        with patch("patchpal.agent.list_files", return_value=["file1.py", "file2.py", "file3.py"]):
+        with patch("patchpal.tools.list_files", return_value=["file1.py", "file2.py", "file3.py"]):
             agent = create_agent()
             # Disable permissions for test
             monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")

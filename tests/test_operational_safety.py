@@ -25,12 +25,19 @@ def temp_repo(monkeypatch):
         (tmpdir_path / "package.json").write_text('{"name": "test"}')
 
         # Monkey-patch REPO_ROOT and related paths
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", tmpdir_path)
-        monkeypatch.setattr("patchpal.tools.BACKUP_DIR", tmpdir_path / ".patchpal_backups")
-        monkeypatch.setattr("patchpal.tools.AUDIT_LOG_FILE", tmpdir_path / ".patchpal_audit.log")
+        monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", tmpdir_path)
+        monkeypatch.setattr("patchpal.tools.common.BACKUP_DIR", tmpdir_path / ".patchpal_backups")
+        monkeypatch.setattr(
+            "patchpal.tools.common.AUDIT_LOG_FILE", tmpdir_path / ".patchpal_audit.log"
+        )
 
         # Disable permission prompts during tests
         monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+
+        # Reset the permission manager to pick up env var
+        import patchpal.tools.common
+
+        patchpal.tools.common._permission_manager = None
 
         # Reset operation counter
         from patchpal.tools import reset_operation_counter
@@ -106,27 +113,17 @@ class TestAutomaticBackups:
 
     def test_backup_created_on_modify(self, temp_repo, monkeypatch):
         """Test that backup is created when modifying file."""
-        # Enable backups for this test
-        monkeypatch.setenv("PATCHPAL_ENABLE_BACKUPS", "true")
-        monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+        # Directly patch ENABLE_BACKUPS instead of reloading
+        import patchpal.tools.common
 
-        # Reimport to pick up env var
-        import importlib
+        monkeypatch.setattr(patchpal.tools.common, "ENABLE_BACKUPS", True)
 
-        import patchpal.tools
-
-        importlib.reload(patchpal.tools)
-
-        # Re-setup after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
         backup_dir = temp_repo / ".patchpal_backups"
-        monkeypatch.setattr("patchpal.tools.BACKUP_DIR", backup_dir)
-        monkeypatch.setattr("patchpal.tools.AUDIT_LOG_FILE", temp_repo / ".patchpal_audit.log")
-        # Reset the permission manager after reload
-        patchpal.tools._permission_manager = None
-        patchpal.tools.reset_operation_counter()
+        monkeypatch.setattr(patchpal.tools.common, "BACKUP_DIR", backup_dir)
 
-        patchpal.tools.apply_patch("test.txt", "modified content")
+        from patchpal.tools import apply_patch
+
+        apply_patch("test.txt", "modified content")
 
         assert backup_dir.exists()
         backups = list(backup_dir.glob("test.txt.*"))
@@ -134,57 +131,37 @@ class TestAutomaticBackups:
 
     def test_backup_preserves_content(self, temp_repo, monkeypatch):
         """Test that backup contains original content."""
-        # Enable backups for this test
-        monkeypatch.setenv("PATCHPAL_ENABLE_BACKUPS", "true")
-        monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+        # Directly patch ENABLE_BACKUPS instead of reloading
+        import patchpal.tools.common
 
-        # Reimport to pick up env var
-        import importlib
+        monkeypatch.setattr(patchpal.tools.common, "ENABLE_BACKUPS", True)
 
-        import patchpal.tools
-
-        importlib.reload(patchpal.tools)
-
-        # Re-setup after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
         backup_dir = temp_repo / ".patchpal_backups"
-        monkeypatch.setattr("patchpal.tools.BACKUP_DIR", backup_dir)
-        monkeypatch.setattr("patchpal.tools.AUDIT_LOG_FILE", temp_repo / ".patchpal_audit.log")
-        # Reset the permission manager after reload
-        patchpal.tools._permission_manager = None
-        patchpal.tools.reset_operation_counter()
+        monkeypatch.setattr(patchpal.tools.common, "BACKUP_DIR", backup_dir)
+
+        from patchpal.tools import apply_patch
 
         original = "original content"
         (temp_repo / "test.txt").write_text(original)
 
-        patchpal.tools.apply_patch("test.txt", "modified content")
+        apply_patch("test.txt", "modified content")
 
         backup = list(backup_dir.glob("test.txt.*"))[0]
         assert backup.read_text() == original
 
     def test_backup_message_in_output(self, temp_repo, monkeypatch):
         """Test that backup path is shown in output."""
-        # Enable backups for this test
-        monkeypatch.setenv("PATCHPAL_ENABLE_BACKUPS", "true")
-        monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+        # Directly patch ENABLE_BACKUPS instead of reloading
+        import patchpal.tools.common
 
-        # Reimport to pick up env var
-        import importlib
+        monkeypatch.setattr(patchpal.tools.common, "ENABLE_BACKUPS", True)
 
-        import patchpal.tools
-
-        importlib.reload(patchpal.tools)
-
-        # Re-setup after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
         backup_dir = temp_repo / ".patchpal_backups"
-        monkeypatch.setattr("patchpal.tools.BACKUP_DIR", backup_dir)
-        monkeypatch.setattr("patchpal.tools.AUDIT_LOG_FILE", temp_repo / ".patchpal_audit.log")
-        # Reset the permission manager after reload
-        patchpal.tools._permission_manager = None
-        patchpal.tools.reset_operation_counter()
+        monkeypatch.setattr(patchpal.tools.common, "BACKUP_DIR", backup_dir)
 
-        result = patchpal.tools.apply_patch("test.txt", "modified content")
+        from patchpal.tools import apply_patch
+
+        result = apply_patch("test.txt", "modified content")
 
         assert "Backup saved:" in result or "BACKUP" in result
 
@@ -212,7 +189,7 @@ class TestAutomaticBackups:
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+        monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", temp_repo)
         monkeypatch.setattr("patchpal.tools.AUDIT_LOG_FILE", temp_repo / ".patchpal_audit.log")
         # Reset the permission manager after reload
         patchpal.tools._permission_manager = None
@@ -249,30 +226,21 @@ class TestResourceLimits:
 
     def test_operation_limit_enforced(self, temp_repo, monkeypatch):
         """Test that operation limit prevents infinite loops."""
-        monkeypatch.setenv("PATCHPAL_MAX_OPERATIONS", "5")
-        monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
+        # Directly patch the operation limiter's max_operations instead of reloading
+        import patchpal.tools.common
 
-        # Reimport to pick up env var
-        import importlib
+        monkeypatch.setattr(patchpal.tools.common._operation_limiter, "max_operations", 5)
+        patchpal.tools.common._operation_limiter.reset()
 
-        import patchpal.tools
-
-        importlib.reload(patchpal.tools)
-
-        # Re-setup after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
-        monkeypatch.setattr("patchpal.tools.AUDIT_LOG_FILE", temp_repo / ".patchpal_audit.log")
-        # Reset the permission manager after reload
-        patchpal.tools._permission_manager = None
-        patchpal.tools.reset_operation_counter()
+        from patchpal.tools import read_file
 
         # Should succeed for first 5 operations
         for i in range(5):
-            patchpal.tools.read_file("test.txt")
+            read_file("test.txt")
 
         # 6th operation should fail
         with pytest.raises(ValueError, match="Operation limit exceeded"):
-            patchpal.tools.read_file("test.txt")
+            read_file("test.txt")
 
     def test_all_operations_counted(self, temp_repo):
         """Test that all operation types are counted."""
@@ -306,7 +274,7 @@ class TestGitStateAwareness:
 
     def test_git_status_detected(self, temp_repo):
         """Test that git status is checked (if in git repo)."""
-        from patchpal.tools import _check_git_status
+        from patchpal.tools.common import _check_git_status
 
         status = _check_git_status()
         # Will be False if not a git repo, which is fine
@@ -409,7 +377,7 @@ class TestIntegration:
         importlib.reload(patchpal.tools)
 
         # Re-setup after reload
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+        monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", temp_repo)
         monkeypatch.setattr("patchpal.tools.AUDIT_LOG_FILE", temp_repo / ".patchpal_audit.log")
         # Reset the permission manager after reload
         patchpal.tools._permission_manager = None

@@ -7,7 +7,7 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
-## 0.9.0 (2026-02-04)
+## 0.9.0 (2026-02-05)
 
 ### new:
 - **OpenAI prompt caching support**: Added tracking and display of OpenAI cached tokens (`prompt_tokens_details.cached_tokens`) in `/status` command and session summary. Shows cache hit rate, cost-adjusted token counts, and savings percentage. Properly calculates costs using LiteLLM's `cache_read_input_token_cost` field with fallback to 0.5x multiplier for models without explicit pricing data. (#44)
@@ -23,6 +23,7 @@ Most recent releases are shown at the top. Each release shows:
 - Added `python-docx>=1.0.0` and `python-pptx>=0.6.0` as required dependencies (#43)
 - Updated `web_fetch` tool description and documentation to reflect new format support (#43)
 - All LLM API calls now include timeout parameter (default: 5 minutes, configurable via `PATCHPAL_LLM_TIMEOUT`)
+- **Refactored monolithic tools.py into modular package**: Broke down 2,883-line file into 10 focused modules (common, definitions, file_operations, file_editing, git_tools, shell_tools, todo_tools, user_interaction, web_tools) for better maintainability, reduced agent.py by 30%. (#45)
 
 ### fixed:
 - **Fixed OpenAI cost overestimation**: OpenAI cached tokens were previously not tracked, causing costs to be overestimated by 15-50%. Now properly accounted for with model-specific discounts. (#44)

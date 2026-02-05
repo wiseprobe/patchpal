@@ -13,7 +13,7 @@ def temp_repo(monkeypatch):
         tmpdir_path = Path(tmpdir)
 
         # Monkey-patch REPO_ROOT
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", tmpdir_path)
+        monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", tmpdir_path)
 
         # Disable permission prompts during tests
         monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")

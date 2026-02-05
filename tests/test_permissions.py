@@ -15,7 +15,7 @@ def mock_repo(tmp_path):
 
 def test_shell_command_pattern_simple():
     """Test simple shell command pattern extraction."""
-    from patchpal.tools import _extract_shell_command_info
+    from patchpal.tools.shell_tools import _extract_shell_command_info
 
     # Simple command
     cmd, wd = _extract_shell_command_info("pytest tests/")
@@ -30,7 +30,7 @@ def test_shell_command_pattern_simple():
 
 def test_shell_command_pattern_with_cd():
     """Test shell command pattern extraction with cd."""
-    from patchpal.tools import _extract_shell_command_info
+    from patchpal.tools.shell_tools import _extract_shell_command_info
 
     # cd && command
     cmd, wd = _extract_shell_command_info("cd /tmp && python test.py")
@@ -50,7 +50,7 @@ def test_shell_command_pattern_with_cd():
 
 def test_shell_command_pattern_with_pipes():
     """Test shell command pattern extraction with pipes."""
-    from patchpal.tools import _extract_shell_command_info
+    from patchpal.tools.shell_tools import _extract_shell_command_info
 
     # Command with pipe
     cmd, wd = _extract_shell_command_info("ls -la | grep test")
@@ -65,7 +65,7 @@ def test_shell_command_pattern_with_pipes():
 
 def test_shell_command_pattern_cd_only():
     """Test shell command pattern extraction for cd-only command."""
-    from patchpal.tools import _extract_shell_command_info
+    from patchpal.tools.shell_tools import _extract_shell_command_info
 
     # Just cd
     cmd, wd = _extract_shell_command_info("cd /tmp")
@@ -75,7 +75,7 @@ def test_shell_command_pattern_cd_only():
 
 def test_shell_command_pattern_or_operator():
     """Test shell command pattern extraction with || operator."""
-    from patchpal.tools import _extract_shell_command_info
+    from patchpal.tools.shell_tools import _extract_shell_command_info
 
     # Command with ||
     cmd, wd = _extract_shell_command_info("python test.py || echo failed")
@@ -115,9 +115,9 @@ def test_shell_command_composite_pattern():
 def test_permission_pattern_inside_repo(mock_repo, monkeypatch):
     """Test that files inside repo use relative path as pattern."""
     # Mock REPO_ROOT
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
 
-    from patchpal.tools import _get_permission_pattern_for_path
+    from patchpal.tools.common import _get_permission_pattern_for_path
 
     # Test file inside repo - use resolved path like the actual code does
     test_file = (mock_repo / "src" / "app.py").resolve()
@@ -130,9 +130,9 @@ def test_permission_pattern_inside_repo(mock_repo, monkeypatch):
 def test_permission_pattern_outside_repo_tmp(mock_repo, monkeypatch):
     """Test that files outside repo use directory name as pattern."""
     # Mock REPO_ROOT
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
 
-    from patchpal.tools import _get_permission_pattern_for_path
+    from patchpal.tools.common import _get_permission_pattern_for_path
 
     # Test file in /tmp/ - use absolute resolved path
     tmp_file = Path("/tmp/test.py").resolve()
@@ -145,9 +145,9 @@ def test_permission_pattern_outside_repo_tmp(mock_repo, monkeypatch):
 def test_permission_pattern_outside_repo_home(mock_repo, monkeypatch):
     """Test path traversal to other directories."""
     # Mock REPO_ROOT
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
 
-    from patchpal.tools import _get_permission_pattern_for_path
+    from patchpal.tools.common import _get_permission_pattern_for_path
 
     # Test file in /home/user/other/ - use absolute resolved path
     other_file = Path("/home/user/other/file.py").resolve()
@@ -160,9 +160,9 @@ def test_permission_pattern_outside_repo_home(mock_repo, monkeypatch):
 def test_permission_pattern_multiple_traversals_same_dir(mock_repo, monkeypatch):
     """Test that different path traversals to same directory produce same pattern."""
     # Mock REPO_ROOT
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
 
-    from patchpal.tools import _get_permission_pattern_for_path
+    from patchpal.tools.common import _get_permission_pattern_for_path
 
     # Use resolved path like the actual code does
     tmp_file = Path("/tmp/test.py").resolve()
@@ -178,7 +178,7 @@ def test_permission_pattern_multiple_traversals_same_dir(mock_repo, monkeypatch)
 def test_apply_patch_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
     """Test that apply_patch uses directory-based pattern for outside-repo files."""
     # Setup
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "true")
     monkeypatch.setenv("PATCHPAL_READ_ONLY", "false")
 
@@ -187,12 +187,16 @@ def test_apply_patch_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
 
     import patchpal.permissions
     import patchpal.tools
+    import patchpal.tools.common
 
     importlib.reload(patchpal.permissions)
+    importlib.reload(patchpal.tools.common)
     importlib.reload(patchpal.tools)
 
     # Re-apply repo root after reload
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
+    # Reset permission manager so it gets recreated with new settings
+    patchpal.tools.common._permission_manager = None
 
     # Track what pattern is passed to permission request
     captured_pattern = {}
@@ -218,7 +222,7 @@ def test_apply_patch_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
 def test_edit_file_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
     """Test that edit_file uses directory-based pattern for outside-repo files."""
     # Setup
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "true")
     monkeypatch.setenv("PATCHPAL_READ_ONLY", "false")
 
@@ -227,12 +231,16 @@ def test_edit_file_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
 
     import patchpal.permissions
     import patchpal.tools
+    import patchpal.tools.common
 
     importlib.reload(patchpal.permissions)
+    importlib.reload(patchpal.tools.common)
     importlib.reload(patchpal.tools)
 
     # Re-apply repo root after reload
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
+    # Reset permission manager so it gets recreated with new settings
+    patchpal.tools.common._permission_manager = None
 
     # Create test file outside repo
     test_file = tmp_path / "test_edit.txt"
@@ -261,7 +269,7 @@ def test_edit_file_uses_correct_pattern(mock_repo, monkeypatch, tmp_path):
 def test_permission_pattern_consistency_across_tools(mock_repo, monkeypatch, tmp_path):
     """Test that apply_patch and edit_file use same pattern for same file."""
     # Setup
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "true")
     monkeypatch.setenv("PATCHPAL_READ_ONLY", "false")
 
@@ -270,12 +278,16 @@ def test_permission_pattern_consistency_across_tools(mock_repo, monkeypatch, tmp
 
     import patchpal.permissions
     import patchpal.tools
+    import patchpal.tools.common
 
     importlib.reload(patchpal.permissions)
+    importlib.reload(patchpal.tools.common)
     importlib.reload(patchpal.tools)
 
     # Re-apply repo root after reload
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", mock_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", mock_repo)
+    # Reset permission manager so it gets recreated with new settings
+    patchpal.tools.common._permission_manager = None
 
     test_file = tmp_path / "consistency_test.txt"
     test_file.write_text("original")

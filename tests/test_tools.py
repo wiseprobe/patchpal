@@ -20,15 +20,15 @@ def temp_repo(monkeypatch):
         (tmpdir_path / "subdir" / "file.py").write_text("print('test')")
 
         # Monkey-patch REPO_ROOT
-        monkeypatch.setattr("patchpal.tools.REPO_ROOT", tmpdir_path)
+        monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", tmpdir_path)
 
         # Disable permission prompts during tests
         monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
 
         # Reset the cached permission manager so it picks up the new env var
-        import patchpal.tools
+        import patchpal.tools.common
 
-        patchpal.tools._permission_manager = None
+        patchpal.tools.common._permission_manager = None
 
         # Reset operation counter before each test
         from patchpal.tools import reset_operation_counter
@@ -286,15 +286,19 @@ def test_run_shell_allow_sudo(temp_repo, monkeypatch):
     # Set environment variable to allow sudo
     monkeypatch.setenv("PATCHPAL_ALLOW_SUDO", "true")
 
-    # Need to reload the module to pick up the new environment variable
+    # Need to reload the modules to pick up the new environment variable
     import importlib
 
     import patchpal.tools
+    import patchpal.tools.common
+    import patchpal.tools.shell_tools
 
+    importlib.reload(patchpal.tools.common)
+    importlib.reload(patchpal.tools.shell_tools)
     importlib.reload(patchpal.tools)
 
     # Re-patch REPO_ROOT after reload
-    monkeypatch.setattr("patchpal.tools.REPO_ROOT", temp_repo)
+    monkeypatch.setattr("patchpal.tools.common.REPO_ROOT", temp_repo)
 
     if platform.system() != "Windows":
         # On Unix-like systems, sudo should now be allowed (will fail but not blocked)
@@ -331,12 +335,12 @@ def test_run_shell_complex_safe_command(temp_repo):
 
 def test_check_path_validates_existence():
     """Test that _check_path validates file existence."""
-    from patchpal.tools import _check_path
+    from patchpal.tools.common import _check_path
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir).resolve()  # Resolve to handle symlinks (e.g., macOS /private)
 
-        with patch("patchpal.tools.REPO_ROOT", tmpdir_path):
+        with patch("patchpal.tools.common.REPO_ROOT", tmpdir_path):
             # Test non-existent file with must_exist=True
             with pytest.raises(ValueError, match="File not found"):
                 _check_path("nonexistent.txt", must_exist=True)
@@ -420,7 +424,7 @@ def test_web_fetch_success(monkeypatch):
     ]
 
     mock_get = Mock(return_value=mock_response)
-    monkeypatch.setattr("patchpal.tools.requests.get", mock_get)
+    monkeypatch.setattr("patchpal.tools.web_tools.requests.get", mock_get)
 
     # Disable permission prompts
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
@@ -458,7 +462,7 @@ def test_web_fetch_content_too_large(monkeypatch):
     mock_response.encoding = "utf-8"
 
     mock_get = Mock(return_value=mock_response)
-    monkeypatch.setattr("patchpal.tools.requests.get", mock_get)
+    monkeypatch.setattr("patchpal.tools.web_tools.requests.get", mock_get)
 
     # Disable permission prompts
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
@@ -487,7 +491,7 @@ def test_web_search_success(monkeypatch):
     mock_ddgs_instance.__exit__.return_value = None
 
     mock_ddgs_class = Mock(return_value=mock_ddgs_instance)
-    monkeypatch.setattr("patchpal.tools.DDGS", mock_ddgs_class)
+    monkeypatch.setattr("patchpal.tools.web_tools.DDGS", mock_ddgs_class)
 
     # Disable permission prompts
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
@@ -516,7 +520,7 @@ def test_web_search_no_results(monkeypatch):
     mock_ddgs_instance.__exit__.return_value = None
 
     mock_ddgs_class = Mock(return_value=mock_ddgs_instance)
-    monkeypatch.setattr("patchpal.tools.DDGS", mock_ddgs_class)
+    monkeypatch.setattr("patchpal.tools.web_tools.DDGS", mock_ddgs_class)
 
     # Disable permission prompts
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
@@ -546,7 +550,7 @@ def test_web_search_limits_results(monkeypatch):
     mock_ddgs_instance.__exit__.return_value = None
 
     mock_ddgs_class = Mock(return_value=mock_ddgs_instance)
-    monkeypatch.setattr("patchpal.tools.DDGS", mock_ddgs_class)
+    monkeypatch.setattr("patchpal.tools.web_tools.DDGS", mock_ddgs_class)
 
     # Disable permission prompts
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
@@ -661,7 +665,7 @@ def test_git_status_not_a_repo(temp_repo, monkeypatch):
         result.stderr = "not a git repository"
         return result
 
-    monkeypatch.setattr("patchpal.tools.subprocess.run", mock_run)
+    monkeypatch.setattr("patchpal.tools.git_tools.subprocess.run", mock_run)
 
     result = git_status()
     assert "Not a git repository" in result
@@ -683,7 +687,7 @@ def test_git_status_clean(temp_repo, monkeypatch):
             result.stdout = ""  # Clean working tree
         return result
 
-    monkeypatch.setattr("patchpal.tools.subprocess.run", mock_run)
+    monkeypatch.setattr("patchpal.tools.git_tools.subprocess.run", mock_run)
 
     result = git_status()
     assert "No changes" in result or "clean" in result
@@ -698,7 +702,7 @@ def test_git_diff_no_repo(temp_repo, monkeypatch):
         result.returncode = 1
         return result
 
-    monkeypatch.setattr("patchpal.tools.subprocess.run", mock_run)
+    monkeypatch.setattr("patchpal.tools.git_tools.subprocess.run", mock_run)
 
     result = git_diff()
     assert "Not a git repository" in result
@@ -720,7 +724,7 @@ def test_git_diff_no_changes(temp_repo, monkeypatch):
             result.stdout = ""  # No changes
         return result
 
-    monkeypatch.setattr("patchpal.tools.subprocess.run", mock_run)
+    monkeypatch.setattr("patchpal.tools.git_tools.subprocess.run", mock_run)
 
     result = git_diff()
     assert "No" in result and "changes" in result
@@ -735,7 +739,7 @@ def test_git_log_not_a_repo(temp_repo, monkeypatch):
         result.returncode = 1
         return result
 
-    monkeypatch.setattr("patchpal.tools.subprocess.run", mock_run)
+    monkeypatch.setattr("patchpal.tools.git_tools.subprocess.run", mock_run)
 
     result = git_log()
     assert "Not a git repository" in result
@@ -757,7 +761,7 @@ def test_git_log_success(temp_repo, monkeypatch):
             result.stdout = "abc123 - John Doe, 2 hours ago : Initial commit\ndef456 - Jane Doe, 1 day ago : Add feature"
         return result
 
-    monkeypatch.setattr("patchpal.tools.subprocess.run", mock_run)
+    monkeypatch.setattr("patchpal.tools.git_tools.subprocess.run", mock_run)
 
     result = git_log(max_count=10)
     assert "Recent commits" in result
@@ -767,39 +771,34 @@ def test_git_log_success(temp_repo, monkeypatch):
 
 def test_web_fetch_truncation(temp_repo, monkeypatch):
     """Test that web_fetch truncates large content to prevent context window overflow."""
-    import patchpal.tools
+    import patchpal.tools.web_tools
     from patchpal.tools import web_fetch
 
     # Disable permission requirement
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
 
-    # Set a small character limit for testing
-    original_limit = patchpal.tools.MAX_WEB_CONTENT_CHARS
-    patchpal.tools.MAX_WEB_CONTENT_CHARS = 100
+    # Set a small character limit for testing - patch in web_tools where it's used
+    monkeypatch.setattr(patchpal.tools.web_tools, "MAX_WEB_CONTENT_CHARS", 100)
 
-    try:
-        # Create large content (200 chars)
-        large_content = "A" * 200
+    # Create large content (200 chars)
+    large_content = "A" * 200
 
-        # Mock requests.get
-        mock_response = MagicMock()
-        mock_response.headers = {"Content-Type": "text/plain", "Content-Length": "200"}
-        mock_response.encoding = "utf-8"
-        mock_response.raise_for_status = MagicMock()
-        mock_response.iter_content = MagicMock(return_value=[large_content.encode("utf-8")])
+    # Mock requests.get
+    mock_response = MagicMock()
+    mock_response.headers = {"Content-Type": "text/plain", "Content-Length": "200"}
+    mock_response.encoding = "utf-8"
+    mock_response.raise_for_status = MagicMock()
+    mock_response.iter_content = MagicMock(return_value=[large_content.encode("utf-8")])
 
-        with patch("patchpal.tools.requests.get", return_value=mock_response):
-            result = web_fetch("http://example.com/large.txt", extract_text=False)
+    with patch("patchpal.tools.web_tools.requests.get", return_value=mock_response):
+        result = web_fetch("http://example.com/large.txt", extract_text=False)
 
-            # Verify content was truncated (100 chars + "\n\n" before warning)
-            truncated_part = result.split("[WARNING")[0]
-            assert truncated_part.rstrip() == "A" * 100  # Content without trailing newlines
-            assert "[WARNING: Content truncated" in result
-            assert "200 to 100 characters" in result
-            assert "PATCHPAL_MAX_WEB_CHARS" in result
-    finally:
-        # Restore original limit
-        patchpal.tools.MAX_WEB_CONTENT_CHARS = original_limit
+        # Verify content was truncated (100 chars + "\n\n" before warning)
+        truncated_part = result.split("[WARNING")[0]
+        assert truncated_part.rstrip() == "A" * 100  # Content without trailing newlines
+        assert "[WARNING: Content truncated" in result
+        assert "200 to 100 characters" in result
+        assert "PATCHPAL_MAX_WEB_CHARS" in result
 
 
 def test_web_fetch_no_truncation_needed(temp_repo, monkeypatch):
@@ -819,7 +818,7 @@ def test_web_fetch_no_truncation_needed(temp_repo, monkeypatch):
     mock_response.raise_for_status = MagicMock()
     mock_response.iter_content = MagicMock(return_value=[small_content.encode("utf-8")])
 
-    with patch("patchpal.tools.requests.get", return_value=mock_response):
+    with patch("patchpal.tools.web_tools.requests.get", return_value=mock_response):
         result = web_fetch("http://example.com/small.txt", extract_text=False)
 
         # Verify content was not truncated
@@ -1335,7 +1334,8 @@ def test_todo_persistence(todo_repo):
 
 def test_todo_json_structure(todo_repo):
     """Test that TODO session storage has correct structure."""
-    from patchpal.tools import _load_todos, todo_add
+    from patchpal.tools import todo_add
+    from patchpal.tools.todo_tools import _load_todos
 
     todo_add("Test task", details="Test details")
 
@@ -1666,7 +1666,7 @@ def test_edit_file_flexible_matching_error_message(temp_repo):
 
 def test_edit_file_matching_strategies_helper_functions(temp_repo):
     """Test the underlying matching strategy helper functions directly."""
-    from patchpal.tools import (
+    from patchpal.tools.file_editing import (
         _try_line_trimmed_match,
         _try_simple_match,
         _try_whitespace_normalized_match,
@@ -1693,7 +1693,7 @@ def test_edit_file_matching_strategies_helper_functions(temp_repo):
 
 def test_edit_file_multiline_trimmed_match_helper(temp_repo):
     """Test line-trimmed matching with multi-line blocks."""
-    from patchpal.tools import _try_line_trimmed_match
+    from patchpal.tools.file_editing import _try_line_trimmed_match
 
     content = """class Test:
     def method(self):
@@ -1714,7 +1714,7 @@ def test_edit_file_multiline_trimmed_match_helper(temp_repo):
 
 def test_edit_file_finds_match_with_strategy_order(temp_repo):
     """Test that strategies are tried in correct order."""
-    from patchpal.tools import _find_match_with_strategies
+    from patchpal.tools.file_editing import _find_match_with_strategies
 
     # Scenario: content has both a substring and a full line
     # Should prefer full line match for code patterns
@@ -1851,7 +1851,7 @@ def test_web_fetch_pdf_extraction(monkeypatch):
     """Test fetching and extracting text from a PDF."""
     from unittest.mock import Mock
 
-    from patchpal.tools import PYMUPDF_AVAILABLE, web_fetch
+    from patchpal.tools.web_tools import PYMUPDF_AVAILABLE, web_fetch
 
     if not PYMUPDF_AVAILABLE:
         pytest.skip("PyMuPDF not available")
@@ -1880,7 +1880,7 @@ def test_web_fetch_pdf_extraction(monkeypatch):
     mock_response.iter_content = lambda chunk_size: [pdf_content]
 
     mock_get = Mock(return_value=mock_response)
-    monkeypatch.setattr("patchpal.tools.requests.get", mock_get)
+    monkeypatch.setattr("patchpal.tools.web_tools.requests.get", mock_get)
 
     # Disable permission prompts
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
@@ -1902,7 +1902,7 @@ def test_web_fetch_pdf_without_pymupdf(monkeypatch):
     from patchpal.tools import web_fetch
 
     # Mock PyMuPDF as unavailable
-    monkeypatch.setattr("patchpal.tools.PYMUPDF_AVAILABLE", False)
+    monkeypatch.setattr("patchpal.tools.web_tools.PYMUPDF_AVAILABLE", False)
 
     # Mock PDF content
     pdf_content = b"%PDF-1.4\n%fake pdf content"
@@ -1918,7 +1918,7 @@ def test_web_fetch_pdf_without_pymupdf(monkeypatch):
     mock_response.iter_content = lambda chunk_size: [pdf_content]
 
     mock_get = Mock(return_value=mock_response)
-    monkeypatch.setattr("patchpal.tools.requests.get", mock_get)
+    monkeypatch.setattr("patchpal.tools.web_tools.requests.get", mock_get)
 
     # Disable permission prompts
     monkeypatch.setenv("PATCHPAL_REQUIRE_PERMISSION", "false")
