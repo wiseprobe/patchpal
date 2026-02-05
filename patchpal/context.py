@@ -122,6 +122,9 @@ class ContextManager:
     COMPACT_THRESHOLD = float(
         os.getenv("PATCHPAL_COMPACT_THRESHOLD", "0.75")
     )  # Compact at 75% capacity (lower due to estimation inaccuracy)
+    ENABLE_PROACTIVE_PRUNING = (
+        os.getenv("PATCHPAL_PROACTIVE_PRUNING", "true").lower() == "true"
+    )  # Proactively prune after tool calls when outputs exceed PRUNE_PROTECT (default: true)
 
     # Model context limits (tokens)
     # From OpenCode's models.dev data - see https://models.dev/api.json
@@ -336,8 +339,140 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
             "usage_percent": int((total_tokens / self.context_limit) * 100),
         }
 
+    def _summarize_tool_output(self, tool_name: str, content: str) -> str:
+        """Create an intelligent summary of a tool output.
+
+        Different tools need different summarization strategies:
+        - Navigation tools (list_files, tree, get_repo_map): Just note they ran
+        - read_file: Keep first/last lines with ellipsis
+        - grep_code: Keep match count and first few results
+        - git_status: Simple status summary
+        - run_shell: Command + exit code + key numbers
+
+        Args:
+            tool_name: Name of the tool that produced this output
+            content: Original tool output content
+
+        Returns:
+            Summarized content string
+        """
+        content_str = str(content)
+        original_len = len(content_str)
+
+        # Tools that can be heavily summarized (low information loss)
+        if tool_name == "list_files":
+            # Extract file count
+            lines = content_str.split("\n")
+            file_count = len([line for line in lines if line.strip() and not line.startswith("[")])
+            sample_files = [
+                line.strip() for line in lines[:3] if line.strip() and not line.startswith("[")
+            ]
+            return f"[Pruned list_files: {file_count} files, e.g., {', '.join(sample_files)}...]"
+
+        elif tool_name == "tree":
+            # Extract directory count and depth
+            lines = content_str.split("\n")
+            dir_count = content_str.count("/")
+            return f"[Pruned tree: ~{dir_count} directories, {len(lines)} lines of structure]"
+
+        elif tool_name == "get_repo_map":
+            # Extract file count and some top-level info
+            if "files analyzed" in content_str:
+                import re
+
+                match = re.search(r"(\d+)\s+files? analyzed", content_str)
+                file_count = match.group(1) if match else "?"
+            else:
+                file_count = "?"
+            # Extract first few class/function names
+            lines = [
+                line
+                for line in content_str.split("\n")[:10]
+                if "class" in line.lower() or "def" in line.lower()
+            ]
+            return f"[Pruned repo_map: {file_count} files analyzed, ~{original_len:,} chars of structure]"
+
+        elif tool_name == "git_status":
+            # Extract just the counts
+            modified = content_str.count("modified:")
+            untracked = content_str.count("untracked:")
+            staged = content_str.count("new file:") + content_str.count("modified:")
+            return (
+                f"[Pruned git_status: {modified} modified, {untracked} untracked, {staged} staged]"
+            )
+
+        elif tool_name == "run_shell":
+            # Extract command and summarize output
+            lines = content_str.split("\n")
+            command_line = lines[0] if lines else ""
+            # Look for obvious success/failure indicators
+            if "error" in content_str.lower() or "failed" in content_str.lower():
+                status = "⚠ errors"
+            else:
+                status = "✓ success"
+            # Extract any numbers (line counts, file counts, etc.)
+            import re
+
+            numbers = re.findall(r"\d+", content_str)
+            num_summary = f", numbers: {', '.join(numbers[:5])}" if numbers else ""
+            return f"[Pruned run_shell: {command_line[:60]}... → {status}{num_summary}]"
+
+        elif tool_name == "grep_code":
+            # Keep match count and first few matches
+            lines = content_str.split("\n")
+            match_lines = [line for line in lines if ":" in line and line.strip()]
+            match_count = len(match_lines)
+            first_matches = "\n".join(match_lines[:3])
+            if match_count > 3:
+                return f"[Pruned grep_code: {match_count} matches, first 3:\n{first_matches}\n... +{match_count - 3} more]"
+            else:
+                return f"[Pruned grep_code: {match_count} matches:\n{first_matches}]"
+
+        # Tools that should preserve more content (high information value)
+        elif tool_name == "read_file":
+            # Keep first/last N lines with ellipsis
+            lines = content_str.split("\n")
+            # For very large content, always summarize even if few lines
+            if len(content_str) > 10_000 and len(lines) <= 20:
+                # Large file with few/no newlines - truncate to first/last chars
+                if len(content_str) > 1000:
+                    return f"{content_str[:500]}\n\n... [{len(content_str) - 1000} chars omitted] ...\n\n{content_str[-500:]}"
+            if len(lines) <= 20:
+                # Short files: keep everything
+                return content_str
+            else:
+                # Long files: keep first 10 and last 10 lines
+                first_10 = "\n".join(lines[:10])
+                last_10 = "\n".join(lines[-10:])
+                return f"{first_10}\n\n... [{len(lines) - 20} lines omitted] ...\n\n{last_10}"
+
+        elif tool_name == "code_structure":
+            # Keep first 500 chars (it's already compact)
+            if len(content_str) <= 500:
+                return content_str
+            else:
+                return content_str[:500] + f"\n\n... [+{len(content_str) - 500} chars omitted]"
+
+        elif tool_name in ("git_diff", "git_log"):
+            # Keep first 300 chars of diffs/logs
+            if len(content_str) <= 300:
+                return content_str
+            else:
+                return content_str[:300] + f"\n\n... [+{len(content_str) - 300} chars omitted]"
+
+        elif tool_name in ("find_files", "get_file_info"):
+            # Keep first 200 chars
+            if len(content_str) <= 200:
+                return content_str
+            else:
+                return content_str[:200] + f"... [+{len(content_str) - 200} chars]"
+
+        # Default: generic truncation
+        else:
+            return f"[Tool output pruned - {tool_name} returned {original_len:,} chars]"
+
     def prune_tool_outputs(
-        self, messages: List[Dict[str, Any]]
+        self, messages: List[Dict[str, Any]], intelligent: bool = False
     ) -> Tuple[List[Dict[str, Any]], int]:
         """Prune old tool outputs to reclaim token space.
 
@@ -346,6 +481,7 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
 
         Args:
             messages: Current message history
+            intelligent: If True, use smart summarization; if False, simple deletion markers
 
         Returns:
             Tuple of (pruned_messages, tokens_saved)
@@ -378,19 +514,32 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
             # Not worth pruning
             return messages, 0
 
-        # Prune by replacing content with marker
+        # Prune with intelligent summarization or simple markers
         pruned_messages = []
         tokens_saved = 0
 
         for i, msg in enumerate(messages):
             if any(idx == i for idx, _, _ in prune_candidates):
-                # Replace with pruned marker
                 pruned_msg = msg.copy()
                 original_content = pruned_msg.get("content", "")
-                original_len = len(str(original_content))
-                pruned_msg["content"] = f"[Tool output pruned - was {original_len:,} chars]"
+
+                # Use intelligent summarization if requested, otherwise simple pruning
+                if intelligent:
+                    # Get tool name for intelligent summarization
+                    tool_name = msg.get("name", "unknown")
+                    summarized_content = self._summarize_tool_output(tool_name, original_content)
+                else:
+                    # Simple pruning: just replace with a marker
+                    original_len = len(str(original_content))
+                    summarized_content = f"[Tool output pruned - was {original_len:,} chars]"
+
+                # Update message with summarized content
+                pruned_msg["content"] = summarized_content
                 pruned_messages.append(pruned_msg)
+
+                # Calculate tokens saved
                 tokens_saved += self.estimator.estimate_tokens(str(original_content))
+                tokens_saved -= self.estimator.estimate_tokens(summarized_content)
             else:
                 pruned_messages.append(msg)
 

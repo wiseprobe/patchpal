@@ -413,6 +413,157 @@ class TestContextManager:
         for i in range(-5, 0):
             assert "[Tool output pruned" not in str(pruned_messages[i].get("content", ""))
 
+    def test_prune_tool_outputs_intelligent_list_files(self):
+        """Test intelligent summarization for list_files."""
+        manager = ContextManager("gpt-4", "test")
+        # Lower thresholds for testing
+        manager.PRUNE_PROTECT = 5000
+        manager.PRUNE_MINIMUM = 100
+
+        # Put test message FIRST so it's old
+        file_list = "\n".join([f"file{i}.py" for i in range(100)])
+        messages = []
+
+        # Add the list_files we want to test at the BEGINNING (will be old)
+        messages.append(
+            {"role": "tool", "content": file_list, "name": "list_files", "tool_call_id": "test"}
+        )
+
+        # Add enough messages after to push test beyond PRUNE_PROTECT (need > 5K tokens = 15K chars)
+        for i in range(5):
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": "y" * 4000,
+                    "name": "recent",
+                    "tool_call_id": f"recent_{i}",
+                }
+            )
+
+        pruned_messages, tokens_saved = manager.prune_tool_outputs(messages, intelligent=True)
+
+        # The test message should be pruned with intelligent summary
+        list_files_msg = [m for m in pruned_messages if m.get("tool_call_id") == "test"][0]
+        assert "[Pruned list_files:" in list_files_msg["content"]
+        assert "100 files" in list_files_msg["content"]
+        assert "file0.py" in list_files_msg["content"]  # Sample file
+
+    def test_prune_tool_outputs_intelligent_read_file(self):
+        """Test intelligent summarization for read_file preserves first/last lines."""
+        manager = ContextManager("gpt-4", "test")
+        # Lower thresholds for testing
+        manager.PRUNE_PROTECT = 5000
+        manager.PRUNE_MINIMUM = 100
+
+        # Put test message FIRST so it's old
+        file_content = "\n".join([f"Line {i}: code here" for i in range(1, 101)])
+        messages = []
+
+        # Add test message at the BEGINNING
+        messages.append(
+            {"role": "tool", "content": file_content, "name": "read_file", "tool_call_id": "test"}
+        )
+
+        # Add enough recent messages to push test beyond PRUNE_PROTECT
+        for i in range(5):
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": "y" * 4000,
+                    "name": "recent",
+                    "tool_call_id": f"recent_{i}",
+                }
+            )
+
+        pruned_messages, tokens_saved = manager.prune_tool_outputs(messages, intelligent=True)
+
+        # Find the read_file message
+        read_file_msg = [m for m in pruned_messages if m.get("tool_call_id") == "test"][0]
+        pruned_content = read_file_msg["content"]
+        # For read_file with 100 lines, should keep first 10 and last 10
+        assert "Line 1:" in pruned_content
+        assert "Line 10:" in pruned_content
+        assert "lines omitted" in pruned_content
+        assert "Line 91:" in pruned_content or "Line 100:" in pruned_content
+
+    def test_prune_tool_outputs_intelligent_grep_code(self):
+        """Test intelligent summarization for grep_code keeps match count."""
+        manager = ContextManager("gpt-4", "test")
+        # Lower thresholds for testing
+        manager.PRUNE_PROTECT = 5000
+        manager.PRUNE_MINIMUM = 100
+
+        # Put test message FIRST so it's old
+        grep_output = "\n".join([f"file{i}.py:10:match here" for i in range(20)])
+        messages = []
+
+        # Add test message at the BEGINNING
+        messages.append(
+            {"role": "tool", "content": grep_output, "name": "grep_code", "tool_call_id": "test"}
+        )
+
+        # Add enough recent messages to push test beyond PRUNE_PROTECT
+        for i in range(5):
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": "y" * 4000,
+                    "name": "recent",
+                    "tool_call_id": f"recent_{i}",
+                }
+            )
+
+        pruned_messages, tokens_saved = manager.prune_tool_outputs(messages, intelligent=True)
+
+        # Find the grep_code message
+        grep_msg = [m for m in pruned_messages if m.get("tool_call_id") == "test"][0]
+        pruned_content = grep_msg["content"]
+        assert "[Pruned grep_code:" in pruned_content
+        assert "20 matches" in pruned_content
+        assert "first 3:" in pruned_content
+
+    def test_prune_tool_outputs_simple_vs_intelligent(self):
+        """Test that simple pruning differs from intelligent pruning."""
+        manager = ContextManager("gpt-4", "test")
+        # Lower thresholds for testing
+        manager.PRUNE_PROTECT = 5000
+        manager.PRUNE_MINIMUM = 100
+
+        # Put test message FIRST so it's old
+        file_list = "\n".join([f"file{i}.py" for i in range(50)])
+        messages = []
+
+        # Add test message at the BEGINNING
+        messages.append(
+            {"role": "tool", "content": file_list, "name": "list_files", "tool_call_id": "test"}
+        )
+
+        # Add enough recent messages to push test beyond PRUNE_PROTECT
+        for i in range(5):
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": "y" * 4000,
+                    "name": "recent",
+                    "tool_call_id": f"recent_{i}",
+                }
+            )
+
+        # Simple pruning
+        simple_pruned, _ = manager.prune_tool_outputs(messages, intelligent=False)
+        simple_msg = [m for m in simple_pruned if m.get("tool_call_id") == "test"][0]
+        simple_content = simple_msg["content"]
+
+        # Intelligent pruning
+        smart_pruned, _ = manager.prune_tool_outputs(messages, intelligent=True)
+        smart_msg = [m for m in smart_pruned if m.get("tool_call_id") == "test"][0]
+        smart_content = smart_msg["content"]
+
+        # They should be different
+        assert simple_content != smart_content
+        assert "[Tool output pruned - was" in simple_content  # Simple marker
+        assert "[Pruned list_files:" in smart_content  # Intelligent summary
+
 
 class TestContextManagerIntegration:
     """Integration tests for context management."""

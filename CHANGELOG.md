@@ -7,6 +7,18 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.9.1 (2026-02-05)
+
+### new:
+- **Proactive pruning with intelligent summarization**: Added automatic pruning of tool outputs after each tool call when accumulated outputs exceed `PRUNE_PROTECT` (40K tokens). Uses tool-specific intelligent summarization strategies to preserve key information while reducing token usage by 20-60% in typical sessions. Configurable via `PATCHPAL_PROACTIVE_PRUNING` (default: true). (fixes #48)
+
+### changed:
+- N/A
+
+### fixed:
+- N/A
+
+
 ## 0.9.0 (2026-02-05)
 
 ### new:

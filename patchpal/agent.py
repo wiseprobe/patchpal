@@ -491,8 +491,10 @@ class PatchPalAgent:
             f"\033[2m   Messages: {len(self.messages)} total, last compaction at message {self._last_compaction_message_count}\033[0m"
         )
 
-        # Phase 1: Try pruning old tool outputs first
-        pruned_messages, tokens_saved = self.context_manager.prune_tool_outputs(self.messages)
+        # Phase 1: Try pruning old tool outputs first (simple pruning, no summarization)
+        pruned_messages, tokens_saved = self.context_manager.prune_tool_outputs(
+            self.messages, intelligent=False
+        )
 
         if tokens_saved > 0:
             self.messages = pruned_messages
@@ -1169,6 +1171,27 @@ class PatchPalAgent:
                 # This ensures Bedrock gets all expected tool results before we exit
                 if operation_cancelled:
                     return "Operation cancelled by user."
+
+                # Proactive pruning: If enabled and tool outputs exceed PRUNE_PROTECT threshold,
+                # summarize old outputs now (before hitting 75% compaction threshold)
+                # This keeps context lean and reduces tokens in subsequent API calls
+                if self.context_manager.ENABLE_PROACTIVE_PRUNING:
+                    tool_output_tokens = sum(
+                        self.context_manager.estimator.estimate_message_tokens(msg)
+                        for msg in self.messages
+                        if msg.get("role") == "tool"
+                    )
+
+                    if tool_output_tokens > self.context_manager.PRUNE_PROTECT:
+                        # Use intelligent summarization for proactive pruning
+                        pruned_messages, tokens_saved = self.context_manager.prune_tool_outputs(
+                            self.messages, intelligent=True
+                        )
+                        if tokens_saved > 0:
+                            self.messages = pruned_messages
+                            print(
+                                f"\033[2m   💡 Proactively summarized old tool outputs (saved ~{tokens_saved:,} tokens)\033[0m"
+                            )
 
                 # Check if context window needs compaction after tool results are added
                 # This prevents context from ballooning within a single turn (e.g., reading large files)

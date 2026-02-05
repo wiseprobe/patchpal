@@ -1077,6 +1077,8 @@ export PATCHPAL_CONTEXT_LIMIT=100000         # Override model's context limit (f
                                               # Leave unset to use model's actual capacity
 
 # Pruning Controls
+export PATCHPAL_PROACTIVE_PRUNING=true       # Prune tool outputs after calls when > PRUNE_PROTECT (default: true)
+                                              # Uses intelligent summarization to preserve context
 export PATCHPAL_PRUNE_PROTECT=40000          # Keep last N tokens of tool outputs (default: 40000)
 export PATCHPAL_PRUNE_MINIMUM=20000          # Minimum tokens to prune (default: 20000)
 ```
@@ -1307,6 +1309,7 @@ See the [Configuration](https://github.com/amaiya/patchpal?tab=readme-ov-file#co
 - `PATCHPAL_DISABLE_AUTOCOMPACT` - Disable auto-compaction
 - `PATCHPAL_COMPACT_THRESHOLD` - Adjust compaction threshold
 - `PATCHPAL_CONTEXT_LIMIT` - Override context limit for testing
+- `PATCHPAL_PROACTIVE_PRUNING` - Prune tool outputs proactively after calls (default: true, uses smart summarization)
 - `PATCHPAL_PRUNE_PROTECT` / `PATCHPAL_PRUNE_MINIMUM` - Pruning controls
 
 **Testing Context Management:**
