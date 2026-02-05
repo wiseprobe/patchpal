@@ -420,6 +420,17 @@ class PatchPalAgent:
                     pruned_chars += original_size - len(msg["content"])
         return pruned_chars
 
+    def _is_openai_model(self) -> bool:
+        """Check if the current model is an OpenAI model.
+
+        Returns:
+            True if the model is OpenAI, False otherwise
+        """
+        model_lower = self.model_id.lower()
+        return (
+            "openai" in model_lower or "gpt" in model_lower or self.model_id.startswith("openai/")
+        )
+
     def _perform_auto_compaction(self):
         """Perform automatic context window compaction.
 
@@ -575,7 +586,8 @@ class PatchPalAgent:
                         self.cumulative_cache_read_tokens += response.usage.cache_read_input_tokens
 
                     # Track OpenAI cache tokens (prompt_tokens_details.cached_tokens)
-                    if hasattr(response.usage, "prompt_tokens_details"):
+                    # Only track for OpenAI models to avoid LiteLLM cross-contamination
+                    if self._is_openai_model() and hasattr(response.usage, "prompt_tokens_details"):
                         prompt_details = response.usage.prompt_tokens_details
                         if (
                             hasattr(prompt_details, "cached_tokens")
@@ -874,7 +886,8 @@ class PatchPalAgent:
                         self.cumulative_cache_read_tokens += response.usage.cache_read_input_tokens
 
                     # Track OpenAI cache tokens (prompt_tokens_details.cached_tokens)
-                    if hasattr(response.usage, "prompt_tokens_details"):
+                    # Only track for OpenAI models to avoid LiteLLM cross-contamination
+                    if self._is_openai_model() and hasattr(response.usage, "prompt_tokens_details"):
                         prompt_details = response.usage.prompt_tokens_details
                         if (
                             hasattr(prompt_details, "cached_tokens")
