@@ -472,7 +472,7 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
             return f"[Tool output pruned - {tool_name} returned {original_len:,} chars]"
 
     def prune_tool_outputs(
-        self, messages: List[Dict[str, Any]], intelligent: bool = False
+        self, messages: List[Dict[str, Any]], intelligent: bool = False, force: bool = False
     ) -> Tuple[List[Dict[str, Any]], int]:
         """Prune old tool outputs to reclaim token space.
 
@@ -485,6 +485,8 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
         Args:
             messages: Current message history
             intelligent: If True, use smart summarization; if False, simple deletion markers
+            force: If True, bypass PRUNE_PROTECT and PRUNE_MINIMUM thresholds
+                   (used for manual /prune command - prunes all eligible tool outputs)
 
         Returns:
             Tuple of (pruned_messages, tokens_saved)
@@ -513,17 +515,18 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
             # Estimate tokens in tool output
             tokens = self.estimator.estimate_message_tokens(msg)
 
-            if recent_tokens < self.PRUNE_PROTECT:
-                # Still within protected range
-                recent_tokens += tokens
-            else:
+            # When forced (manual /prune), skip PRUNE_PROTECT and prune all eligible outputs
+            if force or recent_tokens >= self.PRUNE_PROTECT:
                 # Candidate for pruning
                 prune_candidates.append((i, tokens, msg))
+            else:
+                # Still within protected range (only applies to automatic pruning)
+                recent_tokens += tokens
 
         # Check if we can save enough tokens
         prunable_tokens = sum(t for _, t, _ in prune_candidates)
-        if prunable_tokens < self.PRUNE_MINIMUM:
-            # Not worth pruning
+        if not force and prunable_tokens < self.PRUNE_MINIMUM:
+            # Not worth pruning (unless forced)
             return messages, 0
 
         # Prune with intelligent summarization or simple markers

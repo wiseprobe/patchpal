@@ -487,6 +487,7 @@ Supported models: Any LiteLLM-supported model
                 print("    /context <number>    View specific message by number (full details)")
                 print("    /clear               Clear conversation history (start fresh)")
                 print("    /compact             Manually trigger context compaction")
+                print("    /prune               Prune old tool outputs (keeps last 2 turns)")
                 print()
                 print("  \033[1;33mSkills:\033[0m")
                 print("    /skillname [args]    Invoke a skill (e.g., /commit)")
@@ -994,6 +995,77 @@ Supported models: Any LiteLLM-supported model
                     print(
                         "\n\033[1;33m⚠️  No tokens saved - compaction may not have been effective\033[0m"
                     )
+
+                print("=" * 70 + "\n")
+                continue
+
+            # Handle /prune command - manually prune old tool outputs
+            if user_input.lower() in ["prune", "/prune"]:
+                print("\n" + "=" * 70)
+                print("\033[1;36mManual Pruning\033[0m")
+                print("=" * 70)
+
+                # Check current status
+                stats_before = agent.context_manager.get_usage_stats(agent.messages)
+
+                # Count tool outputs
+                tool_messages = [msg for msg in agent.messages if msg.get("role") == "tool"]
+                tool_output_tokens = sum(
+                    agent.context_manager.estimator.estimate_message_tokens(msg)
+                    for msg in tool_messages
+                )
+
+                print(
+                    f"  Current usage: {stats_before['usage_percent']}% "
+                    f"({stats_before['total_tokens']:,} / {stats_before['context_limit']:,} tokens)"
+                )
+                print(f"  Messages: {len(agent.messages)} total, {len(tool_messages)} tool outputs")
+                print(f"  Tool output tokens: {tool_output_tokens:,}")
+
+                # Count protected tool outputs (last 2 conversational turns)
+                # A conversational turn = 1 user message + 1 assistant response (which may include tool calls)
+                protected_count = 0
+                turn_count = 0
+                for msg in reversed(agent.messages):
+                    if msg.get("role") == "user":
+                        turn_count += 1
+                    if turn_count >= 2:
+                        break
+                    if msg.get("role") == "tool":
+                        protected_count += 1
+
+                prunable_count = len(tool_messages) - protected_count
+                print(f"  Protected (last 2 turns): {protected_count} tool outputs")
+                print(f"  Eligible for pruning: {prunable_count} tool outputs")
+
+                # Check if pruning is possible
+                if prunable_count == 0:
+                    print("\n\033[1;33m⚠️  No old tool outputs to prune\033[0m")
+                    print(
+                        "\033[2m   Tool outputs from the last 2 conversational turns are protected.\033[0m"
+                    )
+                    print("=" * 70 + "\n")
+                    continue
+
+                # Perform intelligent pruning
+                print("\n  Pruning old tool outputs with intelligent summarization...")
+                pruned_messages, tokens_saved = agent.context_manager.prune_tool_outputs(
+                    agent.messages, intelligent=True, force=True
+                )
+
+                if tokens_saved > 0:
+                    agent.messages = pruned_messages
+                    stats_after = agent.context_manager.get_usage_stats(agent.messages)
+
+                    print("\n\033[1;32m✓ Pruning successful!\033[0m")
+                    print(
+                        f"  Saved {tokens_saved:,} tokens "
+                        f"({stats_before['usage_percent']}% → {stats_after['usage_percent']}%)"
+                    )
+                    print(f"  Messages: {len(agent.messages)} in history")
+                else:
+                    print("\n\033[1;33m⚠️  No tokens saved\033[0m")
+                    print("\033[2m   Eligible tool outputs may already be optimally sized.\033[0m")
 
                 print("=" * 70 + "\n")
                 continue

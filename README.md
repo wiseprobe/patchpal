@@ -842,16 +842,13 @@ Simply run the `patchpal` command and type your requests interactively:
 
 ```bash
 $ patchpal
-================================================================================
-PatchPal - AI coding and automation assistant
-================================================================================
+ ╔═══════════════════════════════════════════════════════════╗
+ ║  PatchPal - AI Coding and Automation Assistant  🤖        ║
+ ╚═══════════════════════════════════════════════════════════╝
 
 Using model: anthropic/claude-sonnet-4-5
 
-Type 'exit' to quit.
-Use '/status' to check context window usage, '/compact' to manually compact.
-Use 'list skills' or /skillname to invoke skills.
-Press Ctrl-C during agent execution to interrupt the agent.
+Type 'exit' to quit or '/help' to see available commands.
 
 You: Add type hints and basic logging to my_module.py
 ```
@@ -1267,7 +1264,7 @@ PatchPal automatically manages the context window to prevent "input too long" er
 - **Automatic token tracking**: Monitors context usage in real-time
 - **Smart pruning**: Removes old tool outputs (keeps last 40k tokens) before resorting to full compaction
 - **Auto-compaction**: Summarizes conversation history when approaching 75% capacity
-- **Manual control**: Check status with `/status`, disable with environment variable
+- **Manual control**: Check status with `/status`, compact with `/compact`, prune with `/prune`
 
 **Commands:**
 ```bash
@@ -1293,6 +1290,15 @@ You: /compact
 # - Testing compaction behavior
 # - Context is getting full but hasn't auto-compacted yet
 # Note: Requires at least 5 messages; most effective when context >50% full
+
+# Manually prune old tool outputs
+You: /prune
+
+# Useful when:
+# - Large tool outputs (e.g., from grep, file reads) are filling context
+# - You want to reclaim space without full compaction
+# - Testing pruning behavior
+# Note: Keeps last 2 conversational turns; prunes all older tool outputs
 ```
 
 **Understanding Session Statistics:**
@@ -1395,7 +1401,7 @@ The system ensures you can work for extended periods without hitting context lim
 
 **Error: "Context Window Error - Input is too long"**
 - PatchPal includes automatic context management (compaction) to prevent this error.
-- **Quick fix:** Run `/compact` to immediately compact the conversation history and free up space.
+- **Quick fix:** Run `/prune` to remove old tool outputs, or `/compact` to compact the conversation history.
 - Use `/status` to check your context window usage and see how close you are to the limit.
 - If auto-compaction is disabled, re-enable it: `unset PATCHPAL_DISABLE_AUTOCOMPACT`
 - Context is automatically managed at 75% capacity through pruning and compaction.
@@ -1426,10 +1432,11 @@ When using cloud LLM providers (Anthropic, OpenAI, etc.), token usage directly i
 - **Important**: Token counts don't reflect prompt caching discounts (Anthropic models)
 - For actual costs, check your provider's usage dashboard which shows cache-adjusted billing
 
-**3. Manual Compaction for Cost Control**
+**3. Manual Context Management for Cost Control**
 - Use `/status` regularly to monitor context window usage
+- Run `/prune` to remove old tool outputs (fast, no LLM call)
 - Run `/compact` proactively when context grows large (before hitting auto-compact threshold)
-- Manual compaction gives you control over when the summarization LLM call happens
+- Manual control gives you flexibility over when to optimize context
 
 **4. Adjust Auto-Compaction Threshold**
 - Lower threshold = more frequent compaction = smaller context = lower per-request costs
