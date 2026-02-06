@@ -221,23 +221,30 @@ def git_log(max_count: int = 10, path: Optional[str] = None) -> str:
     get_description=lambda pattern,
     file_glob=None,
     case_sensitive=True,
-    max_results=100: f"   Search code: {pattern}",
-    get_pattern=lambda pattern, file_glob=None, case_sensitive=True, max_results=100: pattern,
+    max_results=100,
+    path=None: f"   Search code: {pattern}" + (f" in {path}" if path else ""),
+    get_pattern=lambda pattern,
+    file_glob=None,
+    case_sensitive=True,
+    max_results=100,
+    path=None: path,
 )
 def grep_code(
     pattern: str,
     file_glob: Optional[str] = None,
     case_sensitive: bool = True,
     max_results: int = 100,
+    path: Optional[str] = None,
 ) -> str:
     """
-    Search for a pattern in repository files using grep.
+    Search for a pattern in files using grep.
 
     Args:
         pattern: Regular expression pattern to search for
         file_glob: Optional glob pattern to filter files (e.g., "*.py", "src/**/*.js")
         case_sensitive: Whether the search should be case-sensitive (default: True)
         max_results: Maximum number of results to return (default: 100)
+        path: Optional directory path to search in (relative to repo root or absolute). Defaults to repository root.
 
     Returns:
         Search results in format "file:line:content" or a message if no results found
@@ -246,6 +253,28 @@ def grep_code(
         ValueError: If pattern is invalid or search fails
     """
     _operation_limiter.check_limit(f"grep_code({pattern[:30]}...)")
+
+    # Determine search directory
+    if path:
+        # Expand ~ for home directory and resolve path
+        import os
+        from pathlib import Path
+
+        expanded_path = os.path.expanduser(path)
+        path_obj = Path(expanded_path)
+        if path_obj.is_absolute():
+            search_dir = path_obj.resolve()
+        else:
+            search_dir = (common.REPO_ROOT / expanded_path).resolve()
+
+        # Validate that the directory exists
+        if not search_dir.exists():
+            raise ValueError(f"Path not found: {path}")
+        if not search_dir.is_dir():
+            raise ValueError(f"Path is not a directory: {path}")
+    else:
+        # Default to repository root
+        search_dir = common.REPO_ROOT
 
     # Try ripgrep first (faster), fall back to grep
     use_rg = shutil.which("rg") is not None
@@ -292,13 +321,11 @@ def grep_code(
             if file_glob:
                 cmd.extend(["--include", file_glob])
 
-            # Current directory (will be executed with cwd=common.REPO_ROOT)
+            # Current directory
             cmd.append(".")
 
-        # Execute search from repository root
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=30, cwd=common.REPO_ROOT
-        )
+        # Execute search from specified directory
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=search_dir)
 
         # ripgrep/grep return exit code 1 when no matches found (not an error)
         # exit code 0 = matches found
@@ -312,9 +339,10 @@ def grep_code(
         # Process output
         output = result.stdout.strip()
 
+        search_location = f" in {path}" if path else ""
         if not output or result.returncode == 1:
-            audit_logger.info(f"GREP: {pattern} - No matches found")
-            return f"No matches found for pattern: {pattern}"
+            audit_logger.info(f"GREP: {pattern}{search_location} - No matches found")
+            return f"No matches found for pattern: {pattern}{search_location}"
 
         # Count and limit results
         lines = output.split("\n")
@@ -325,7 +353,7 @@ def grep_code(
             output = "\n".join(lines)
             output += f"\n\n... (showing first {max_results} of {total_matches} matches)"
 
-        audit_logger.info(f"GREP: {pattern} - Found {total_matches} matches")
+        audit_logger.info(f"GREP: {pattern}{search_location} - Found {total_matches} matches")
         return output
 
     except subprocess.TimeoutExpired:

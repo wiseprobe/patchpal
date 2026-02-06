@@ -335,7 +335,7 @@ Combines multiple file structures into one compact output with reduced redundant
         "type": "function",
         "function": {
             "name": "grep_code",
-            "description": "Search for a pattern in repository files. Much faster than run_shell with grep. Returns results in 'file:line:content' format.",
+            "description": "Search for a pattern in files. Much faster than run_shell with grep. Returns results in 'file:line:content' format.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -354,6 +354,10 @@ Combines multiple file structures into one compact output with reduced redundant
                     "max_results": {
                         "type": "integer",
                         "description": "Maximum number of results to return (default: 100)",
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Optional directory path to search in (relative to repo root or absolute). Defaults to repository root.",
                     },
                 },
                 "required": ["pattern"],

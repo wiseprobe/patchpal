@@ -15,6 +15,7 @@ Most recent releases are shown at the top. Each release shows:
 - **`count_lines()` tool**: Added efficient line counting tool that uses buffered reading (1MB chunks) to count lines in large files without loading them into memory. Returns formatted output like "file.log: 99,497 lines (7.4MB)". Essential for working with large log files - use `count_lines()` first, then `read_lines()` to read specific sections (e.g., last 100 lines). Works with system-wide files, respects permission system, and checks for binary files. (#49)
 
 ### changed:
+- **`grep_code` now supports system-wide search**: Added optional `path` parameter to search directories outside the repository (e.g., `/tmp/some_folder`, `~/projects`). Supports absolute paths, relative paths from repo root, and `~` expansion. Defaults to repository root for backward compatibility. Updated tool description and documentation to reflect system-wide capability, consistent with other read-oriented tools like `read_file` and `tree`. (fixes #50)
 - **Simplified web fetch truncation**: Removed `MAX_WEB_CONTENT_CHARS` limit from `web_fetch()` in favor of universal `MAX_TOOL_OUTPUT_CHARS` limit applied to all tools. This eliminates redundant truncation logic and ensures consistent behavior across all tools. Web content is now truncated at the same 100K character limit as other tools. (#49)
 - Maintain 8000 entries (instead of 1000) in history.txt
 
