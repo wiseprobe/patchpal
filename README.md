@@ -124,6 +124,10 @@ The agent has the following tools:
   - Example: `read_lines("app.py", 100, 150)` - read lines 100-150
   - More efficient than read_file when you only need a few lines
   - Useful for viewing code sections, error context, or specific regions of large files
+- **count_lines**: Count the number of lines in a file efficiently
+  - Example: `count_lines("logs/app.log")` - returns "15,234 lines (2.3MB)"
+  - Useful before using read_lines to determine total line count (e.g., to read last N lines)
+  - Uses 1MB buffered chunks for fast counting of large files
 - **code_structure**: Analyze code structure using tree-sitter AST parsing without reading full files
   - Example: `code_structure("app.py")` - see all classes, functions, methods with line numbers
   - 95% token savings vs read_file for large code files
@@ -1107,7 +1111,7 @@ export PATCHPAL_VERIFY_SSL=true              # SSL verification for web searches
 # Web Request Limits
 export PATCHPAL_WEB_TIMEOUT=60               # Web request timeout in seconds (default: 30)
 export PATCHPAL_MAX_WEB_SIZE=10485760        # Max web content size in bytes (default: 5MB)
-export PATCHPAL_MAX_WEB_CHARS=500000         # Max characters from web content (default: 500k ≈ 125k tokens)
+                                              # Character limits are controlled by PATCHPAL_MAX_TOOL_OUTPUT_CHARS
 ```
 
 ### Custom System Prompt
