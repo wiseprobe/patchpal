@@ -244,7 +244,7 @@ def grep_code(
         file_glob: Optional glob pattern to filter files (e.g., "*.py", "src/**/*.js")
         case_sensitive: Whether the search should be case-sensitive (default: True)
         max_results: Maximum number of results to return (default: 100)
-        path: Optional directory path to search in (relative to repo root or absolute). Defaults to repository root.
+        path: Optional file or directory path to search in (relative to repo root or absolute). Defaults to repository root.
 
     Returns:
         Search results in format "file:line:content" or a message if no results found
@@ -254,7 +254,8 @@ def grep_code(
     """
     _operation_limiter.check_limit(f"grep_code({pattern[:30]}...)")
 
-    # Determine search directory
+    # Determine search target (file or directory)
+    search_file = None  # If set, search only this specific file
     if path:
         # Expand ~ for home directory and resolve path
         import os
@@ -263,15 +264,30 @@ def grep_code(
         expanded_path = os.path.expanduser(path)
         path_obj = Path(expanded_path)
         if path_obj.is_absolute():
-            search_dir = path_obj.resolve()
+            resolved_path = path_obj.resolve()
         else:
-            search_dir = (common.REPO_ROOT / expanded_path).resolve()
+            resolved_path = (common.REPO_ROOT / expanded_path).resolve()
 
-        # Validate that the directory exists
-        if not search_dir.exists():
+        # Validate that the path exists
+        if not resolved_path.exists():
             raise ValueError(f"Path not found: {path}")
-        if not search_dir.is_dir():
-            raise ValueError(f"Path is not a directory: {path}")
+
+        # Handle both files and directories
+        if resolved_path.is_file():
+            # If path points to a file, search just that file
+            if file_glob:
+                # User specified both path (file) and file_glob - this is ambiguous
+                raise ValueError(
+                    f"Cannot specify both a file path ({path}) and file_glob ({file_glob}). "
+                    f"Use path for a specific file, or use a directory path with file_glob."
+                )
+            search_file = resolved_path
+            search_dir = resolved_path.parent  # For working directory
+        elif resolved_path.is_dir():
+            # Directory - search recursively within it
+            search_dir = resolved_path
+        else:
+            raise ValueError(f"Path is neither a file nor a directory: {path}")
     else:
         # Default to repository root
         search_dir = common.REPO_ROOT
@@ -295,34 +311,56 @@ def grep_code(
             if not case_sensitive:
                 cmd.append("--ignore-case")
 
-            # Add glob pattern if provided
-            if file_glob:
+            # Add glob pattern if searching directory
+            if file_glob and not search_file:
                 cmd.extend(["--glob", file_glob])
 
             # Add the search pattern
             cmd.append(pattern)
 
+            # Add specific file if provided
+            if search_file:
+                cmd.append(str(search_file))
+
         else:
             # Fall back to grep
-            cmd = [
-                "grep",
-                "--recursive",
-                "--line-number",
-                "--binary-files=without-match",  # Skip binary files
-            ]
+            if search_file:
+                # Search specific file
+                cmd = [
+                    "grep",
+                    "--line-number",
+                    "--binary-files=without-match",  # Skip binary files
+                ]
 
-            if not case_sensitive:
-                cmd.append("--ignore-case")
+                if not case_sensitive:
+                    cmd.append("--ignore-case")
 
-            # Add pattern
-            cmd.extend(["--regexp", pattern])
+                # Add pattern
+                cmd.extend(["--regexp", pattern])
 
-            # Add file glob if provided (grep uses --include)
-            if file_glob:
-                cmd.extend(["--include", file_glob])
+                # Add the specific file
+                cmd.append(str(search_file))
+            else:
+                # Search directory recursively
+                cmd = [
+                    "grep",
+                    "--recursive",
+                    "--line-number",
+                    "--binary-files=without-match",  # Skip binary files
+                ]
 
-            # Current directory
-            cmd.append(".")
+                if not case_sensitive:
+                    cmd.append("--ignore-case")
+
+                # Add pattern
+                cmd.extend(["--regexp", pattern])
+
+                # Add file glob if provided (grep uses --include)
+                if file_glob:
+                    cmd.extend(["--include", file_glob])
+
+                # Current directory
+                cmd.append(".")
 
         # Execute search from specified directory
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=search_dir)

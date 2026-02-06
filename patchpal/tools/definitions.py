@@ -357,7 +357,7 @@ Combines multiple file structures into one compact output with reduced redundant
                     },
                     "path": {
                         "type": "string",
-                        "description": "Optional directory path to search in (relative to repo root or absolute). Defaults to repository root.",
+                        "description": "Optional file or directory path to search in (relative to repo root or absolute). Defaults to repository root.",
                     },
                 },
                 "required": ["pattern"],
