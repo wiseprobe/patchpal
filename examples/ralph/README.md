@@ -1,6 +1,6 @@
 # Ralph Wiggum Technique for PatchPal
 
-> "I'm a Ralph!" - Ralph Wiggum
+> "I'm learnding!" - Ralph Wiggum
 
 The **Ralph Wiggum technique** is an iterative AI development methodology where an agent repeatedly works on a task until completion. Named after The Simpsons character, it embodies the philosophy of persistent iteration despite setbacks.
 
