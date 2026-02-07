@@ -39,7 +39,28 @@ The agent never actually "completes" until it outputs the completion promise. Th
 
 ## PatchPal Implementation
 
-PatchPal's Python API enables **true Ralph** with a proper stop hook by leveraging the agent's conversation history:
+PatchPal's Python API enables **true Ralph** with a proper stop hook by leveraging the agent's conversation history.
+
+After `pip install patchpal`, autopilot is immediately available:
+
+```bash
+# As a command
+python -m patchpal autopilot \
+  --prompt "Build a REST API with tests" \
+  --completion-promise "COMPLETE" \
+  --max-iterations 30
+
+# As a Python library
+from patchpal.autopilot import autopilot_loop
+
+autopilot_loop(
+    prompt="Build a REST API with tests",
+    completion_promise="COMPLETE",
+    max_iterations=30
+)
+```
+
+The key mechanism: Check for completion, or feed prompt back:
 
 ```python
 # The stop hook: Check for completion, or feed prompt back
@@ -56,25 +77,33 @@ The agent's `messages` list preserves all previous work, so each iteration build
 
 ## Quick Start
 
-⚠️ **IMPORTANT**: For safe, isolated execution, see **[PODMAN_GUIDE.md](./PODMAN_GUIDE.md)** for step-by-step instructions to run Ralph in a container.
+⚠️ **IMPORTANT**: Always run autopilot in isolated environments (Docker containers, VMs, throwaway projects). See [Safety Considerations](#safety-considerations) below for detailed guidance.
 
 ### Basic Usage
 
+After `pip install patchpal`, autopilot is available immediately:
+
 ```bash
-# Simple Ralph loop
-python ralph.py \
+# Simple autopilot loop (recommended: use python -m)
+python -m patchpal autopilot \
+  --prompt "Build a REST API with tests" \
+  --completion-promise "COMPLETE" \
+  --max-iterations 30
+
+# Alternative: Direct command
+patchpal-autopilot \
   --prompt "Build a REST API with tests" \
   --completion-promise "COMPLETE" \
   --max-iterations 30
 
 # Using a prompt file
-python ralph.py \
+python -m patchpal autopilot \
   --prompt-file prompts/todo_api.md \
   --completion-promise "COMPLETE" \
   --max-iterations 50
 
 # With local model (zero API cost)
-python ralph.py \
+python -m patchpal autopilot \
   --model hosted_vllm/openai/gpt-oss-20b \
   --prompt-file prompts/fix_tests.md \
   --completion-promise "DONE"
@@ -93,15 +122,19 @@ python multi_phase_todo_api_example.py
 
 ```
 examples/ralph/
-├── README.md                           # This file
-├── PODMAN_GUIDE.md                     # Step-by-step Podman/Docker setup (RECOMMENDED)
-├── ralph.py                            # Main Ralph loop implementation (general tool)
-├── multi_phase_todo_api_example.py     # Multi-phase example (specific demonstration)
+├── README.md                           # This file - comprehensive autopilot guide
+├── simple_autopilot_example.py         # Simple example using autopilot as Python library
+├── multi_phase_todo_api_example.py     # Multi-phase example (sequential phases)
 └── prompts/                            # Example prompt templates
     ├── todo_api.md                     # Build a REST API
     ├── fix_tests.md                    # Fix failing tests
     └── refactor.md                     # Refactor code
 ```
+
+Note: After `pip install patchpal`, autopilot is available as:
+- `python -m patchpal autopilot` (recommended)
+- `patchpal-autopilot` (direct command)
+- `from patchpal.autopilot import autopilot_loop` (Python library)
 
 ## Writing Effective Ralph Prompts
 
@@ -220,65 +253,62 @@ python ralph.py --prompt-file task.md --completion-promise "DONE"
 
 **Option 2: Docker/Podman Container (GOOD)**
 
-📘 **See [PODMAN_GUIDE.md](./PODMAN_GUIDE.md) for detailed step-by-step instructions.**
-
 ```bash
-# Create a Dockerfile for Ralph environment
-cat > Dockerfile.ralph <<EOF
+# Create a Dockerfile for autopilot environment
+cat > Dockerfile.autopilot <<EOF
 FROM python:3.11-slim
 RUN pip install patchpal
 WORKDIR /workspace
-# Optional: Add resource limits, network restrictions
 EOF
 
 # Build container (use 'docker' or 'podman')
-docker build -f Dockerfile.ralph -t ralph-env .
+docker build -f Dockerfile.autopilot -t autopilot-env .
 
-# Run Ralph in isolated container
+# Run autopilot in isolated container
 docker run -it --rm \
   -v $(pwd):/workspace \
   --memory="2g" \
   --cpus="2" \
   --network=none \
-  ralph-env \
-  python ralph.py --prompt-file task.md --completion-promise "DONE"
+  autopilot-env \
+  python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE"
 
 # With network (if agent needs to install packages)
 docker run -it --rm \
   -v $(pwd):/workspace \
   --memory="2g" \
   --cpus="2" \
-  ralph-env \
-  python ralph.py --prompt-file task.md --completion-promise "DONE"
+  autopilot-env \
+  python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE"
 ```
 
 **Option 3: Git Worktree Isolation (MINIMAL)**
 ```bash
-# Creates isolated branch for Ralph experiments
-git worktree add ../ralph-sandbox -b ralph-experiment
-cd ../ralph-sandbox
+# Creates isolated branch for autopilot experiments
+git worktree add ../autopilot-sandbox -b autopilot-experiment
+cd ../autopilot-sandbox
 
-# Run Ralph in isolated branch
-python ../examples/ralph/ralph.py --prompt-file task.md --completion-promise "DONE"
+# Run autopilot in isolated branch
+python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE"
 
 # Review changes
 git diff main
 
 # Merge if good, or delete if bad
 cd ..
-git worktree remove ralph-sandbox --force
+git worktree remove autopilot-sandbox --force
 ```
 
 ### Safety Best Practices
 
 **1. Always Use Version Control**
 ```bash
-# Commit before running Ralph
+# Commit before running autopilot
 git add -A
-git commit -m "Before Ralph: baseline"
+git commit -m "Before autopilot: baseline"
 
-# Run Ralph
-python ralph.py --prompt-file task.md --completion-promise "DONE"
+# Run autopilot
+python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE"
 
 # Review changes
 git diff HEAD
@@ -292,20 +322,20 @@ git reset --hard HEAD
 ```bash
 # Test prompt safely without any file modifications
 export PATCHPAL_READ_ONLY=true
-python ralph.py --prompt-file test.md --completion-promise "DONE" --max-iterations 5
+python -m patchpal autopilot --prompt-file test.md --completion-promise "DONE" --max-iterations 5
 
 # If behavior looks good, then run with write access
 unset PATCHPAL_READ_ONLY
-python ralph.py --prompt-file test.md --completion-promise "DONE" --max-iterations 30
+python -m patchpal autopilot --prompt-file test.md --completion-promise "DONE" --max-iterations 30
 ```
 
 **3. Start with Low Max Iterations**
 ```bash
 # Validate prompt behavior with limited iterations
-python ralph.py --prompt "..." --completion-promise "DONE" --max-iterations 5
+python -m patchpal autopilot --prompt "..." --completion-promise "DONE" --max-iterations 5
 
 # Gradually increase if working correctly: 10, 20, 50, etc.
-python ralph.py --prompt "..." --completion-promise "DONE" --max-iterations 20
+python -m patchpal autopilot --prompt "..." --completion-promise "DONE" --max-iterations 20
 ```
 
 **4. Add Explicit Constraints in Prompt**
@@ -341,8 +371,8 @@ docker run -it --rm \
   --memory="2g" \
   --cpus="2" \
   --pids-limit=100 \
-  ralph-env \
-  python ralph.py --prompt-file task.md --completion-promise "DONE"
+  autopilot-env \
+  python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE"
 ```
 
 **7. Use Audit Logs**
@@ -439,21 +469,21 @@ The articles mention running Ralph overnight while you sleep. **This should ONLY
 
 ```bash
 # ✅ SAFE: Dedicated sandbox machine
-ssh ralph-sandbox
+ssh autopilot-sandbox
 cd /workspace/experiment
-nohup python ralph.py --prompt-file task.md --completion-promise "DONE" --max-iterations 100 > ralph.log 2>&1 &
+nohup python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE" --max-iterations 100 > autopilot.log 2>&1 &
 # Leave running, check in the morning
 
 # ✅ SAFE: Docker container on dedicated server
-ssh ralph-server
-docker run -d --name ralph-overnight \
+ssh autopilot-server
+docker run -d --name autopilot-overnight \
   -v $(pwd):/workspace \
   --memory="4g" --cpus="4" \
-  ralph-env \
-  python ralph.py --prompt-file task.md --completion-promise "DONE" --max-iterations 100
+  autopilot-env \
+  python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE" --max-iterations 100
 
 # ❌ UNSAFE: Your daily laptop
-# python ralph.py --prompt-file task.md --completion-promise "DONE" --max-iterations 100 &
+# python -m patchpal autopilot --prompt-file task.md --completion-promise "DONE" --max-iterations 100 &
 # (Agent could damage your system, corrupt data, or worse)
 ```
 
@@ -470,7 +500,7 @@ The Ralph technique has been used successfully for:
 
 ### Parallel Ralph Loops (Git Worktrees)
 
-Run multiple Ralph loops simultaneously on different branches:
+Run multiple autopilot loops simultaneously on different branches:
 
 ```bash
 # Create isolated worktrees
@@ -479,11 +509,11 @@ git worktree add ../project-api -b feature/api
 
 # Terminal 1: Auth feature
 cd ../project-auth
-python ralph.py --prompt-file auth.md --completion-promise "AUTH_DONE"
+python -m patchpal autopilot --prompt-file auth.md --completion-promise "AUTH_DONE"
 
 # Terminal 2: API feature (simultaneously!)
 cd ../project-api
-python ralph.py --prompt-file api.md --completion-promise "API_DONE"
+python -m patchpal autopilot --prompt-file api.md --completion-promise "API_DONE"
 ```
 
 ### Overnight Batch Processing
@@ -492,17 +522,17 @@ Queue up work to run while you sleep:
 
 ```bash
 #!/bin/bash
-# overnight_ralph.sh
+# overnight_autopilot.sh
 
 cd /path/to/project1
-python ralph.py --prompt-file task1.md --completion-promise "DONE" --max-iterations 50
+python -m patchpal autopilot --prompt-file task1.md --completion-promise "DONE" --max-iterations 50
 
 cd /path/to/project2
-python ralph.py --prompt-file task2.md --completion-promise "DONE" --max-iterations 50
+python -m patchpal autopilot --prompt-file task2.md --completion-promise "DONE" --max-iterations 50
 
 # Run before bed
-chmod +x overnight_ralph.sh
-./overnight_ralph.sh > ralph_session.log 2>&1
+chmod +x overnight_autopilot.sh
+./overnight_autopilot.sh > autopilot_session.log 2>&1
 ```
 
 ### Prompt Tuning Technique
@@ -541,7 +571,7 @@ Build a REST API.
 
 ## Cost Optimization
 
-Ralph can run for many iterations, so cost management matters:
+Autopilot can run for many iterations, so cost management matters:
 
 ### Use Local Models (Zero API Cost)
 
@@ -549,14 +579,14 @@ Ralph can run for many iterations, so cost management matters:
 # vLLM (recommended)
 export HOSTED_VLLM_API_BASE=http://localhost:8000
 export HOSTED_VLLM_API_KEY=token-abc123
-python ralph.py --model hosted_vllm/openai/gpt-oss-20b \
+python -m patchpal autopilot --model hosted_vllm/openai/gpt-oss-20b \
   --prompt-file prompts/todo_api.md \
   --completion-promise "COMPLETE"
 ```
 
 ### Monitor Costs During Development
 
-The Ralph script shows cost tracking:
+The autopilot mode shows cost tracking:
 
 ```
 ✅ COMPLETION DETECTED after 12 iterations!
@@ -572,18 +602,18 @@ Total cost: $2.34
 3. **Break large tasks into phases** to avoid context explosion
 4. **Use local models** (vLLM/Ollama) for development and iteration
 
-## Comparison: Ralph vs Other Approaches
+## Comparison: Autopilot vs Other Approaches
 
 | Approach | Stop Hook | History Preserved | Cost | Control | Best For |
 |----------|-----------|-------------------|------|---------|----------|
-| **PatchPal Ralph (Python API)** | ✅ Yes | ✅ Full history | Track | ✅ Full | Iterative development |
+| **PatchPal Autopilot (Python API)** | ✅ Yes | ✅ Full history | Track | ✅ Full | Iterative development |
 | **Bash Loop (`while :; do`)** | ❌ No | ❌ Starts fresh | ? | Limited | Not recommended |
 | **Claude Code Plugin** | ✅ Yes | ✅ Yes | ? | ❌ Opaque | Claude Code only |
 | **Manual Iteration** | ❌ No | ❌ Lost | High | ✅ Full | One-shot tasks |
 
 ## Troubleshooting
 
-### Ralph Never Completes
+### Autopilot Never Completes
 
 **Problem**: Reaches max iterations without outputting completion promise.
 
@@ -594,7 +624,7 @@ Total cost: $2.34
 4. Review the agent's work - is it stuck on an impossible task?
 5. Increase max iterations if it's making progress
 
-### Ralph Repeats The Same Mistake
+### Autopilot Repeats The Same Mistake
 
 **Problem**: Agent makes the same error every iteration.
 
@@ -607,7 +637,7 @@ Total cost: $2.34
 
 ### Context Window Fills Up
 
-**Problem**: Agent hits context limit mid-Ralph.
+**Problem**: Agent hits context limit mid-autopilot.
 
 **Solutions**:
 1. PatchPal has auto-compaction - should handle this automatically
@@ -617,7 +647,7 @@ Total cost: $2.34
 
 ### High API Costs
 
-**Problem**: Ralph uses too many tokens.
+**Problem**: Autopilot uses too many tokens.
 
 **Solutions**:
 1. **Use local model** (vLLM) for zero API cost
@@ -640,10 +670,27 @@ Total cost: $2.34
 ## Example Session Output
 
 ```bash
-$ python ralph.py --prompt-file prompts/todo_api.md --completion-promise "COMPLETE" --max-iterations 20
+$ python -m patchpal autopilot --prompt-file prompts/todo_api.md --completion-promise "COMPLETE" --max-iterations 20
+
+⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+  PATCHPAL AUTOPILOT MODE - AUTONOMOUS OPERATION
+⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+
+Autopilot disables PatchPal's permission system for autonomous operation.
+
+🔒 RECOMMENDED: Run in isolated environments only:
+   • Docker/Podman containers (see Safety Considerations section below)
+   • Dedicated VMs or test machines
+   • Throwaway projects with version control
+
+❌ DO NOT RUN on production systems or your main development machine.
+
+This implements the 'Ralph Wiggum technique' - see examples/ralph/README.md
+
+Continue with autopilot mode? (yes/no): yes
 
 ================================================================================
-🎭 Ralph Wiggum Loop Starting
+✈️  PatchPal Autopilot Mode Starting
 ================================================================================
 Prompt: # Task: Build a Todo REST API...
 Completion promise: 'COMPLETE'
@@ -652,7 +699,7 @@ Model: anthropic/claude-sonnet-4-5
 ================================================================================
 
 ================================================================================
-🔄 Ralph Iteration 1/20
+🔄 Autopilot Iteration 1/20
 ================================================================================
 
 🤔 Thinking...
@@ -669,7 +716,7 @@ I've created the Flask app and tests. Let me run them...
    (Context usage: 12%)
 
 ================================================================================
-🔄 Ralph Iteration 2/20
+🔄 Autopilot Iteration 2/20
 ================================================================================
 
 🤔 Thinking...
@@ -686,7 +733,7 @@ Fixed the validation bug. Running tests again...
    (Context usage: 18%)
 
 ================================================================================
-🔄 Ralph Iteration 3/20
+🔄 Autopilot Iteration 3/20
 ================================================================================
 
 🤔 Thinking...
@@ -707,7 +754,7 @@ Total LLM calls: 12
 Total tokens: 45,678
 Total cost: $0.68
 
-✅ Ralph completed successfully!
+✅ Autopilot completed successfully!
 ```
 
 ## Contributing

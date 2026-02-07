@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
 """
-multi_phase_ralph.py - Chain multiple Ralph loops for complex projects
+multi_phase_todo_api_example.py - Chain multiple autopilot loops for complex projects
 
 This example shows how to break down large projects into sequential phases,
-with each phase running as its own Ralph loop. Each phase must complete
+with each phase running as its own autopilot loop. Each phase must complete
 before the next one begins.
 
 Usage:
-    python multi_phase_ralph.py
+    python multi_phase_todo_api_example.py
 
     # Or customize the phases by editing this file
 """
 
 import sys
-from pathlib import Path
 
-# Add patchpal to path if running from examples directory
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+try:
+    from patchpal.autopilot import autopilot_loop
+except ImportError:
+    # Fallback for running from examples directory before installation
+    from pathlib import Path
 
-from ralph import ralph_loop
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from patchpal.autopilot import autopilot_loop
 
 
 def multi_phase_build():
-    """Run multiple Ralph phases sequentially to build a complete application."""
+    """Run multiple autopilot phases sequentially to build a complete application."""
 
     phases = [
         {
@@ -137,7 +140,7 @@ Output: <promise>PHASE3_DONE</promise> when complete.
     ]
 
     print("\n" + "=" * 80)
-    print("🚀 Multi-Phase Ralph Build")
+    print("🚀 Multi-Phase Autopilot Build")
     print("=" * 80)
     print(f"Total phases: {len(phases)}")
     print("Each phase must complete before the next begins.")
@@ -148,7 +151,7 @@ Output: <promise>PHASE3_DONE</promise> when complete.
         print(f"🎯 Starting {phase['name']} ({i}/{len(phases)})")
         print(f"{'=' * 80}\n")
 
-        result = ralph_loop(
+        result = autopilot_loop(
             prompt=phase["prompt"],
             completion_promise=phase["completion_promise"],
             max_iterations=phase["max_iterations"],
