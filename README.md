@@ -3,7 +3,7 @@
 <!--![PatchPal Screenshot](patchpal_screenshot.png)-->
 <img src="https://raw.githubusercontent.com/amaiya/patchpal/refs/heads/main/patchpal_screenshot.png" alt="PatchPal Screenshot" width="650"/>
 
-> A lightweight Claude Code–inspired coding and automation assistant -- supports both local and cloud LLMs.
+> An agentic coding and automation assistant, supporting both local and cloud LLMs.
 
 **PatchPal** is an AI coding agent that helps you build software, debug issues, and automate tasks.  Like Claude Code, it supports agent skills, tool use, and executable Python generation, enabling interactive workflows for tasks such as data analysis, visualization, web scraping, API interactions, and research with synthesized findings.
 
