@@ -621,6 +621,92 @@ def _is_binary_file(path: Path) -> bool:
     if not path.exists():
         return False
 
+    # Known text file extensions (programming languages and common text formats)
+    # Check extension FIRST before trusting MIME types, as MIME detection can be unreliable
+    text_extensions = {
+        # Programming languages
+        ".py", ".pyw", ".pyx", ".pyi",  # Python
+        ".js", ".mjs", ".cjs", ".jsx",  # JavaScript
+        ".ts", ".tsx", ".mts", ".cts",  # TypeScript
+        ".rs",  # Rust
+        ".go",  # Go
+        ".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hh", ".hxx",  # C/C++
+        ".java",  # Java
+        ".kt", ".kts",  # Kotlin
+        ".swift",  # Swift
+        ".rb", ".rake", ".gemspec",  # Ruby
+        ".php", ".phtml",  # PHP
+        ".pl", ".pm", ".t", ".pod",  # Perl
+        ".lua",  # Lua
+        ".r", ".R", ".rmd",  # R
+        ".m", ".mm",  # Objective-C
+        ".cs", ".csx",  # C#
+        ".fs", ".fsx", ".fsi",  # F#
+        ".vb",  # Visual Basic
+        ".scala", ".sc",  # Scala
+        ".clj", ".cljs", ".cljc", ".edn",  # Clojure
+        ".ex", ".exs",  # Elixir
+        ".erl", ".hrl",  # Erlang
+        ".hs", ".lhs",  # Haskell
+        ".ml", ".mli",  # OCaml
+        ".jl",  # Julia
+        ".nim",  # Nim
+        ".v", ".sv", ".svh",  # Verilog/SystemVerilog
+        ".vhd", ".vhdl",  # VHDL
+        ".zig",  # Zig
+        ".d", ".di",  # D
+        ".dart",  # Dart
+        ".elm",  # Elm
+        ".gleam",  # Gleam
+        
+        # Shell scripts
+        ".sh", ".bash", ".zsh", ".fish", ".ksh", ".csh", ".tcsh",
+        
+        # Config/markup/data formats
+        ".json", ".json5", ".jsonc", ".jsonl",  # JSON
+        ".yaml", ".yml",  # YAML
+        ".toml",  # TOML
+        ".xml", ".xsl", ".xsd", ".svg",  # XML
+        ".html", ".htm", ".xhtml",  # HTML
+        ".css", ".scss", ".sass", ".less",  # CSS
+        ".md", ".markdown", ".mdown", ".mkd",  # Markdown
+        ".rst", ".rest",  # reStructuredText
+        ".tex", ".latex",  # LaTeX
+        ".txt", ".text",  # Plain text
+        ".ini", ".cfg", ".conf", ".config",  # Config
+        ".properties",  # Java properties
+        ".env", ".envrc",  # Environment
+        ".gitignore", ".gitattributes", ".gitmodules",  # Git
+        ".dockerignore",  # Docker
+        
+        # Build/project files
+        ".gradle", ".gradle.kts",  # Gradle
+        ".cmake",  # CMake
+        ".mk", ".mak",  # Make
+        ".ninja",  # Ninja
+        ".bazel", ".bzl",  # Bazel
+        
+        # Other
+        ".sql",  # SQL
+        ".graphql", ".gql",  # GraphQL
+        ".proto",  # Protocol Buffers
+        ".thrift",  # Thrift
+        ".vim",  # Vim script
+        ".el",  # Emacs Lisp
+        ".diff", ".patch",  # Diffs
+        ".log",  # Log files
+    }
+    
+    # Check extension first (case-insensitive)
+    ext = path.suffix.lower()
+    if ext in text_extensions:
+        return False
+    
+    # Check for extensionless known text files (like Makefile, Dockerfile)
+    stem = path.stem.lower()
+    if stem in {"makefile", "dockerfile", "rakefile", "gemfile", "vagrantfile", "readme", "license", "changelog"}:
+        return False
+
     # Text-based application MIME types that should be treated as text
     text_application_mimes = {
         "application/json",
@@ -635,16 +721,16 @@ def _is_binary_file(path: Path) -> bool:
         "application/x-php",
     }
 
-    # Check MIME type first
+    # Check MIME type
     mime_type, _ = mimetypes.guess_type(str(path))
     if mime_type:
         # Allow text/* and whitelisted application/* types
         if mime_type.startswith("text/") or mime_type in text_application_mimes:
             return False
-        # Everything else is binary
-        return True
+        # For unknown MIME types, fall through to content check
+        # Don't immediately reject as binary based on MIME alone
 
-    # Fallback: check for null bytes in first 8KB
+    # Fallback: check for null bytes in first 8KB (reliable binary indicator)
     try:
         with open(path, "rb") as f:
             chunk = f.read(8192)

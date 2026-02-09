@@ -17,7 +17,7 @@ Most recent releases are shown at the top. Each release shows:
 - updated repo map tool description
 
 ### fixed:
-- N/A
+- **Fixed binary file detection for Rust and other source files**: Fixed `_is_binary_file()` incorrectly classifying `.rs` (Rust) and other source files as binary due to unreliable MIME type detection. Implemented extension-first detection with comprehensive whitelist of 100+ text file extensions (programming languages, config formats, markup, build files). Now checks file extension before MIME type, preventing false positives from MIME database quirks. Falls back to null-byte content check for reliable binary detection. (fixes #54)
 
 
 ## 0.11.0 (2026-02-07)
