@@ -136,7 +136,9 @@ PHP, Swift, Kotlin, Scala, Elm, Elixir, and more. Language detection is automati
 
 Token efficiency: 38-70% reduction compared to calling code_structure on each file
 (e.g., 20 files: 4,916 tokens vs 1,459 tokens = 70% savings; 37 files: 8,052 tokens vs 4,988 tokens = 38% savings)
-Combines multiple file structures into one compact output with reduced redundant formatting.""",
+Combines multiple file structures into one compact output with reduced redundant formatting.
+
+Tip: Read README first for context when exploring repositories.""",
             "parameters": {
                 "type": "object",
                 "properties": {

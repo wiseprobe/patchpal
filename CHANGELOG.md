@@ -14,6 +14,7 @@ Most recent releases are shown at the top. Each release shows:
 
 ### changed:
 - changed `grep_code` tool name to  `grep`
+- updated repo map tool description
 
 ### fixed:
 - N/A
