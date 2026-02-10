@@ -7,7 +7,7 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
-## 0.12.1 (2026--2-10)
+## 0.12.1 (2026-2-10)
 
 ### new:
 - N/A
@@ -19,7 +19,7 @@ Most recent releases are shown at the top. Each release shows:
 - N/A
 
 
-## 0.12.0 (2026--2-10)
+## 0.12.0 (2026-2-10)
 
 ### new:
 - **Project Memory system (`MEMORY.md`)**: Added persistent session context that automatically loads at agent initialization from `~/.patchpal/<repo-name>/MEMORY.md`. Stores project context, technical decisions, key facts, known issues, and team conventions that persist across sessions. Agent automatically loads populated memory files and includes full content in context, or shows guidance message for empty files. File is whitelisted for seamless editing without "outside repo" warnings. Includes smart content detection (10-char threshold after `---` separator) to distinguish empty templates from populated memory. Comprehensive test coverage with 11 tests covering file creation, content detection, Unicode support, error handling, and whitelisting. Replaces previous NOTES.md naming with more semantically accurate MEMORY.md. (fixes #55)
