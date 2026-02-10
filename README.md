@@ -862,6 +862,7 @@ The agent will process your request and show you the results. You can continue w
 - **Command History**: Use ↑ (up arrow) and ↓ (down arrow) to navigate through previous commands within the current session
 - **Interrupt Agent**: Press `Ctrl-C` during agent execution to stop the current task without exiting PatchPal
 - **Exit**: Type `exit`, `quit`, or press `Ctrl-C` at the prompt to exit PatchPal
+- **Project Memory**: PatchPal automatically loads project context from `~/.patchpal/<repo-name>/MEMORY.md` at startup. Use this file to store project-specific information, technical decisions, conventions, and known issues that persist across sessions. The agent can read and update this file to maintain continuity.
 
 ## Python API
 
