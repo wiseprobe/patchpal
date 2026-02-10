@@ -6,11 +6,6 @@
 
 [**PatchPal**](https://github.com/wiseprobe/patchpal) is an AI coding agent that helps you build software, debug issues, and automate tasks.  Like Claude Code, it supports agent skills, tool use, and executable Python generation, enabling interactive workflows for tasks such as data analysis, visualization, web scraping, API interactions, and research with synthesized findings.
 
-## Beyond Coding: General Problem-Solving
-
-While PatchPal excels at software development tasks, it's also a general-purpose assistant. With access to web search, file operations, and shell commands, PatchPal can help with research, data analysis, document processing, and more.
-
-<img src="https://raw.githubusercontent.com/wiseprobe/patchpal/refs/heads/main/assets/patchpal_assistant.png" alt="PatchPal as General Assistant" width="650"/>
 
 A key goal of this project is to approximate Claude Code's core functionality while remaining lean, accessible, and configurable, enabling learning, experimentation, and broad applicability across use cases.
 
@@ -25,3 +20,9 @@ __init__.py agent.py  cli.py context.py permissions.py  skills.py system_prompt.
 $ pip install patchpal  # install
 $ patchpal              # start
 ```
+
+## Beyond Coding: General Problem-Solving
+
+While PatchPal excels at software development tasks, it's also a general-purpose assistant. With access to web search, file operations, and shell commands, PatchPal can help with research, data analysis, document processing, and more.
+
+<img src="https://raw.githubusercontent.com/wiseprobe/patchpal/refs/heads/main/assets/patchpal_assistant.png" alt="PatchPal as General Assistant" width="650"/>
