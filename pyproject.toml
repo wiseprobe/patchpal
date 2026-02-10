@@ -47,6 +47,10 @@ dev = [
     "ruff==0.14.13",
     "pre-commit>=3.0.0",
 ]
+docs = [
+    "mkdocs-material>=9.5.0",
+    "mkdocs-autorefs>=1.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/wiseprobe/patchpal"
