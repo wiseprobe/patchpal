@@ -77,7 +77,7 @@ patchpal
 
 ## Beyond Coding: General Problem-Solving
 
-While PatchPal excels at software development tasks, it's also a general-purpose assistant. With access to web search, file operations, and shell commands, PatchPal can help with research, data analysis, document processing, and more.
+While originally designed for software development, PatchPal is also a general-purpose assistant. With web search, file operations, shell commands, and custom tools/skills, it can help with research, data analysis, document processing, log file analyses, etc.
 
 <img src="https://raw.githubusercontent.com/wiseprobe/patchpal/refs/heads/main/assets/patchpal_assistant.png" alt="PatchPal as General Assistant" width="650"/>
 
