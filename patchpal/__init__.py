@@ -1,6 +1,6 @@
 """PatchPal - An open-source Claude Code clone implemented purely in Python."""
 
-__version__ = "0.12.2"
+__version__ = "0.12.3"
 
 from patchpal.agent import create_agent
 from patchpal.autopilot import autopilot_loop
