@@ -55,7 +55,6 @@ export HOSTED_VLLM_API_KEY=token-abc123           # optional depending on your v
 # For other providers, check LiteLLM docs
 ```
 
-**Note:** As of this writing, cloud models are much better suited for agentic workflows than local models.
 
 3. **Run PatchPal**:
 ```bash
@@ -80,6 +79,9 @@ patchpal --model ollama_chat/gpt-oss:20b
 export PATCHPAL_MODEL=openai/gpt-5.2
 patchpal
 ```
+
+**Note:** As of this writing, cloud models are much better suited for agentic workflows than local models.
+
 
 ## Beyond Coding: General Problem-Solving
 
