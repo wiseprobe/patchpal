@@ -516,8 +516,8 @@ class TestContextManager:
         assert "lines omitted" in pruned_content
         assert "Line 91:" in pruned_content or "Line 100:" in pruned_content
 
-    def test_prune_tool_outputs_intelligent_grep_code(self):
-        """Test intelligent summarization for grep_code keeps match count."""
+    def test_prune_tool_outputs_intelligent_grep(self):
+        """Test intelligent summarization for grep keeps match count."""
         manager = ContextManager("gpt-4", "test")
         # Lower thresholds for testing
         manager.PRUNE_PROTECT = 5000
@@ -532,7 +532,7 @@ class TestContextManager:
 
         # Add test message at the BEGINNING
         messages.append(
-            {"role": "tool", "content": grep_output, "name": "grep_code", "tool_call_id": "test"}
+            {"role": "tool", "content": grep_output, "name": "grep", "tool_call_id": "test"}
         )
 
         # Add enough recent messages to push test beyond PRUNE_PROTECT
@@ -552,10 +552,10 @@ class TestContextManager:
 
         pruned_messages, tokens_saved = manager.prune_tool_outputs(messages, intelligent=True)
 
-        # Find the grep_code message
+        # Find the grep message
         grep_msg = [m for m in pruned_messages if m.get("tool_call_id") == "test"][0]
         pruned_content = grep_msg["content"]
-        assert "[Pruned grep_code:" in pruned_content
+        assert "[Pruned grep:" in pruned_content
         assert "20 matches" in pruned_content
         assert "first 3:" in pruned_content
 

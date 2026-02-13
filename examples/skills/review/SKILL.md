@@ -31,7 +31,7 @@ Check for:
 ## 4. Testing
 - Are there tests for the new functionality?
 - Do existing tests still pass?
-- Use `grep_code` to find related test files
+- Use `grep` to find related test files
 - Use `run_shell` to execute tests if needed
 
 ## 5. Documentation

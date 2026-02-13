@@ -1,0 +1,4 @@
+mkdocs-material>=9.5.0
+mkdocs-autorefs>=1.0.0
+mkdocstrings>=0.24.0
+mkdocstrings-python>=1.7.0

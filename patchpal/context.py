@@ -345,7 +345,7 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
         Different tools need different summarization strategies:
         - Navigation tools (list_files, tree, get_repo_map): Just note they ran
         - read_file: Keep first/last lines with ellipsis
-        - grep_code: Keep match count and first few results
+        - grep: Keep match count and first few results
         - git_status: Simple status summary
         - run_shell: Command + exit code + key numbers
 
@@ -417,16 +417,16 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
             num_summary = f", numbers: {', '.join(numbers[:5])}" if numbers else ""
             return f"[Pruned run_shell: {command_line[:60]}... → {status}{num_summary}]"
 
-        elif tool_name == "grep_code":
+        elif tool_name == "grep":
             # Keep match count and first few matches
             lines = content_str.split("\n")
             match_lines = [line for line in lines if ":" in line and line.strip()]
             match_count = len(match_lines)
             first_matches = "\n".join(match_lines[:3])
             if match_count > 3:
-                return f"[Pruned grep_code: {match_count} matches, first 3:\n{first_matches}\n... +{match_count - 3} more]"
+                return f"[Pruned grep: {match_count} matches, first 3:\n{first_matches}\n... +{match_count - 3} more]"
             else:
-                return f"[Pruned grep_code: {match_count} matches:\n{first_matches}]"
+                return f"[Pruned grep: {match_count} matches:\n{first_matches}]"
 
         # Tools that should preserve more content (high information value)
         elif tool_name == "read_file":

@@ -277,7 +277,7 @@ def _basic_file_info(resolved_path: Path, display_path: str) -> str:
         return (
             f"File: {display_path} ({line_count:,} lines, {size_kb:.1f} KB)\n\n"
             f"💡 Use read_lines('{display_path}', start, end) to read specific sections.\n"
-            f"💡 Use grep_code(pattern, '{display_path}') to search within this file."
+            f"💡 Use grep(pattern, '{display_path}') to search within this file."
         )
     except Exception as e:
         return f"❌ Unable to read file: {e}"

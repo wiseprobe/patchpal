@@ -163,6 +163,24 @@ def get_require_permission_for_all() -> bool:
     return _REQUIRE_PERMISSION_FOR_ALL
 
 
+# Template for MEMORY.md file
+MEMORY_TEMPLATE = """# Project Memory
+
+This file persists across PatchPal sessions. Use it to store:
+
+- **Project context**: What this project is and what it does
+- **Important decisions**: Technical choices and why they were made
+- **Key facts**: Deployment info, database details, API endpoints
+- **Known issues**: Bugs to fix, technical debt, TODOs
+- **Team conventions**: Code style preferences, workflow guidelines
+
+The agent reads this file at session start to understand your project context.
+
+---
+
+"""
+
+
 # Create patchpal directory structure in home directory
 # Format: ~/.patchpal/<repo-name>/
 def _get_patchpal_dir() -> Path:
@@ -181,9 +199,28 @@ def _get_patchpal_dir() -> Path:
     return repo_dir
 
 
+def _ensure_memory_file() -> Path:
+    """Ensure MEMORY.md file exists, creating it from template if needed.
+
+    Returns:
+        Path to the MEMORY.md file
+    """
+    memory_path = PATCHPAL_DIR / "MEMORY.md"
+
+    if not memory_path.exists():
+        try:
+            memory_path.write_text(MEMORY_TEMPLATE, encoding="utf-8")
+        except Exception as e:
+            # If we can't create the file, log but don't fail
+            audit_logger.warning(f"Failed to create MEMORY.md: {e}")
+
+    return memory_path
+
+
 PATCHPAL_DIR = _get_patchpal_dir()
 BACKUP_DIR = PATCHPAL_DIR / "backups"
 AUDIT_LOG_FILE = PATCHPAL_DIR / "audit.log"
+MEMORY_FILE = _ensure_memory_file()
 
 # Permission manager
 _permission_manager = None
@@ -621,6 +658,173 @@ def _is_binary_file(path: Path) -> bool:
     if not path.exists():
         return False
 
+    # Known text file extensions (programming languages and common text formats)
+    # Check extension FIRST before trusting MIME types, as MIME detection can be unreliable
+    text_extensions = {
+        # Programming languages
+        ".py",
+        ".pyw",
+        ".pyx",
+        ".pyi",  # Python
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".jsx",  # JavaScript
+        ".ts",
+        ".tsx",
+        ".mts",
+        ".cts",  # TypeScript
+        ".rs",  # Rust
+        ".go",  # Go
+        ".c",
+        ".h",
+        ".cpp",
+        ".hpp",
+        ".cc",
+        ".cxx",
+        ".hh",
+        ".hxx",  # C/C++
+        ".java",  # Java
+        ".kt",
+        ".kts",  # Kotlin
+        ".swift",  # Swift
+        ".rb",
+        ".rake",
+        ".gemspec",  # Ruby
+        ".php",
+        ".phtml",  # PHP
+        ".pl",
+        ".pm",
+        ".t",
+        ".pod",  # Perl
+        ".lua",  # Lua
+        ".r",
+        ".R",
+        ".rmd",  # R
+        ".m",
+        ".mm",  # Objective-C
+        ".cs",
+        ".csx",  # C#
+        ".fs",
+        ".fsx",
+        ".fsi",  # F#
+        ".vb",  # Visual Basic
+        ".scala",
+        ".sc",  # Scala
+        ".clj",
+        ".cljs",
+        ".cljc",
+        ".edn",  # Clojure
+        ".ex",
+        ".exs",  # Elixir
+        ".erl",
+        ".hrl",  # Erlang
+        ".hs",
+        ".lhs",  # Haskell
+        ".ml",
+        ".mli",  # OCaml
+        ".jl",  # Julia
+        ".nim",  # Nim
+        ".v",
+        ".sv",
+        ".svh",  # Verilog/SystemVerilog
+        ".vhd",
+        ".vhdl",  # VHDL
+        ".zig",  # Zig
+        ".d",
+        ".di",  # D
+        ".dart",  # Dart
+        ".elm",  # Elm
+        ".gleam",  # Gleam
+        # Shell scripts
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".ksh",
+        ".csh",
+        ".tcsh",
+        # Config/markup/data formats
+        ".json",
+        ".json5",
+        ".jsonc",
+        ".jsonl",  # JSON
+        ".yaml",
+        ".yml",  # YAML
+        ".toml",  # TOML
+        ".xml",
+        ".xsl",
+        ".xsd",
+        ".svg",  # XML
+        ".html",
+        ".htm",
+        ".xhtml",  # HTML
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",  # CSS
+        ".md",
+        ".markdown",
+        ".mdown",
+        ".mkd",  # Markdown
+        ".rst",
+        ".rest",  # reStructuredText
+        ".tex",
+        ".latex",  # LaTeX
+        ".txt",
+        ".text",  # Plain text
+        ".ini",
+        ".cfg",
+        ".conf",
+        ".config",  # Config
+        ".properties",  # Java properties
+        ".env",
+        ".envrc",  # Environment
+        ".gitignore",
+        ".gitattributes",
+        ".gitmodules",  # Git
+        ".dockerignore",  # Docker
+        # Build/project files
+        ".gradle",
+        ".gradle.kts",  # Gradle
+        ".cmake",  # CMake
+        ".mk",
+        ".mak",  # Make
+        ".ninja",  # Ninja
+        ".bazel",
+        ".bzl",  # Bazel
+        # Other
+        ".sql",  # SQL
+        ".graphql",
+        ".gql",  # GraphQL
+        ".proto",  # Protocol Buffers
+        ".thrift",  # Thrift
+        ".vim",  # Vim script
+        ".el",  # Emacs Lisp
+        ".diff",
+        ".patch",  # Diffs
+        ".log",  # Log files
+    }
+
+    # Check extension first (case-insensitive)
+    ext = path.suffix.lower()
+    if ext in text_extensions:
+        return False
+
+    # Check for extensionless known text files (like Makefile, Dockerfile)
+    stem = path.stem.lower()
+    if stem in {
+        "makefile",
+        "dockerfile",
+        "rakefile",
+        "gemfile",
+        "vagrantfile",
+        "readme",
+        "license",
+        "changelog",
+    }:
+        return False
+
     # Text-based application MIME types that should be treated as text
     text_application_mimes = {
         "application/json",
@@ -635,16 +839,16 @@ def _is_binary_file(path: Path) -> bool:
         "application/x-php",
     }
 
-    # Check MIME type first
+    # Check MIME type
     mime_type, _ = mimetypes.guess_type(str(path))
     if mime_type:
         # Allow text/* and whitelisted application/* types
         if mime_type.startswith("text/") or mime_type in text_application_mimes:
             return False
-        # Everything else is binary
-        return True
+        # For unknown MIME types, fall through to content check
+        # Don't immediately reject as binary based on MIME alone
 
-    # Fallback: check for null bytes in first 8KB
+    # Fallback: check for null bytes in first 8KB (reliable binary indicator)
     try:
         with open(path, "rb") as f:
             chunk = f.read(8192)
@@ -791,3 +995,102 @@ def _check_path(path: str, must_exist: bool = True) -> Path:
         raise ValueError(f"File not found: {path}")
 
     return p
+
+
+# Document text extraction functions (shared by web_fetch and read_file)
+
+
+def extract_text_from_pdf(content: bytes, source: str = "document") -> str:
+    """Extract text from PDF content.
+
+    Args:
+        content: PDF file content as bytes
+        source: Source description (for error messages)
+
+    Returns:
+        Extracted text content
+
+    Raises:
+        ValueError: If pymupdf is not available
+    """
+    if not PYMUPDF_AVAILABLE:
+        raise ValueError(
+            "PDF extraction not available - pymupdf not installed\n"
+            "Install with: pip install pymupdf"
+        )
+
+    try:
+        pdf_document = pymupdf.open(stream=content, filetype="pdf")
+        text_parts = []
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document[page_num]
+            text_parts.append(page.get_text())
+        pdf_document.close()
+        return "\n".join(text_parts)
+    except Exception as e:
+        raise ValueError(f"PDF extraction failed: {e}\nSource: {source}")
+
+
+def extract_text_from_docx(content: bytes, source: str = "document") -> str:
+    """Extract text from DOCX content.
+
+    Args:
+        content: DOCX file content as bytes
+        source: Source description (for error messages)
+
+    Returns:
+        Extracted text content
+
+    Raises:
+        ValueError: If python-docx is not available
+    """
+    if not PYTHON_DOCX_AVAILABLE:
+        raise ValueError(
+            "DOCX extraction not available - python-docx not installed\n"
+            "Install with: pip install python-docx"
+        )
+
+    try:
+        import io
+
+        doc = docx.Document(io.BytesIO(content))
+        text_parts = []
+        for paragraph in doc.paragraphs:
+            text_parts.append(paragraph.text)
+        return "\n".join(text_parts)
+    except Exception as e:
+        raise ValueError(f"DOCX extraction failed: {e}\nSource: {source}")
+
+
+def extract_text_from_pptx(content: bytes, source: str = "document") -> str:
+    """Extract text from PPTX content.
+
+    Args:
+        content: PPTX file content as bytes
+        source: Source description (for error messages)
+
+    Returns:
+        Extracted text content with slide numbers
+
+    Raises:
+        ValueError: If python-pptx is not available
+    """
+    if not PYTHON_PPTX_AVAILABLE:
+        raise ValueError(
+            "PPTX extraction not available - python-pptx not installed\n"
+            "Install with: pip install python-pptx"
+        )
+
+    try:
+        import io
+
+        prs = pptx.Presentation(io.BytesIO(content))
+        text_parts = []
+        for slide_num, slide in enumerate(prs.slides, 1):
+            text_parts.append(f"\n--- Slide {slide_num} ---")
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    text_parts.append(shape.text)
+        return "\n".join(text_parts)
+    except Exception as e:
+        raise ValueError(f"PPTX extraction failed: {e}\nSource: {source}")

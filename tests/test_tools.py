@@ -267,6 +267,127 @@ def test_read_file_xml(temp_repo):
     assert content == xml_content
 
 
+def test_read_file_pdf(temp_repo):
+    """Test reading PDF files with text extraction."""
+    from patchpal.tools import read_file
+
+    # Create a minimal PDF with text
+    try:
+        import pymupdf
+
+        doc = pymupdf.open()
+        page = doc.new_page()
+        page.insert_text((50, 50), "Hello from PDF")
+        pdf_path = temp_repo / "test.pdf"
+        doc.save(str(pdf_path))
+        doc.close()
+
+        content = read_file("test.pdf")
+        assert "Hello from PDF" in content
+    except ImportError:
+        pytest.skip("pymupdf not available")
+
+
+def test_read_file_docx(temp_repo):
+    """Test reading DOCX files with text extraction."""
+    from patchpal.tools import read_file
+
+    # Create a minimal DOCX with text
+    try:
+        import docx
+
+        doc = docx.Document()
+        doc.add_paragraph("Hello from DOCX")
+        doc.add_paragraph("Second paragraph")
+        docx_path = temp_repo / "test.docx"
+        doc.save(str(docx_path))
+
+        content = read_file("test.docx")
+        assert "Hello from DOCX" in content
+        assert "Second paragraph" in content
+    except ImportError:
+        pytest.skip("python-docx not available")
+
+
+def test_read_file_pptx(temp_repo):
+    """Test reading PPTX files with text extraction."""
+    from patchpal.tools import read_file
+
+    # Create a minimal PPTX with text
+    try:
+        import pptx
+
+        prs = pptx.Presentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[0])
+        title = slide.shapes.title
+        title.text = "Hello from PPTX"
+        pptx_path = temp_repo / "test.pptx"
+        prs.save(str(pptx_path))
+
+        content = read_file("test.pptx")
+        assert "Slide 1" in content
+        assert "Hello from PPTX" in content
+    except ImportError:
+        pytest.skip("python-pptx not available")
+
+
+def test_read_file_pdf_missing_library(temp_repo, monkeypatch):
+    """Test reading PDF when pymupdf is not available."""
+    from patchpal.tools import read_file
+
+    # Create a fake PDF file
+    pdf_path = temp_repo / "test.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\nfake pdf content")
+
+    # Mock pymupdf as unavailable
+    import patchpal.tools.common
+
+    monkeypatch.setattr(patchpal.tools.common, "PYMUPDF_AVAILABLE", False)
+
+    with pytest.raises(ValueError, match="pymupdf not installed"):
+        read_file("test.pdf")
+
+
+def test_read_file_large_pdf_allowed(temp_repo):
+    """Test that large PDFs are allowed (size check on extracted text, not binary)."""
+    from patchpal.tools import read_file
+
+    # Create a larger PDF (over MAX_FILE_SIZE binary, but small extracted text)
+    try:
+        import pymupdf
+
+        doc = pymupdf.open()
+        # Add pages with images or content to exceed MAX_FILE_SIZE (500KB default)
+        # Each page with inserted text is small, so we need many pages
+        for i in range(200):
+            page = doc.new_page()
+            page.insert_text((50, 50), f"Page {i + 1} content line 1")
+            page.insert_text((50, 70), f"Page {i + 1} content line 2")
+
+        pdf_path = temp_repo / "large.pdf"
+        doc.save(str(pdf_path))
+        doc.close()
+
+        # PDFs don't have size check before extraction
+        content = read_file("large.pdf")
+        assert "Page 1 content" in content
+        assert "Page 200 content" in content
+    except ImportError:
+        pytest.skip("pymupdf not available")
+
+
+def test_read_file_large_text_blocked(temp_repo):
+    """Test that large text files are still blocked by size limit."""
+    from patchpal.tools import read_file
+
+    # Create a large text file (over 500KB)
+    large_content = "x" * (600 * 1024)  # 600KB
+    (temp_repo / "large.txt").write_text(large_content)
+
+    with pytest.raises(ValueError, match="File too large"):
+        read_file("large.txt")
+
+
 def test_code_structure_python(temp_repo):
     """Test code_structure on a Python file."""
     from patchpal.tools import code_structure
@@ -547,60 +668,60 @@ def test_check_path_validates_existence():
             assert result == tmpdir_path / "nonexistent.txt"
 
 
-def test_grep_code_finds_matches(temp_repo):
-    """Test that grep_code finds matches in files."""
-    from patchpal.tools import grep_code
+def test_grep_finds_matches(temp_repo):
+    """Test that grep finds matches in files."""
+    from patchpal.tools import grep
 
     # Create a test file with searchable content
     (temp_repo / "search.py").write_text("def hello():\n    print('Hello')\n    return True")
 
-    result = grep_code("hello")
+    result = grep("hello")
     assert "search.py" in result
     assert "hello" in result.lower()
 
 
-def test_grep_code_case_insensitive(temp_repo):
+def test_grep_case_insensitive(temp_repo):
     """Test case-insensitive search."""
-    from patchpal.tools import grep_code
+    from patchpal.tools import grep
 
     (temp_repo / "case.txt").write_text("Hello World\nHELLO WORLD\nhello world")
 
-    result = grep_code("HELLO", case_sensitive=False)
+    result = grep("HELLO", case_sensitive=False)
     assert "case.txt" in result
     # Should find all three lines
     assert result.count("case.txt") >= 3
 
 
-def test_grep_code_with_file_glob(temp_repo):
+def test_grep_with_file_glob(temp_repo):
     """Test filtering by file glob pattern."""
-    from patchpal.tools import grep_code
+    from patchpal.tools import grep
 
     (temp_repo / "test.py").write_text("def test(): pass")
     (temp_repo / "test.txt").write_text("def test(): pass")
 
     # Search only in .py files
-    result = grep_code("test", file_glob="*.py")
+    result = grep("test", file_glob="*.py")
     assert "test.py" in result
     assert "test.txt" not in result
 
 
-def test_grep_code_no_matches(temp_repo):
+def test_grep_no_matches(temp_repo):
     """Test behavior when no matches are found."""
-    from patchpal.tools import grep_code
+    from patchpal.tools import grep
 
-    result = grep_code("nonexistent_pattern_xyz")
+    result = grep("nonexistent_pattern_xyz")
     assert "No matches found" in result
 
 
-def test_grep_code_max_results(temp_repo):
+def test_grep_max_results(temp_repo):
     """Test that max_results limits output."""
-    from patchpal.tools import grep_code
+    from patchpal.tools import grep
 
     # Create a file with many matching lines
     content = "\n".join([f"line {i} with match" for i in range(200)])
     (temp_repo / "many.txt").write_text(content)
 
-    result = grep_code("match", max_results=50)
+    result = grep("match", max_results=50)
     # Should mention truncation
     assert "showing first 50" in result.lower() or result.count("\n") <= 55  # ~50 lines + header
 
@@ -2045,7 +2166,8 @@ def test_web_fetch_pdf_extraction(monkeypatch):
     """Test fetching and extracting text from a PDF."""
     from unittest.mock import Mock
 
-    from patchpal.tools.web_tools import PYMUPDF_AVAILABLE, web_fetch
+    from patchpal.tools import web_fetch
+    from patchpal.tools.common import PYMUPDF_AVAILABLE
 
     if not PYMUPDF_AVAILABLE:
         pytest.skip("PyMuPDF not available")
@@ -2095,8 +2217,8 @@ def test_web_fetch_pdf_without_pymupdf(monkeypatch):
 
     from patchpal.tools import web_fetch
 
-    # Mock PyMuPDF as unavailable
-    monkeypatch.setattr("patchpal.tools.web_tools.PYMUPDF_AVAILABLE", False)
+    # Mock PyMuPDF as unavailable in common module (where it's now checked)
+    monkeypatch.setattr("patchpal.tools.common.PYMUPDF_AVAILABLE", False)
 
     # Mock PDF content
     pdf_content = b"%PDF-1.4\n%fake pdf content"
@@ -2123,5 +2245,5 @@ def test_web_fetch_pdf_without_pymupdf(monkeypatch):
     reset_operation_counter()
 
     result = web_fetch("https://example.com/test.pdf")
-    # Should return raw decoded content when PyMuPDF is not available
-    assert isinstance(result, str)
+    # Should return error message when PyMuPDF is not available
+    assert "PDF extraction not available" in result or "pymupdf not installed" in result

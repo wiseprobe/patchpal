@@ -5,7 +5,7 @@ import json
 import os
 import platform
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 import litellm
 from rich.console import Console
@@ -322,12 +322,19 @@ def _apply_prompt_caching(messages: List[Dict[str, Any]], model_id: str) -> List
 class PatchPalAgent:
     """Simple agent that uses LiteLLM for tool calling."""
 
-    def __init__(self, model_id: str = "anthropic/claude-sonnet-4-5", custom_tools=None):
+    def __init__(
+        self,
+        model_id: str = "anthropic/claude-sonnet-4-5",
+        custom_tools: Optional[List[Callable]] = None,
+        litellm_kwargs: Optional[Dict[str, Any]] = None,
+    ):
         """Initialize the agent.
 
         Args:
             model_id: LiteLLM model identifier
             custom_tools: Optional list of Python functions to add as tools
+            litellm_kwargs: Optional dict of extra parameters to pass to litellm.completion()
+                          (e.g., {"reasoning_effort": "high"} for reasoning models)
         """
         # Store custom tools
         self.custom_tools = custom_tools or []
@@ -400,6 +407,62 @@ class PatchPalAgent:
             # Custom OpenAI-compatible servers (vLLM, etc.) often don't support all parameters
             self.litellm_kwargs["drop_params"] = True
 
+        # Merge in any user-provided litellm_kwargs
+        if litellm_kwargs:
+            self.litellm_kwargs.update(litellm_kwargs)
+
+        # Load MEMORY.md if it exists and has non-template content
+        self._load_project_memory()
+
+    def _load_project_memory(self):
+        """Load MEMORY.md file at session start if it has non-template content."""
+        try:
+            from patchpal.tools.common import MEMORY_FILE
+
+            # Always tell the agent where MEMORY.md is located
+            if not MEMORY_FILE.exists():
+                return
+
+            memory_content = MEMORY_FILE.read_text(encoding="utf-8")
+
+            # Check if user has added content after the "---" separator
+            has_user_content = False
+            if "---" in memory_content:
+                parts = memory_content.split("---", 1)
+                if len(parts) > 1:
+                    user_content = parts[1].strip()
+                    if user_content and len(user_content) > 10:
+                        has_user_content = True
+
+            # Build the message - include full content if user added info, otherwise just location
+            if has_user_content:
+                memory_msg = f"""# Project Memory (from MEMORY.md)
+
+{memory_content}
+
+The information above is from {MEMORY_FILE} and persists across sessions.
+To update it, use edit_file("{MEMORY_FILE}", ...) or apply_patch("{MEMORY_FILE}", ...)."""
+            else:
+                # Empty template - just inform agent
+                memory_msg = f"""# Project Memory (MEMORY.md)
+
+Your project memory file is located at: {MEMORY_FILE}
+
+It's currently empty (just the template). The file is automatically loaded at session start."""
+
+            # Add as a system message at the start
+            self.messages.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": memory_msg,
+                    "metadata": {"is_memory": True},
+                },
+            )
+        except Exception:
+            # If loading fails, silently continue (don't break agent initialization)
+            pass
+
     def _prune_tool_outputs_inline(self, max_chars: int, truncation_message: str) -> int:
         """Unified pruning function for tool outputs.
 
@@ -449,7 +512,7 @@ class PatchPalAgent:
             # Aggressively truncate all large tool outputs (5K chars)
             pruned_chars = self._prune_tool_outputs_inline(
                 max_chars=5_000,
-                truncation_message="\n\n[... content truncated during compaction. Use read_lines or grep_code for targeted access ...]",
+                truncation_message="\n\n[... content truncated during compaction. Use read_lines or grep for targeted access ...]",
             )
 
             stats_after = self.context_manager.get_usage_stats(self.messages)
@@ -1022,7 +1085,7 @@ class PatchPalAgent:
                                 )
                             elif tool_name == "git_log":
                                 print("\033[2m🔀 Git log...\033[0m", flush=True)
-                            elif tool_name == "grep_code":
+                            elif tool_name == "grep":
                                 print(
                                     f"\033[2m🔍 Searching: {tool_args.get('pattern', '')}\033[0m",
                                     flush=True,
@@ -1163,7 +1226,7 @@ class PatchPalAgent:
                             f"{truncation_note}"
                             f"Output exceeded limits ({MAX_TOOL_OUTPUT_LINES:,} lines or {MAX_TOOL_OUTPUT_CHARS:,} characters).\n"
                             f"Consider:\n"
-                            f"- Using grep_code() to search files directly\n"
+                            f"- Using grep() to search files directly\n"
                             f"- Using read_lines() to read files in chunks\n"
                             f"- Refining the command to filter output (e.g., | grep, | head)"
                         )
@@ -1245,13 +1308,19 @@ class PatchPalAgent:
         )
 
 
-def create_agent(model_id: str = "anthropic/claude-sonnet-4-5", custom_tools=None) -> PatchPalAgent:
+def create_agent(
+    model_id: str = "anthropic/claude-sonnet-4-5",
+    custom_tools: Optional[List[Callable]] = None,
+    litellm_kwargs: Optional[Dict[str, Any]] = None,
+) -> PatchPalAgent:
     """Create and return a PatchPal agent.
 
     Args:
         model_id: LiteLLM model identifier (default: anthropic/claude-sonnet-4-5)
         custom_tools: Optional list of Python functions to use as custom tools.
                      Each function should have type hints and a docstring.
+        litellm_kwargs: Optional dict of extra parameters to pass to litellm.completion()
+                       (e.g., {"reasoning_effort": "high"} for reasoning models)
 
     Returns:
         A configured PatchPalAgent instance
@@ -1268,10 +1337,18 @@ def create_agent(model_id: str = "anthropic/claude-sonnet-4-5", custom_tools=Non
 
         agent = create_agent(custom_tools=[calculator])
         response = agent.run("What's 5 + 3?")
+
+        # With reasoning model
+        agent = create_agent(
+            model_id="ollama_chat/gpt-oss:20b",
+            litellm_kwargs={"reasoning_effort": "high"}
+        )
     """
     # Reset session todos for new session
     from patchpal.tools import reset_session_todos
 
     reset_session_todos()
 
-    return PatchPalAgent(model_id=model_id, custom_tools=custom_tools)
+    return PatchPalAgent(
+        model_id=model_id, custom_tools=custom_tools, litellm_kwargs=litellm_kwargs
+    )

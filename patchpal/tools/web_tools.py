@@ -10,27 +10,6 @@ try:
 except ImportError:
     from duckduckgo_search import DDGS
 
-try:
-    import pymupdf
-
-    PYMUPDF_AVAILABLE = True
-except ImportError:
-    PYMUPDF_AVAILABLE = False
-
-try:
-    import docx
-
-    PYTHON_DOCX_AVAILABLE = True
-except ImportError:
-    PYTHON_DOCX_AVAILABLE = False
-
-try:
-    import pptx
-
-    PYTHON_PPTX_AVAILABLE = True
-except ImportError:
-    PYTHON_PPTX_AVAILABLE = False
-
 from patchpal.tools.common import (
     MAX_WEB_CONTENT_SIZE,
     WEB_HEADERS,
@@ -38,6 +17,9 @@ from patchpal.tools.common import (
     _get_permission_manager,
     _operation_limiter,
     audit_logger,
+    extract_text_from_docx,
+    extract_text_from_pdf,
+    extract_text_from_pptx,
 )
 
 
@@ -98,64 +80,25 @@ def web_fetch(url: str, extract_text: bool = True) -> str:
 
         # Extract text based on content type
         if extract_text:
-            if "pdf" in content_type and PYMUPDF_AVAILABLE:
+            if "pdf" in content_type:
                 # Extract text from PDF
                 try:
-                    pdf_document = pymupdf.open(stream=content, filetype="pdf")
-                    text_parts = []
-                    for page_num in range(pdf_document.page_count):
-                        page = pdf_document[page_num]
-                        text_parts.append(page.get_text())
-                    pdf_document.close()
-                    text_content = "\n".join(text_parts)
-                except Exception as pdf_error:
-                    # Fall back to showing error if PDF extraction fails
-                    text_content = (
-                        f"[PDF extraction failed: {pdf_error}]\n\n"
-                        f"PDF URL: {url}\n"
-                        f"To read this PDF, download it locally or try a different source."
-                    )
-            elif (
-                "wordprocessingml" in content_type or "msword" in content_type
-            ) and PYTHON_DOCX_AVAILABLE:
+                    text_content = extract_text_from_pdf(content, source=url)
+                except ValueError as e:
+                    # Return helpful error message if extraction fails
+                    text_content = f"[{e}]"
+            elif "wordprocessingml" in content_type or "msword" in content_type:
                 # Extract text from DOCX (or DOC if saved as docx)
                 try:
-                    import io
-
-                    doc = docx.Document(io.BytesIO(content))
-                    text_parts = []
-                    for paragraph in doc.paragraphs:
-                        text_parts.append(paragraph.text)
-                    text_content = "\n".join(text_parts)
-                except Exception as docx_error:
-                    text_content = (
-                        f"[DOCX extraction failed: {docx_error}]\n\n"
-                        f"Content-Type: {content_type}\n"
-                        f"URL: {url}\n"
-                        f"To read this document, download it locally or try a different source."
-                    )
-            elif (
-                "presentationml" in content_type or "ms-powerpoint" in content_type
-            ) and PYTHON_PPTX_AVAILABLE:
+                    text_content = extract_text_from_docx(content, source=url)
+                except ValueError as e:
+                    text_content = f"[{e}]"
+            elif "presentationml" in content_type or "ms-powerpoint" in content_type:
                 # Extract text from PPTX (or PPT if saved as pptx)
                 try:
-                    import io
-
-                    prs = pptx.Presentation(io.BytesIO(content))
-                    text_parts = []
-                    for slide_num, slide in enumerate(prs.slides, 1):
-                        text_parts.append(f"\n--- Slide {slide_num} ---")
-                        for shape in slide.shapes:
-                            if hasattr(shape, "text"):
-                                text_parts.append(shape.text)
-                    text_content = "\n".join(text_parts)
-                except Exception as pptx_error:
-                    text_content = (
-                        f"[PPTX extraction failed: {pptx_error}]\n\n"
-                        f"Content-Type: {content_type}\n"
-                        f"URL: {url}\n"
-                        f"To read this presentation, download it locally or try a different source."
-                    )
+                    text_content = extract_text_from_pptx(content, source=url)
+                except ValueError as e:
+                    text_content = f"[{e}]"
             elif "html" in content_type:
                 # Extract text from HTML
                 text_content = content.decode(response.encoding or "utf-8", errors="replace")

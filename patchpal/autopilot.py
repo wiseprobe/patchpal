@@ -30,7 +30,11 @@ from patchpal.agent import create_agent
 
 
 def autopilot_loop(
-    prompt: str, completion_promise: str, max_iterations: int = 100, model: str = None
+    prompt: str,
+    completion_promise: str,
+    max_iterations: int = 100,
+    model: str = None,
+    litellm_kwargs: dict = None,
 ):
     """
     Run autonomous iterative development loop until completion.
@@ -47,6 +51,8 @@ def autopilot_loop(
         completion_promise: String that signals task completion (e.g., "COMPLETE", "DONE")
         max_iterations: Maximum number of autopilot iterations before giving up
         model: Optional model override (defaults to PATCHPAL_MODEL env var)
+        litellm_kwargs: Optional dict of extra parameters to pass to litellm.completion()
+                       (e.g., {"reasoning_effort": "high"} for reasoning models)
 
     Returns:
         Agent's final response if completion promise found, None otherwise
@@ -54,9 +60,16 @@ def autopilot_loop(
     # Disable permissions for autonomous operation
     os.environ["PATCHPAL_REQUIRE_PERMISSION"] = "false"
 
+    # Discover custom tools from ~/.patchpal/tools/
+    from patchpal.tool_schema import discover_tools, list_custom_tools
+
+    custom_tools = discover_tools()
+
     # Create agent
     agent = create_agent(
-        model_id=model or os.getenv("PATCHPAL_MODEL", "anthropic/claude-sonnet-4-5")
+        model_id=model or os.getenv("PATCHPAL_MODEL", "anthropic/claude-sonnet-4-5"),
+        custom_tools=custom_tools,
+        litellm_kwargs=litellm_kwargs,
     )
 
     print("=" * 80)
@@ -66,6 +79,14 @@ def autopilot_loop(
     print(f"Completion promise: '{completion_promise}'")
     print(f"Max iterations: {max_iterations}")
     print(f"Model: {agent.model_id}")
+
+    # Show custom tools info if any were loaded
+    custom_tool_info = list_custom_tools()
+    if custom_tool_info:
+        tool_names = [name for name, _, _ in custom_tool_info]
+        tools_str = ", ".join(tool_names)
+        print(f"🔧 Custom tools: {tools_str}")
+
     print("=" * 80)
     print()
 

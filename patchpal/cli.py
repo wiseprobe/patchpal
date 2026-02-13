@@ -338,6 +338,19 @@ Supported models: Any LiteLLM-supported model
     # Determine model to use (priority: CLI arg > env var > default)
     model_id = args.model or os.getenv("PATCHPAL_MODEL") or "anthropic/claude-sonnet-4-5"
 
+    # Parse litellm_kwargs from environment variable if set
+    # Format: PATCHPAL_LITELLM_KWARGS='{"reasoning_effort": "high", "temperature": 0.7}'
+    litellm_kwargs = None
+    litellm_kwargs_env = os.getenv("PATCHPAL_LITELLM_KWARGS")
+    if litellm_kwargs_env:
+        try:
+            import json
+
+            litellm_kwargs = json.loads(litellm_kwargs_env)
+        except json.JSONDecodeError as e:
+            print(f"\033[1;31m⚠️  Warning: Invalid PATCHPAL_LITELLM_KWARGS JSON: {e}\033[0m")
+            litellm_kwargs = None
+
     # Discover custom tools from ~/.patchpal/tools/
     from patchpal.tool_schema import discover_tools, list_custom_tools
 
@@ -357,7 +370,9 @@ Supported models: Any LiteLLM-supported model
 
     # Create the agent with the specified model and custom tools
     # LiteLLM will handle API key validation and provide appropriate error messages
-    agent = create_agent(model_id=model_id, custom_tools=custom_tools)
+    agent = create_agent(
+        model_id=model_id, custom_tools=custom_tools, litellm_kwargs=litellm_kwargs
+    )
 
     # Get max iterations from environment variable or use default
     max_iterations = int(os.getenv("PATCHPAL_MAX_ITERATIONS", "100"))
@@ -385,6 +400,11 @@ Supported models: Any LiteLLM-supported model
     # Show custom tools info if any were loaded
     if custom_tools_message:
         print(custom_tools_message)
+
+    # Show litellm_kwargs info if set
+    if litellm_kwargs:
+        kwargs_str = ", ".join(f"{k}={v}" for k, v in litellm_kwargs.items())
+        print(f"\033[1;36m⚙️  LiteLLM parameters: {kwargs_str}\033[0m")
 
     # Show require-permission-for-all indicator if active
     if args.require_permission_for_all:
@@ -1108,7 +1128,7 @@ Supported models: Any LiteLLM-supported model
                     print(f"\n\033[1;31mSkill not found: {skill_name}\033[0m")
                     print("Ask 'list skills' to see available skills.")
                     print(
-                        "See example skills at: https://github.com/amaiya/patchpal/tree/main/examples/skills"
+                        "See example skills at: https://github.com/wiseprobe/patchpal/tree/main/examples/skills"
                     )
 
                 continue

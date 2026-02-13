@@ -13,6 +13,9 @@ from patchpal.tools.common import (
     _is_inside_repo,
     _operation_limiter,
     audit_logger,
+    extract_text_from_docx,
+    extract_text_from_pdf,
+    extract_text_from_pptx,
     require_permission_for_read,
 )
 
@@ -24,33 +27,75 @@ def read_file(path: str) -> str:
     """
     Read the contents of a file.
 
+    Supports text files and documents (PDF, DOCX, PPTX) with automatic text extraction.
+
     Args:
         path: Path to the file (relative to repository root or absolute)
 
     Returns:
-        The file contents as a string
+        The file contents as a string (text extracted from documents)
 
     Raises:
-        ValueError: If file is too large, binary, or sensitive
+        ValueError: If file is too large, unsupported binary format, or sensitive
     """
     _operation_limiter.check_limit(f"read_file({path})")
 
     p = _check_path(path)
 
-    # Check file size
+    # Get file size and MIME type
     size = p.stat().st_size
+    mime_type, _ = mimetypes.guess_type(str(p))
+    ext = p.suffix.lower()
+
+    # For document formats (PDF/DOCX/PPTX), extract text first, then check extracted size
+    # This allows large binary documents as long as the extracted text fits in context
+    # Check both MIME type and extension (Windows doesn't always recognize Office formats)
+    if (mime_type and "pdf" in mime_type) or ext == ".pdf":
+        # Extract text from PDF (no size check on binary - check extracted text instead)
+        content_bytes = p.read_bytes()
+        text_content = extract_text_from_pdf(content_bytes, source=str(path))
+        audit_logger.info(
+            f"READ: {path} ({size} bytes binary, {len(text_content)} chars text, PDF)"
+        )
+        return text_content
+    elif (mime_type and ("wordprocessingml" in mime_type or "msword" in mime_type)) or ext in (
+        ".docx",
+        ".doc",
+    ):
+        # Extract text from DOCX/DOC
+        content_bytes = p.read_bytes()
+        text_content = extract_text_from_docx(content_bytes, source=str(path))
+        audit_logger.info(
+            f"READ: {path} ({size} bytes binary, {len(text_content)} chars text, DOCX)"
+        )
+        return text_content
+    elif (mime_type and ("presentationml" in mime_type or "ms-powerpoint" in mime_type)) or ext in (
+        ".pptx",
+        ".ppt",
+    ):
+        # Extract text from PPTX/PPT
+        content_bytes = p.read_bytes()
+        text_content = extract_text_from_pptx(content_bytes, source=str(path))
+        audit_logger.info(
+            f"READ: {path} ({size} bytes binary, {len(text_content)} chars text, PPTX)"
+        )
+        return text_content
+
+    # For non-document files, check size before reading
     if size > MAX_FILE_SIZE:
         raise ValueError(
             f"File too large: {size:,} bytes (max {MAX_FILE_SIZE:,} bytes)\n"
             f"Set PATCHPAL_MAX_FILE_SIZE env var to increase"
         )
 
-    # Check if binary
+    # Check if binary (for non-document files)
     if _is_binary_file(p):
         raise ValueError(
-            f"Cannot read binary file: {path}\nType: {mimetypes.guess_type(str(p))[0] or 'unknown'}"
+            f"Cannot read binary file: {path}\nType: {mime_type or 'unknown'}\n"
+            f"Supported document formats: PDF, DOCX, PPTX"
         )
 
+    # Read as text file
     content = p.read_text(encoding="utf-8", errors="replace")
     audit_logger.info(f"READ: {path} ({size} bytes)")
     return content

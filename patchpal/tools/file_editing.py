@@ -1,6 +1,7 @@
 """File editing tools (apply_patch, edit_file)."""
 
 import difflib
+from pathlib import Path
 from typing import Optional
 
 from patchpal.tools import common
@@ -18,6 +19,27 @@ from patchpal.tools.common import (
     _operation_limiter,
     audit_logger,
 )
+
+
+def _get_outside_repo_warning(path: Path) -> str:
+    """Get warning message for writing outside repository.
+
+    Returns empty string for PatchPal's managed files (MEMORY.md, etc.)
+
+    Args:
+        path: Resolved Path object to check
+
+    Returns:
+        Warning message or empty string
+    """
+    if not _is_inside_repo(path):
+        # Whitelist PatchPal's managed files (MEMORY.md, etc.)
+        from patchpal.tools.common import MEMORY_FILE
+
+        if path.resolve() != MEMORY_FILE.resolve():
+            return "\n   ⚠️  WARNING: Writing file outside repository\n"
+    return ""
+
 
 # ============================================================================
 # Edit File - Multi-Strategy String Matching
@@ -195,10 +217,8 @@ def apply_patch(path: str, new_content: str) -> str:
     # Get permission pattern (directory for outside repo, relative path for inside)
     permission_pattern = _get_permission_pattern_for_path(path, p)
 
-    # Add warning if writing outside repository
-    outside_repo_warning = ""
-    if not _is_inside_repo(p):
-        outside_repo_warning = "\n   ⚠️  WARNING: Writing file outside repository\n"
+    # Add warning if writing outside repository (unless it's PatchPal's managed files)
+    outside_repo_warning = _get_outside_repo_warning(p)
 
     description = f"   ● {operation}({path}){outside_repo_warning}\n{diff_display}"
 
@@ -380,10 +400,8 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
     # Get permission pattern (directory for outside repo, relative path for inside)
     permission_pattern = _get_permission_pattern_for_path(path, p)
 
-    # Add warning if writing outside repository
-    outside_repo_warning = ""
-    if not _is_inside_repo(p):
-        outside_repo_warning = "\n   ⚠️  WARNING: Writing file outside repository\n"
+    # Add warning if writing outside repository (unless it's PatchPal's managed files)
+    outside_repo_warning = _get_outside_repo_warning(p)
 
     description = f"   ● Update({path}){outside_repo_warning}\n{diff_display}"
 

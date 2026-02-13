@@ -86,13 +86,13 @@ After `pip install patchpal`, autopilot is available immediately:
 ```bash
 # Simple autopilot loop (recommended: use python -m)
 python -m patchpal autopilot \
-  --prompt "Build a REST API with tests" \
+  --prompt "Build a REST API with tests. When complete, output: <promise>COMPLETE</promise>" \
   --completion-promise "COMPLETE" \
   --max-iterations 30
 
 # Alternative: Direct command
 patchpal-autopilot \
-  --prompt "Build a REST API with tests" \
+  --prompt "Build a REST API with tests. When complete, output: <promise>COMPLETE</promise>" \
   --completion-promise "COMPLETE" \
   --max-iterations 30
 
@@ -135,6 +135,8 @@ Note: After `pip install patchpal`, autopilot is available as:
 - `python -m patchpal autopilot` (recommended)
 - `patchpal-autopilot` (direct command)
 - `from patchpal.autopilot import autopilot_loop` (Python library)
+
+**Custom Tools**: Autopilot automatically loads custom tools from `~/.patchpal/tools/` (same as the interactive CLI). This allows you to extend autopilot with project-specific capabilities.
 
 ## Writing Effective Ralph Prompts
 

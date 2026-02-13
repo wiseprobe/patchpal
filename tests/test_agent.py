@@ -2,6 +2,17 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def mock_memory_file(tmp_path, monkeypatch):
+    """Mock MEMORY_FILE to prevent loading user's actual MEMORY.md in tests."""
+    # Create a non-existent path so MEMORY.md loading returns early
+    fake_memory = tmp_path / "nonexistent" / "MEMORY.md"
+    monkeypatch.setattr("patchpal.tools.common.MEMORY_FILE", fake_memory)
+    return fake_memory
+
 
 def test_create_agent_default_model():
     """Test creating an agent with default model."""
@@ -58,7 +69,7 @@ def test_agent_has_correct_tools():
     assert "git_status" in tool_names
     assert "git_diff" in tool_names
     assert "git_log" in tool_names
-    assert "grep_code" in tool_names
+    assert "grep" in tool_names
     assert "list_skills" in tool_names
     assert "use_skill" in tool_names
     assert "web_search" in tool_names
@@ -88,7 +99,7 @@ def test_agent_system_prompt():
     assert "git_status" in SYSTEM_PROMPT
     assert "git_diff" in SYSTEM_PROMPT
     assert "git_log" in SYSTEM_PROMPT
-    assert "grep_code" in SYSTEM_PROMPT
+    assert "grep" in SYSTEM_PROMPT
     assert "web_search" in SYSTEM_PROMPT
     assert "web_fetch" in SYSTEM_PROMPT
     assert "run_shell" in SYSTEM_PROMPT

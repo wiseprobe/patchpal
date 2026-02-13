@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "patchpal"
 dynamic = ["version"]
-description = "A lean Claude Code clone in pure  Python"
+description = "An agentic coding and automation assistant, supporting both local and cloud LLMs"
 readme = "README.md"
 authors = [
     { name = "PatchPal Contributors" }
@@ -50,11 +50,17 @@ dev = [
 mcp = [
     "mcp>=0.9.0",
 ]
+docs = [
+    "mkdocs-material>=9.5.0",
+    "mkdocs-autorefs>=1.0.0",
+    "mkdocstrings>=0.24.0",
+    "mkdocstrings-python>=1.7.0",
+]
 
 [project.urls]
-Homepage = "https://github.com/amaiya/patchpal"
-Repository = "https://github.com/amaiya/patchpal"
-Issues = "https://github.com/amaiya/patchpal/issues"
+Homepage = "https://github.com/wiseprobe/patchpal"
+Repository = "https://github.com/wiseprobe/patchpal"
+Issues = "https://github.com/wiseprobe/patchpal/issues"
 
 [project.scripts]
 patchpal = "patchpal.cli:main"

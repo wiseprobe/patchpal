@@ -54,7 +54,7 @@ from patchpal.tools.git_tools import (
     git_diff,
     git_log,
     git_status,
-    grep_code,
+    grep,
 )
 from patchpal.tools.repo_map import (
     clear_repo_map_cache,
@@ -105,7 +105,7 @@ __all__ = [
     "git_status",
     "git_diff",
     "git_log",
-    "grep_code",
+    "grep",
     # TODO tools
     "reset_session_todos",
     "todo_add",

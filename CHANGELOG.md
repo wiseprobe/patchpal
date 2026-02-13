@@ -7,6 +7,67 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.13.1 (2026-2-11)
+
+### new:
+- N/A
+
+### changed:
+- Added Python API Reference to docs
+
+### fixed:
+- N/A
+
+
+## 0.13.0 (2026-2-11)
+
+### new:
+- Support extra LiteLLM kwargs (#57)
+
+### changed:
+- N/A
+
+### fixed:
+- Ensure Autopilot mode loads custom tools (#56)
+
+
+## 0.12.2 (2026-2-11)
+
+### new:
+- N/A
+
+### changed:
+- `read_file` accepts PDF/PPTX/DOCX, like `web_fetch`
+
+### fixed:
+- N/A
+
+
+## 0.12.1 (2026-2-10)
+
+### new:
+- N/A
+
+### changed:
+- Documentation added
+
+### fixed:
+- N/A
+
+
+## 0.12.0 (2026-2-10)
+
+### new:
+- **Project Memory system (`MEMORY.md`)**: Added persistent session context that automatically loads at agent initialization from `~/.patchpal/<repo-name>/MEMORY.md`. Stores project context, technical decisions, key facts, known issues, and team conventions that persist across sessions. Agent automatically loads populated memory files and includes full content in context, or shows guidance message for empty files. File is whitelisted for seamless editing without "outside repo" warnings. Includes smart content detection (10-char threshold after `---` separator) to distinguish empty templates from populated memory. Comprehensive test coverage with 11 tests covering file creation, content detection, Unicode support, error handling, and whitelisting. Replaces previous NOTES.md naming with more semantically accurate MEMORY.md. (fixes #55)
+
+### changed:
+- changed `grep_code` tool name to  `grep`
+- updated repo map tool description
+
+### fixed:
+- **Fixed binary file detection for Rust and other source files**: Fixed `_is_binary_file()` incorrectly classifying `.rs` (Rust) and other source files as binary due to unreliable MIME type detection. Implemented extension-first detection with comprehensive whitelist of 100+ text file extensions (programming languages, config formats, markup, build files). Now checks file extension before MIME type, preventing false positives from MIME database quirks. Falls back to null-byte content check for reliable binary detection. (fixes #54)
+
+
 ## 0.11.0 (2026-02-07)
 
 ### new:
@@ -24,13 +85,13 @@ Most recent releases are shown at the top. Each release shows:
 ### new:
 - **`/prune` command**: Added manual context management command that prunes all tool outputs older than the last 2 conversational turns. Bypasses automatic pruning thresholds (PRUNE_PROTECT and PRUNE_MINIMUM) to give users full control over context cleanup. Uses intelligent summarization and shows detailed before/after statistics including token savings and context reduction. Useful for reclaiming context space from large tool outputs (grep, file reads) without triggering full compaction. (fixes #52)
 - **Proactive pruning with intelligent summarization**: Added automatic pruning of tool outputs after each tool call when accumulated outputs exceed `PRUNE_PROTECT` (40K tokens). Uses tool-specific intelligent summarization strategies to preserve key information while reducing token usage by 20-60% in typical sessions. Configurable via `PATCHPAL_PROACTIVE_PRUNING` (default: true). (fixes #48)
-- **Universal tool output limits**: Added predictable per-tool-call limits (2000 lines or 100K characters) to prevent any single tool from dominating context. Inspired by OpenCode's approach but with more generous limits. Replaces the reactive 150% emergency truncation with proactive limits applied to all tools uniformly. Character-based truncation (not bytes) avoids breaking Unicode. Configurable via `PATCHPAL_MAX_TOOL_OUTPUT_LINES` and `PATCHPAL_MAX_TOOL_OUTPUT_CHARS`. Truncated outputs include helpful hints suggesting alternatives like `grep_code()` or `read_lines()`. (#49)
+- **Universal tool output limits**: Added predictable per-tool-call limits (2000 lines or 100K characters) to prevent any single tool from dominating context. Inspired by OpenCode's approach but with more generous limits. Replaces the reactive 150% emergency truncation with proactive limits applied to all tools uniformly. Character-based truncation (not bytes) avoids breaking Unicode. Configurable via `PATCHPAL_MAX_TOOL_OUTPUT_LINES` and `PATCHPAL_MAX_TOOL_OUTPUT_CHARS`. Truncated outputs include helpful hints suggesting alternatives like `grep()` or `read_lines()`. (#49)
 - **`count_lines()` tool**: Added efficient line counting tool that uses buffered reading (1MB chunks) to count lines in large files without loading them into memory. Returns formatted output like "file.log: 99,497 lines (7.4MB)". Essential for working with large log files - use `count_lines()` first, then `read_lines()` to read specific sections (e.g., last 100 lines). Works with system-wide files, respects permission system, and checks for binary files. (#49)
 - **`/help` command**: Added interactive help command that displays all available CLI commands organized into categories (Basic Commands, Context Management, Skills, Tips). Replaces the verbose welcome message with a simpler prompt directing users to `/help`, improving initial user experience and making commands more discoverable.
 - **`/context` command**: Added conversation history viewer with two modes: (1) summary view showing all messages with role, token count, and preview, (2) detailed view showing full content of a specific message by number. Supports color-coded role display (User, Assistant, Tool) and shows token counts for each message, providing better visibility into conversation state.
 
 ### changed:
-- **`grep_code` now supports system-wide search**: Added optional `path` parameter to search directories outside the repository (e.g., `/tmp/some_folder`, `~/projects`). Supports absolute paths, relative paths from repo root, and `~` expansion. Defaults to repository root for backward compatibility. Updated tool description and documentation to reflect system-wide capability, consistent with other read-oriented tools like `read_file` and `tree`. (fixes #50)
+- **`grep` now supports system-wide search**: Added optional `path` parameter to search directories outside the repository (e.g., `/tmp/some_folder`, `~/projects`). Supports absolute paths, relative paths from repo root, and `~` expansion. Defaults to repository root for backward compatibility. Updated tool description and documentation to reflect system-wide capability, consistent with other read-oriented tools like `read_file` and `tree`. (fixes #50)
 - **Simplified web fetch truncation**: Removed `MAX_WEB_CONTENT_CHARS` limit from `web_fetch()` in favor of universal `MAX_TOOL_OUTPUT_CHARS` limit applied to all tools. This eliminates redundant truncation logic and ensures consistent behavior across all tools. Web content is now truncated at the same 100K character limit as other tools. (#49)
 - **Simplified CLI welcome message**: Changed from verbose multi-line command list to concise message directing users to `/help`, reducing visual clutter at startup while maintaining command discoverability.
 - Maintain 8000 entries (instead of 1000) in history.txt

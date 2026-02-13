@@ -16,7 +16,7 @@ from patchpal.tools import (
     git_diff,
     git_log,
     git_status,
-    grep_code,
+    grep,
     list_files,
     list_skills,
     read_file,
@@ -41,7 +41,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read the contents of a file. Can read files anywhere on the system (repository files, system configs like /etc/fstab, logs, etc.) for automation and debugging. Sensitive files (.env, credentials) are blocked for safety.",
+            "description": "Read the contents of a file. Can read files anywhere on the system (repository files, system configs like /etc/fstab, logs, etc.) for automation and debugging. Supports PDF, DOCX, PPTX extraction. Sensitive files (.env, credentials) are blocked for safety.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -137,7 +137,9 @@ PHP, Swift, Kotlin, Scala, Elm, Elixir, and more. Language detection is automati
 
 Token efficiency: 38-70% reduction compared to calling code_structure on each file
 (e.g., 20 files: 4,916 tokens vs 1,459 tokens = 70% savings; 37 files: 8,052 tokens vs 4,988 tokens = 38% savings)
-Combines multiple file structures into one compact output with reduced redundant formatting.""",
+Combines multiple file structures into one compact output with reduced redundant formatting.
+
+Tip: Read README first for context when exploring repositories.""",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -335,7 +337,7 @@ Combines multiple file structures into one compact output with reduced redundant
     {
         "type": "function",
         "function": {
-            "name": "grep_code",
+            "name": "grep",
             "description": "Search for a pattern in files. Much faster than run_shell with grep. Returns results in 'file:line:content' format.",
             "parameters": {
                 "type": "object",
@@ -601,7 +603,7 @@ TOOL_FUNCTIONS = {
     "git_status": git_status,
     "git_diff": git_diff,
     "git_log": git_log,
-    "grep_code": grep_code,
+    "grep": grep,
     "web_search": web_search,
     "web_fetch": web_fetch,
     "list_skills": list_skills,

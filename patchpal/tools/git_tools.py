@@ -217,7 +217,7 @@ def git_log(max_count: int = 10, path: Optional[str] = None) -> str:
 
 
 @require_permission_for_read(
-    "grep_code",
+    "grep",
     get_description=lambda pattern,
     file_glob=None,
     case_sensitive=True,
@@ -229,7 +229,7 @@ def git_log(max_count: int = 10, path: Optional[str] = None) -> str:
     max_results=100,
     path=None: path,
 )
-def grep_code(
+def grep(
     pattern: str,
     file_glob: Optional[str] = None,
     case_sensitive: bool = True,
@@ -252,7 +252,7 @@ def grep_code(
     Raises:
         ValueError: If pattern is invalid or search fails
     """
-    _operation_limiter.check_limit(f"grep_code({pattern[:30]}...)")
+    _operation_limiter.check_limit(f"grep({pattern[:30]}...)")
 
     # Determine search target (file or directory)
     search_file = None  # If set, search only this specific file
