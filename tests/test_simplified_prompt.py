@@ -26,7 +26,7 @@ def test_load_simplified_prompt(monkeypatch):
     prompt = _load_system_prompt()
 
     # Verify it loaded the simplified version
-    assert "coding assistant" in prompt.lower()
+    assert "software engineer assistant" in prompt.lower()
     assert "read_file" in prompt
     assert len(prompt) < 5000  # Simplified prompt should be much shorter than default (~6k tokens)
 
@@ -47,7 +47,7 @@ def test_load_simplified_prompt_with_path(monkeypatch):
     prompt = _load_system_prompt()
 
     # Should still load simplified (path matches)
-    assert "coding assistant" in prompt.lower()
+    assert "software engineer assistant" in prompt.lower()
 
 
 def test_simplified_prompt_has_required_sections():
