@@ -412,8 +412,12 @@ Supported models: Any LiteLLM-supported model
 
     # Show custom prompt indicator if set
     custom_prompt_path = os.getenv("PATCHPAL_SYSTEM_PROMPT")
+    use_simple = os.getenv("PATCHPAL_USE_SIMPLE_PROMPT", "").lower() in ("true", "1", "yes")
+
     if custom_prompt_path:
         print(f"\033[1;36m🔧 Using custom system prompt: {custom_prompt_path}\033[0m")
+    elif use_simple:
+        print("\033[1;36m🔧 Using simplified system prompt\033[0m")
 
     print(
         "\nType \033[1;33m'exit'\033[0m to quit or \033[1;33m'/help'\033[0m to see available commands.\n"
