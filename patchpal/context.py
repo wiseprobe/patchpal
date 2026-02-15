@@ -308,9 +308,11 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
             True if compaction is needed
         """
         # Estimate total tokens
+        # Note: Dynamic date/time message adds ~30 tokens on each LLM call
         system_tokens = self.estimator.estimate_tokens(self.system_prompt)
+        datetime_tokens = 30  # Approximate size of dynamic date/time message
         message_tokens = self.estimator.estimate_messages_tokens(messages)
-        total_tokens = system_tokens + message_tokens + self.output_reserve
+        total_tokens = system_tokens + datetime_tokens + message_tokens + self.output_reserve
 
         # Check threshold
         usage_ratio = total_tokens / self.context_limit
@@ -326,11 +328,12 @@ Be comprehensive but concise. The goal is to continue work seamlessly without lo
             Dict with usage statistics
         """
         system_tokens = self.estimator.estimate_tokens(self.system_prompt)
+        datetime_tokens = 30  # Approximate size of dynamic date/time message
         message_tokens = self.estimator.estimate_messages_tokens(messages)
-        total_tokens = system_tokens + message_tokens + self.output_reserve
+        total_tokens = system_tokens + datetime_tokens + message_tokens + self.output_reserve
 
         return {
-            "system_tokens": system_tokens,
+            "system_tokens": system_tokens + datetime_tokens,  # Include datetime in system count
             "message_tokens": message_tokens,
             "output_reserve": self.output_reserve,
             "total_tokens": total_tokens,

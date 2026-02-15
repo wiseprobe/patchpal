@@ -126,18 +126,29 @@ When using run_shell, use Unix commands:
 """
 
 # Build web tools description
-WEB_TOOLS_DESC = ""
 WEB_USAGE_DESC = ""
-WEB_TOOLS_SCOPE = ""
 if WEB_TOOLS_ENABLED:
-    WEB_TOOLS_DESC = """- **web_search**: Search the web for information (error messages, documentation, best practices)
-- **web_fetch**: Fetch and read content from URLs. Supports HTML, PDF, DOCX, PPTX, plain text, JSON, XML
-"""
     WEB_USAGE_DESC = """
 - Use web_search when you encounter unfamiliar errors, need documentation, or want to research solutions
 - Use web_fetch to read documentation pages, download examples, or fetch office documents"""
-    WEB_TOOLS_SCOPE = """- **Web access**: web_search, web_fetch
-"""
+
+
+def _get_current_datetime_message() -> str:
+    """Generate current date/time system message.
+
+    Called dynamically on each LLM API call to ensure date/time is always current.
+
+    Returns:
+        Formatted date/time string for injection into system messages
+    """
+    now = datetime.now()
+    current_date = now.strftime("%A, %B %d, %Y")  # e.g., "Wednesday, January 15, 2026"
+    current_time = now.strftime("%I:%M %p %Z").strip()  # e.g., "03:45 PM EST"
+    if not current_time.endswith(("EST", "CST", "MST", "PST", "UTC")):
+        # If no timezone abbreviation, just show time without timezone
+        current_time = now.strftime("%I:%M %p").strip()
+
+    return f"## Current Date and Time\nToday is {current_date}. Current time is {current_time}."
 
 
 def _load_system_prompt() -> str:
@@ -145,6 +156,9 @@ def _load_system_prompt() -> str:
 
     Checks PATCHPAL_USE_SIMPLE_PROMPT and PATCHPAL_SYSTEM_PROMPT environment variables.
     Priority: PATCHPAL_SYSTEM_PROMPT > PATCHPAL_USE_SIMPLE_PROMPT > default
+
+    Note: Date/time is NOT included here - it's dynamically injected on each API call
+    via _get_current_datetime_message() to prevent staleness in long sessions.
 
     Returns:
         The formatted system prompt string
@@ -173,22 +187,10 @@ def _load_system_prompt() -> str:
     with open(prompt_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
 
-    # Get current date and time
-    now = datetime.now()
-    current_date = now.strftime("%A, %B %d, %Y")  # e.g., "Wednesday, January 15, 2026"
-    current_time = now.strftime("%I:%M %p %Z").strip()  # e.g., "03:45 PM EST"
-    if not current_time.endswith(("EST", "CST", "MST", "PST", "UTC")):
-        # If no timezone abbreviation, just show time without timezone
-        current_time = now.strftime("%I:%M %p").strip()
-
     # Prepare template variables
     template_vars = {
         "platform_info": PLATFORM_INFO,
-        "current_date": current_date,
-        "current_time": current_time,
-        "web_tools": WEB_TOOLS_DESC,
         "web_usage": WEB_USAGE_DESC,
-        "web_tools_scope_desc": WEB_TOOLS_SCOPE,
     }
 
     # Substitute variables - gracefully handle missing variables
@@ -907,8 +909,12 @@ It's currently empty (just the template). The file is automatically loaded at se
             # Show thinking message
             print("\033[2m🤔 Thinking...\033[0m", flush=True)
 
-            # Prepare messages with system prompt
-            messages = [{"role": "system", "content": SYSTEM_PROMPT}] + self.messages
+            # Prepare messages with system prompt and dynamic date/time
+            # Date/time is regenerated on each call to prevent staleness in long sessions
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": _get_current_datetime_message()},
+            ] + self.messages
 
             # Apply prompt caching for supported models (Anthropic/Claude)
             messages = _apply_prompt_caching(messages, self.model_id)

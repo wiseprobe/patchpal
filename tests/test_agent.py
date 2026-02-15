@@ -88,7 +88,7 @@ def test_agent_has_correct_tools():
 
 def test_agent_system_prompt():
     """Test that the agent has proper system prompt."""
-    from patchpal.agent import SYSTEM_PROMPT
+    from patchpal.agent import SYSTEM_PROMPT, _get_current_datetime_message
 
     # Verify system prompt has key principles (tools are provided via API, not in prompt)
     assert "expert software engineer" in SYSTEM_PROMPT.lower()
@@ -100,9 +100,10 @@ def test_agent_system_prompt():
     assert "todo_add" in SYSTEM_PROMPT  # Guidance on breaking down tasks
     assert "ask_user" in SYSTEM_PROMPT  # Guidance on when to ask for clarification
 
-    # Verify system prompt includes current date/time
-    assert "Current Date and Time" in SYSTEM_PROMPT
-    assert "Today is" in SYSTEM_PROMPT
+    # Verify dynamic date/time message function works correctly
+    datetime_msg = _get_current_datetime_message()
+    assert "Current Date and Time" in datetime_msg
+    assert "Today is" in datetime_msg
 
     # Verify key behavioral sections are present
     assert "Response Brevity" in SYSTEM_PROMPT

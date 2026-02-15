@@ -7,6 +7,18 @@ Most recent releases are shown at the top. Each release shows:
 - **Fixed**: Bug fixes that don't change documented behaviour
 
 
+## 0.13.3 (2026-02-15)
+
+### new:
+- N/A
+
+### changed:
+- N/A
+
+### fixed:
+- Ensure datetime is current (#62)
+
+
 ## 0.13.2 (2026-02-15)
 
 ### new:
