@@ -63,11 +63,11 @@ def test_simplified_prompt_has_required_sections():
     # Check for key sections (tools are provided via API, not listed in prompt)
     assert "Overview" in content or "Rules" in content
     assert "Rules" in content
-    
+
     # Check that strategic guidance is present
     assert "read_file" in content.lower() or "read files" in content.lower()
     assert "edit_file" in content.lower() or "edit files" in content.lower()
-    
+
     # Check for key behavioral rules
     assert "concise" in content.lower() or "brevity" in content.lower()
     assert "security" in content.lower()
