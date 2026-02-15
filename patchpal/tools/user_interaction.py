@@ -30,7 +30,7 @@ def list_skills() -> str:
         return """No skills found.
 
 To get started:
-1. View examples: https://github.com/wiseprobe/patchpal/tree/main/examples/skills
+1. View examples: https://github.com/amaiya/patchpal/tree/main/examples/skills
 2. Copy examples to your personal skills directory:
    mkdir -p ~/.patchpal/skills
    # Download and copy the commit and review skills from the examples folder

@@ -3,7 +3,7 @@
 
 **Autopilot mode** enables autonomous iterative development where the agent repeatedly works on a task until completion. Based on the ["Ralph Wiggum technique"](https://ghuntley.com/ralph/) pioneered by Geoffrey Huntley, it embodies persistent iteration over perfection.
 
-⚠️ **CRITICAL SAFETY WARNING**: Autopilot disables PatchPal's permission system. **ONLY use in isolated environments** (Docker containers, VMs, throwaway projects). See [examples/ralph/](https://github.com/wiseprobe/patchpal/tree/main/examples/ralph) for comprehensive safety guidelines.
+⚠️ **CRITICAL SAFETY WARNING**: Autopilot disables PatchPal's permission system. **ONLY use in isolated environments** (Docker containers, VMs, throwaway projects). See [examples/ralph/](https://github.com/amaiya/patchpal/tree/main/examples/ralph) for comprehensive safety guidelines.
 
 ### Quick Start
 
@@ -97,7 +97,7 @@ After 10 iterations without progress:
 
 ### Real-World Examples
 
-See [examples/ralph/](https://github.com/wiseprobe/patchpal/tree/main/examples/ralph) for complete examples:
+See [examples/ralph/](https://github.com/amaiya/patchpal/tree/main/examples/ralph) for complete examples:
 - **simple_autopilot_example.py**: Basic calculator task
 - **multi_phase_todo_api_example.py**: Multi-phase API build (3 sequential phases)
 - **prompts/**: Example prompt templates for different task types
@@ -191,11 +191,11 @@ The Ralph Wiggum technique has been successfully used for:
 - **CURSED programming language** - Built over 3 months
 - **Test-driven development** - Excellent for TDD workflows
 
-See [examples/ralph/](https://github.com/wiseprobe/patchpal/blob/main/examples/ralph/) for comprehensive documentation, safety guidelines, and more examples.
+See [examples/ralph/](https://github.com/amaiya/patchpal/blob/main/examples/ralph/) for comprehensive documentation, safety guidelines, and more examples.
 
 ### Learn More
 
-- **Comprehensive Guide**: [examples/ralph/](https://github.com/wiseprobe/patchpal/tree/main/examples/ralph) - Safety, prompts, patterns, troubleshooting
+- **Comprehensive Guide**: [examples/ralph/](https://github.com/amaiya/patchpal/tree/main/examples/ralph) - Safety, prompts, patterns, troubleshooting
 - **Ralph Wiggum Technique Origins**:
   - https://www.humanlayer.dev/blog/brief-history-of-ralph
   - https://awesomeclaude.ai/ralph-wiggum

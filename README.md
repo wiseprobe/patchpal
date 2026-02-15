@@ -1,7 +1,7 @@
 # PatchPal — An Agentic Coding and Automation Assistant
 
 <!--![PatchPal Screenshot](assets/patchpal_screenshot.png)-->
-<img src="https://raw.githubusercontent.com/wiseprobe/patchpal/refs/heads/main/assets/patchpal_screenshot.png" alt="PatchPal Screenshot" width="650"/>
+<img src="https://raw.githubusercontent.com/amaiya/patchpal/refs/heads/main/assets/patchpal_screenshot.png" alt="PatchPal Screenshot" width="650"/>
 
 > Supporting both local and cloud LLMs, with autopilot mode and extensible tools.
 
@@ -10,16 +10,16 @@
 Human-in-the-loop coding agents (e.g., Claude Code, OpenCode, Aider) are typically mutually exclusive with programmatic agent frameworks (e.g., smolagents, PydanticAI). A key goal of this project is to marry both: use the same agent interactively in your terminal (`patchpal`) or in Python scripts (`agent.run("task")`), plus autopilot mode for autonomous runs.
 
 **Key Features**
-- [Terminal Interface](https://ai.wiseprobe.io/patchpal/usage/interactive/) for interactive development
-- [Python API](https://ai.wiseprobe.io/patchpal/usage/python-api/) for flexibility and extensibility
-- [Built-In](https://ai.wiseprobe.io/patchpal/features/tools/) and [Custom Tools](https://ai.wiseprobe.io/patchpal/features/custom-tools/)
-- [Skills System](https://ai.wiseprobe.io/patchpal/features/skills/)
-- [Autopilot Mode](https://ai.wiseprobe.io/patchpal/usage/autopilot/) using [Ralph Wiggum loops](https://ghuntley.com/ralph/)
-- [Project Memory](https://ai.wiseprobe.io/patchpal/features/memory/) automatically loads project context from `~/.patchpal/<repo-name>/MEMORY.md` at startup.
+- [Terminal Interface](https://amaiya.github.io/patchpal/usage/interactive/) for interactive development
+- [Python API](https://amaiya.github.io/patchpal/usage/python-api/) for flexibility and extensibility
+- [Built-In](https://amaiya.github.io/patchpal/features/tools/) and [Custom Tools](https://amaiya.github.io/patchpal/features/custom-tools/)
+- [Skills System](https://amaiya.github.io/patchpal/features/skills/)
+- [Autopilot Mode](https://amaiya.github.io/patchpal/usage/autopilot/) using [Ralph Wiggum loops](https://ghuntley.com/ralph/)
+- [Project Memory](https://amaiya.github.io/patchpal/features/memory/) automatically loads project context from `~/.patchpal/<repo-name>/MEMORY.md` at startup.
 
 PatchPal prioritizes customizability: custom tools, custom skills, a flexible Python API, and support for any tool-calling LLM.
 
-Full documentation is [here](https://ai.wiseprobe.io/patchpal).
+Full documentation is [here](https://amaiya.github.io/patchpal).
 
 ## Quick Start
 
@@ -87,8 +87,8 @@ patchpal
 
 While originally designed for software development, PatchPal is also a general-purpose assistant. With web search, file operations, shell commands, and custom tools/skills, it can help with research, data analysis, document processing, log file analyses, etc.
 
-<img src="https://raw.githubusercontent.com/wiseprobe/patchpal/refs/heads/main/assets/patchpal_assistant.png" alt="PatchPal as General Assistant" width="650"/>
+<img src="https://raw.githubusercontent.com/amaiya/patchpal/refs/heads/main/assets/patchpal_assistant.png" alt="PatchPal as General Assistant" width="650"/>
 
 ## Documentation
 
-Full documentation is [available here](https://ai.wiseprobe.io/patchpal/).
+Full documentation is [available here](https://amaiya.github.io/patchpal/).

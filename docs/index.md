@@ -1,10 +1,10 @@
 # PatchPal — An Agentic Coding and Automation Assistant
 
-<img src="https://raw.githubusercontent.com/wiseprobe/patchpal/refs/heads/main/assets/patchpal_screenshot.png" alt="PatchPal Screenshot" width="650"/>
+<img src="https://raw.githubusercontent.com/amaiya/patchpal/refs/heads/main/assets/patchpal_screenshot.png" alt="PatchPal Screenshot" width="650"/>
 
 > Supporting both local and cloud LLMs, with autopilot mode and extensible tools.
 
-[**PatchPal**](https://github.com/wiseprobe/patchpal) is an AI coding agent that helps you build software, debug issues, and automate tasks. It supports agent skills, tool use, and executable Python generation, enabling interactive workflows for tasks such as data analysis, visualization, web scraping, API interactions, and research with synthesized findings.
+[**PatchPal**](https://github.com/amaiya/patchpal) is an AI coding agent that helps you build software, debug issues, and automate tasks. It supports agent skills, tool use, and executable Python generation, enabling interactive workflows for tasks such as data analysis, visualization, web scraping, API interactions, and research with synthesized findings.
 
 Human-in-the-loop coding agents (e.g., Claude Code, OpenCode, Aider) are typically        mutually exclusive with programmatic agent frameworks (e.g., smolagents, PydanticAI). A   key goal of this project is to marry both: use the same agent interactively in your       terminal (`patchpal`) or in Python scripts (`agent.run("task")`), plus autopilot mode for autonomous runs.
 
@@ -30,4 +30,4 @@ $ patchpal              # start
 
 While originally designed for software development, PatchPal is also a general-      purpose assistant. With web search, file operations, shell commands, and custom      tools/skills, it can help with research, data analysis, document processing, log     file analyses, etc.
 
-<img src="https://raw.githubusercontent.com/wiseprobe/patchpal/refs/heads/main/assets/patchpal_assistant.png" alt="PatchPal as General Assistant" width="650"/>
+<img src="https://raw.githubusercontent.com/amaiya/patchpal/refs/heads/main/assets/patchpal_assistant.png" alt="PatchPal as General Assistant" width="650"/>

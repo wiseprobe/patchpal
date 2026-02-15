@@ -63,7 +63,7 @@ The `/status` command shows cumulative token usage:
 
 **Configuration:**
 
-See the [Configuration](https://github.com/wiseprobe/patchpal?tab=readme-ov-file#configuration) section for context management settings including:
+See the [Configuration](https://github.com/amaiya/patchpal?tab=readme-ov-file#configuration) section for context management settings including:
 - `PATCHPAL_DISABLE_AUTOCOMPACT` - Disable auto-compaction
 - `PATCHPAL_COMPACT_THRESHOLD` - Adjust compaction threshold
 - `PATCHPAL_CONTEXT_LIMIT` - Override context limit for testing

@@ -16,7 +16,7 @@ mkdir -p ~/.patchpal/tools
 2. **Copy the example tools (or create your own):**
 ```bash
 # After pip install patchpal, get the example tools
-curl -L https://github.com/wiseprobe/patchpal/archive/main.tar.gz | tar xz --strip=1 patchpal-main/examples
+curl -L https://github.com/amaiya/patchpal/archive/main.tar.gz | tar xz --strip=1 patchpal-main/examples
 
 # Copy to your tools directory
 cp examples/tools/calculator.py ~/.patchpal/tools/
@@ -125,13 +125,13 @@ PatchPal discovers tools from `~/.patchpal/tools/*.py` at startup. All `.py` fil
 
 ## Example Tools
 
-The repository includes [example tools](https://github.com/wiseprobe/patchpal/tree/main/examples/tools):
+The repository includes [example tools](https://github.com/amaiya/patchpal/tree/main/examples/tools):
 - **calculator.py**: Basic arithmetic (add, subtract, multiply, divide), temperature conversion, percentage calculations
   - Demonstrates different numeric types (int, float)
   - Shows proper formatting of results for LLM consumption
   - Examples: `add`, `subtract`, `multiply`, `divide`, `calculate_percentage`, `fahrenheit_to_celsius`
 
-View the [examples/tools/](https://github.com/wiseprobe/patchpal/tree/main/examples/tools) directory for complete examples and a detailed README.
+View the [examples/tools/](https://github.com/amaiya/patchpal/tree/main/examples/tools) directory for complete examples and a detailed README.
 
 ## Security Note
 

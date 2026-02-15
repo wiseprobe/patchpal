@@ -38,7 +38,7 @@ PatchPal includes comprehensive security protections enabled by default:
 - **Resource limits**: Configurable operation counter prevents infinite loops (10000 operations default)
 - **Git state awareness**: Warns when modifying files with uncommitted changes
 
-See the [Configuration](https://github.com/wiseprobe/patchpal?tab=readme-ov-file#configuration) section for all available `PATCHPAL_*` environment variables to customize security, permissions, logging, and more.
+See the [Configuration](https://github.com/amaiya/patchpal?tab=readme-ov-file#configuration) section for all available `PATCHPAL_*` environment variables to customize security, permissions, logging, and more.
 
 **Permission System:**
 

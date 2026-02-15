@@ -3,7 +3,7 @@
 
 **Error: "maximum iterations reached"**
 - The default number of iterations is 100.
-- Increase with `export PATCHPAL_MAX_ITERATIONS=200` (see [Configuration](https://github.com/wiseprobe/patchpal?tab=readme-ov-file#configuration))
+- Increase with `export PATCHPAL_MAX_ITERATIONS=200` (see [Configuration](https://github.com/amaiya/patchpal?tab=readme-ov-file#configuration))
 
 **Error: "Context Window Error - Input is too long"**
 - PatchPal includes automatic context management (compaction) to prevent this error.
@@ -12,7 +12,7 @@
 - If auto-compaction is disabled, re-enable it: `unset PATCHPAL_DISABLE_AUTOCOMPACT`
 - Context is automatically managed at 75% capacity through pruning and compaction.
 - **Note:** Token estimation may be slightly inaccurate compared to the model's actual counting. If you see this error despite auto-compaction being enabled, the 75% threshold may need to be lowered further for your workload. You can adjust it with `export PATCHPAL_COMPACT_THRESHOLD=0.70` (or lower).
-- See [Configuration](https://github.com/wiseprobe/patchpal?tab=readme-ov-file#configuration) for context management settings.
+- See [Configuration](https://github.com/amaiya/patchpal?tab=readme-ov-file#configuration) for context management settings.
 
 **Reducing API Costs via Token Optimization**
 
@@ -61,7 +61,7 @@ When using cloud LLM providers (Anthropic, OpenAI, etc.), token usage directly i
   patchpal --model hosted_vllm/openai/gpt-oss-20b
   ```
 - **Alternative:** Use Ollama (requires `OLLAMA_CONTEXT_LENGTH=32768`)
-- See [Using Local Models](https://github.com/wiseprobe/patchpal?tab=readme-ov-file#using-local-models-vllm--ollama) for setup
+- See [Using Local Models](https://github.com/amaiya/patchpal?tab=readme-ov-file#using-local-models-vllm--ollama) for setup
 
 **6. Start Fresh When Appropriate**
 - Use `/clear` command to reset conversation history without restarting PatchPal

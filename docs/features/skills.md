@@ -36,7 +36,7 @@ description: One-line description
 
 ## Example Skills
 
-The PatchPal repository includes [example skills](https://github.com/wiseprobe/patchpal/tree/main/examples) you can use as templates:
+The PatchPal repository includes [example skills](https://github.com/amaiya/patchpal/tree/main/examples) you can use as templates:
 - **commit**: Best practices for creating git commits
 - **review**: Comprehensive code review checklist
 - **add-tests**: Add comprehensive pytest tests (includes code block templates)
@@ -47,10 +47,10 @@ The PatchPal repository includes [example skills](https://github.com/wiseprobe/p
 
 ```bash
 # Quick way: Download examples directly from GitHub
-curl -L https://github.com/wiseprobe/patchpal/archive/main.tar.gz | tar xz --strip=1 patchpal-main/examples
+curl -L https://github.com/amaiya/patchpal/archive/main.tar.gz | tar xz --strip=1 patchpal-main/examples
 
 # Or clone the repository
-git clone https://github.com/wiseprobe/patchpal.git
+git clone https://github.com/amaiya/patchpal.git
 cd patchpal
 
 # Copy examples to your personal skills directory
@@ -60,7 +60,7 @@ cp -r examples/skills/skill-creator ~/.patchpal/skills/
 ```
 
 **View examples online:**
-Browse the [examples/skills/](https://github.com/wiseprobe/patchpal/tree/main/examples/skills) directory on GitHub to see the skill format and create your own.
+Browse the [examples/skills/](https://github.com/amaiya/patchpal/tree/main/examples/skills) directory on GitHub to see the skill format and create your own.
 
 You can also try out the example skills at [anthropic/skills](https://github.com/anthropics/skills).
 

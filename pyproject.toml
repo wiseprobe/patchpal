@@ -55,9 +55,9 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/wiseprobe/patchpal"
-Repository = "https://github.com/wiseprobe/patchpal"
-Issues = "https://github.com/wiseprobe/patchpal/issues"
+Homepage = "https://github.com/amaiya/patchpal"
+Repository = "https://github.com/amaiya/patchpal"
+Issues = "https://github.com/amaiya/patchpal/issues"
 
 [project.scripts]
 patchpal = "patchpal.cli:main"

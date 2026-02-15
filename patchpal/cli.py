@@ -1161,7 +1161,7 @@ Supported models: Any LiteLLM-supported model
                     print(f"\n\033[1;31mSkill not found: {skill_name}\033[0m")
                     print("Ask 'list skills' to see available skills.")
                     print(
-                        "See example skills at: https://github.com/wiseprobe/patchpal/tree/main/examples/skills"
+                        "See example skills at: https://github.com/amaiya/patchpal/tree/main/examples/skills"
                     )
 
                 continue

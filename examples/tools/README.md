@@ -125,8 +125,8 @@ Agent: [Calls search_github_repos("machine learning", "Python", 5)]
 You: Get info about torvalds
 Agent: [Calls get_github_user("torvalds")]
 
-You: Show details for wiseprobe/patchpal
-Agent: [Calls get_repo_info("wiseprobe", "patchpal")]
+You: Show details for amaiya/patchpal
+Agent: [Calls get_repo_info("amaiya", "patchpal")]
 ```
 
 ## Creating Your Own Tools

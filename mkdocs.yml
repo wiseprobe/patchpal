@@ -1,8 +1,8 @@
 site_name: PatchPal Documentation
 site_description: An agentic coding and automation assistant, supporting both local and cloud LLMs
-site_url: https://ai.wiseprobe.io/patchpal/
-repo_url: https://github.com/wiseprobe/patchpal
-repo_name: wiseprobe/patchpal
+site_url: https://amaiya.github.io/patchpal/
+repo_url: https://github.com/amaiya/patchpal
+repo_name: amaiya/patchpal
 edit_uri: edit/main/docs/
 
 # Exclude the docs README (meta-documentation about building docs)
